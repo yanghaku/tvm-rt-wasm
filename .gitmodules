@@ -1,0 +1,3 @@
+[submodule "3rdparty/dlpack"]
+	path = 3rdparty/dlpack
+	url = https://github.com/dmlc/dlpack.git
