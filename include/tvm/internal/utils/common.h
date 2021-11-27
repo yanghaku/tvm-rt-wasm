@@ -38,6 +38,21 @@ extern "C" {
 #define unlikely(x) (x)
 #endif
 
+extern char global_error_buf[];
+
+#define GLOBAL_BUF_SIZE 1024
+
+#define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
+    do {                                                                                                               \
+        sprintf(global_error_buf, "function[%s] " fmt, __FUNCTION__, ##__VA_ARGS__);                                   \
+        return (err);                                                                                                  \
+    } while (0)
+
+#define SET_ERROR(fmt, ...)                                                                                            \
+    do {                                                                                                               \
+        sprintf(global_error_buf, "function[%s] " fmt, __FUNCTION__, ##__VA_ARGS__);                                   \
+    } while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

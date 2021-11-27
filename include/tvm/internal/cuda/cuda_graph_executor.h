@@ -52,15 +52,16 @@ typedef struct CUDAGraphExecutor {
  * \param executor the instance instance.
  * \return 0 if successful.
  */
-int CUDAGraphExecutorLoad(const char *sym_json, TVMModuleHandle module_handle,
-                          const DLDevice *devices, CUDAGraphExecutor *executor);
+int CUDAGraphExecutorLoad(const char *sym_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                          CUDAGraphExecutor *executor);
 
 /*!
  * \brief Execute the graph.
  * \param g The instance of GraphManagerInterface.
  * \param executor The graph executor.
+ * \return 0 if successful
  */
-void CUDAGraphExecutorRun(GraphManagerInterface *g);
+int CUDAGraphExecutorRun(GraphManagerInterface *g);
 
 /*!
  * \brief Release memory associated with the GraphManagerInterface.

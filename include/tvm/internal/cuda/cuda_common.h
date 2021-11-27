@@ -34,23 +34,22 @@ extern "C" {
 #include <cuda_runtime.h>
 #include <stdio.h>
 
-#define CUDA_DRIVER_CALL(x)                                                                        \
-    {                                                                                              \
-        CUresult result = x;                                                                       \
-        if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) {                        \
-            const char *msg;                                                                       \
-            cuGetErrorName(result, &msg);                                                          \
-            fprintf(stderr, "CUDA Error in %s %d : %s\n", __FILE__, __LINE__, msg);                \
-        }                                                                                          \
-    }
+#define CUDA_DRIVER_CALL(x)                                                                                            \
+    do {                                                                                                               \
+        CUresult result = x;                                                                                           \
+        if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) {                                            \
+            const char *msg;                                                                                           \
+            cuGetErrorName(result, &msg);                                                                              \
+            fprintf(stderr, "CUDA Error in %s %d : %s\n", __FILE__, __LINE__, msg);                                    \
+        }                                                                                                              \
+    } while (0)
 
-#define CUDA_CALL(func)                                                                            \
-    {                                                                                              \
-        cudaError_t e = (func);                                                                    \
-        if (e != cudaSuccess && e != cudaErrorCudartUnloading)                                     \
-            fprintf(stderr, "CUDA runtime Error in %s %d : %s\n", __FILE__, __LINE__,              \
-                    cudaGetErrorString(e));                                                        \
-    }
+#define CUDA_CALL(func)                                                                                                \
+    do {                                                                                                               \
+        cudaError_t e = (func);                                                                                        \
+        if (e != cudaSuccess && e != cudaErrorCudartUnloading)                                                         \
+            fprintf(stderr, "CUDA runtime Error in %s %d : %s\n", __FILE__, __LINE__, cudaGetErrorString(e));          \
+    } while (0)
 
 #ifdef __cplusplus
 } // extern "C"

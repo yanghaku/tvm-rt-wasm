@@ -53,9 +53,10 @@ struct GraphManagerInterface {
      * \brief Get the name of node for given index.
      * \param g The instance of GraphManagerInterface.
      * \param nid the node index
-     * \return the const string pointer to node name.
+     * \param name the pointer to receive string pointer
+     * \return 0 if success
      */
-    const char *(*GetNodeName)(GraphManagerInterface *g, uint32_t nid);
+    int (*GetNodeName)(GraphManagerInterface *g, uint32_t nid, const char **name);
 
     /*!
      * \brief Get the input index given the name of input.
@@ -91,10 +92,11 @@ struct GraphManagerInterface {
      * \brief set input to the graph based on name.
      * \param g The instance of GraphManagerInterface.
      * \param executor The graph executor.
-     * \param name The name of the input.
+     * \param index the index of inputs.
      * \param data_in The input data.
+     * \return 0 if successful
      */
-    void (*SetInput)(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
+    int (*SetInput)(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
 
     /*!
      * \brief Return NDArray for given output index.
@@ -120,8 +122,9 @@ struct GraphManagerInterface {
      * \brief Execute the graph.
      * \param g The instance of GraphManagerInterface.
      * \param executor The graph executor.
+     * \return 0 if success
      */
-    void (*Run)(GraphManagerInterface *g);
+    int (*Run)(GraphManagerInterface *g);
 
     /*!
      * \brief Release memory associated with the GraphManagerInterface.
@@ -143,26 +146,28 @@ struct GraphManagerInterface {
 /*!
  * \brief Allocate a new GraphManagerInterface and initialize it with GraphExecutor.
  *
- * \param sym_json JSON-encoded graph.
+ * \param graph_json JSON-encoded graph.
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
+ * \param num_dev the number of devices
  * \param g Pointer which receives a pointer to the newly-created instance.
  * \return 0 if successful.
  */
-TVM_DLL int TVMGraphExecutorCreate(const char *sym_json, TVMModuleHandle module_handle,
-                                   const DLDevice *devices, GraphManagerInterface **g);
+TVM_DLL int TVMGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                   uint32_t num_dev, GraphManagerInterface **g);
 
 /*!
  * \brief Allocate a new GraphManagerInterface and initialize it with CUDAGraphExecutor.
  *
- * \param sym_json JSON-encoded graph.
+ * \param graph_json JSON-encoded graph.
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
+ * \param num_dev the number of devices
  * \param g Pointer which receives a pointer to the newly-created instance.
  * \return 0 if successful.
  */
-TVM_DLL int TVMGraphExecutorCUDACreate(const char *sym_json, TVMModuleHandle module_handle,
-                                       const DLDevice *devices, GraphManagerInterface **g);
+TVM_DLL int TVMGraphExecutorCUDACreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                       uint32_t num_dev, GraphManagerInterface **g);
 
 #ifdef __cplusplus
 } // extern "C"

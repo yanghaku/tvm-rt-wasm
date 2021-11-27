@@ -31,8 +31,8 @@
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/graph_manager_interface.h>
 
-int TVMGraphExecutorCUDACreate(const char *sym_json, TVMModuleHandle module_handle,
-                               const DLDevice *devices, GraphManagerInterface **g) {
+int TVMGraphExecutorCUDACreate(const char *sym_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                               uint32_t num_dev, GraphManagerInterface **g) {
     DLDevice cpu = {kDLCPU, 0};
     memory_alloc(sizeof(GraphManagerInterface), cpu, (void **)g);
 
@@ -54,10 +54,10 @@ int TVMGraphExecutorCUDACreate(const char *sym_json, TVMModuleHandle module_hand
     return CUDAGraphExecutorLoad(sym_json, module_handle, devices, (*g)->graphHandle);
 }
 
-int CUDAGraphExecutorLoad(const char *sym_json, TVMModuleHandle module_handle,
-                          const DLDevice *devices, CUDAGraphExecutor *executor) {}
+int CUDAGraphExecutorLoad(const char *sym_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                          CUDAGraphExecutor *executor) {}
 
-void CUDAGraphExecutorRun(GraphManagerInterface *g) {}
+int CUDAGraphExecutorRun(GraphManagerInterface *g) {}
 
 int CUDAGraphExecutorRelease(GraphManagerInterface **g) {}
 

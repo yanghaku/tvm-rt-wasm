@@ -120,40 +120,44 @@ typedef struct GraphAttr {
     char **dltype;
 } GraphAttr;
 
-#define GRAPH_BASE_MEMBER                                                                          \
-    /*! \brief the number of nodes */                                                              \
-    uint32_t num_nodes;                                                                            \
-    /*! \brief the number of input nodes */                                                        \
-    uint32_t num_inputs_nodes;                                                                     \
-    /*! \brief the number of outputs node entry */                                                 \
-    uint32_t num_outputs;                                                                          \
-    /*! \brief the number of node_raw_ptr */                                                       \
-    uint32_t num_node_raw_ptr;                                                                     \
-    /*! \brief the number of data entry */                                                         \
-    uint32_t num_data_entry;                                                                       \
-    /*! \brief the number of storage */                                                            \
-    uint32_t num_storage;                                                                          \
-    /*! \brief Node array */                                                                       \
-    Node *nodes;                                                                                   \
-    /*! \brief nodeOps array */                                                                    \
-    NodeOp *nodeOps;                                                                               \
-    /*! \brief inputs nodes index array */                                                         \
-    uint32_t *inputs_nodes;                                                                        \
-    /*! \brief outputs node entry array */                                                         \
-    NodeEntry *outputs_nodes;                                                                      \
-    /*! \brief node_raw_ptr array */                                                               \
-    uint32_t *node_raw_ptr;                                                                        \
-    /*! \brief data_entry array */                                                                 \
-    DLTensor *data_entry;                                                                          \
-    /*! \brief storage array */                                                                    \
-    DLTensor *storages;                                                                            \
-    /*! \brief bool flag for storage */                                                            \
-    uint8_t *storage_is_linked_param;                                                              \
-    /*! \brief module handle */                                                                    \
-    TVMModuleHandle module_handle;                                                                 \
-    /*! \brief map outputs name to output indices */                                               \
-    Trie *outputs_map;                                                                             \
-    /*! \brief map inputs name to inputs indices */                                                \
+#define GRAPH_BASE_MEMBER                                                                                              \
+    /*! \brief the number of nodes */                                                                                  \
+    uint32_t num_nodes;                                                                                                \
+    /*! \brief the number of input nodes */                                                                            \
+    uint32_t num_inputs_nodes;                                                                                         \
+    /*! \brief the number of outputs node entry */                                                                     \
+    uint32_t num_outputs;                                                                                              \
+    /*! \brief the number of node_row_ptr */                                                                           \
+    uint32_t num_node_row_ptr;                                                                                         \
+    /*! \brief the number of data entry */                                                                             \
+    uint32_t num_data_entry;                                                                                           \
+    /*! \brief the number of storage */                                                                                \
+    uint32_t num_storage;                                                                                              \
+    /*! \brief the number of device */                                                                                 \
+    uint32_t num_device;                                                                                               \
+    /*! \brief Node array */                                                                                           \
+    Node *nodes;                                                                                                       \
+    /*! \brief nodeOps array */                                                                                        \
+    NodeOp *nodeOps;                                                                                                   \
+    /*! \brief inputs nodes index array */                                                                             \
+    uint32_t *inputs_nodes;                                                                                            \
+    /*! \brief outputs node entry array */                                                                             \
+    NodeEntry *outputs_nodes;                                                                                          \
+    /*! \brief node_row_ptr array (to quickly get data entry id) */                                                    \
+    uint32_t *node_row_ptr;                                                                                            \
+    /*! \brief data_entry array */                                                                                     \
+    DLTensor *data_entry;                                                                                              \
+    /*! \brief storage array */                                                                                        \
+    DLTensor *storages;                                                                                                \
+    /*! \brief device array */                                                                                         \
+    DLDevice *devices;                                                                                                 \
+    /*! \brief bool flag for storage */                                                                                \
+    uint8_t *storage_is_linked_param;                                                                                  \
+    /*! \brief module handle */                                                                                        \
+    TVMModuleHandle module_handle;                                                                                     \
+    /*! \brief map outputs name to output indices */                                                                   \
+    Trie *outputs_map;                                                                                                 \
+    /*! \brief map inputs name to inputs indices */                                                                    \
     Trie *inputs_map;
 
 typedef struct GraphExecutor {
@@ -163,13 +167,14 @@ typedef struct GraphExecutor {
 /*!
  * \brief init a new GraphExecutor from graph.json
  *
- * \param sym_json JSON-encoded graph.
+ * \param graph_json JSON-encoded graph.
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
+ * \param num_dev the number of devices
  * \param executor the instance instance.
  * \return 0 if successful.
  */
-int GraphExecutorLoad(const char *sym_json, TVMModuleHandle module_handle, const DLDevice *devices,
+int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices, uint32_t num_dev,
                       GraphExecutor *executor);
 
 /*!
@@ -183,9 +188,10 @@ int GraphExecutorGetNumOfNodes(GraphManagerInterface *g);
  * \brief Get the name of node for given index.
  * \param g The instance of GraphManagerInterface.
  * \param nid the node index
- * \return the const string pointer to node name.
+ * \param name the pointer to receive string pointer
+ * \return 0 if successful
  */
-const char *GraphExecutorGetNodeName(GraphManagerInterface *g, uint32_t nid);
+int GraphExecutorGetNodeName(GraphManagerInterface *g, uint32_t nid, const char **name);
 
 /*!
  * \brief Get the input index given the name of input.
@@ -221,10 +227,11 @@ int GraphExecutorGetNumOutputs(GraphManagerInterface *g);
  * \brief set input to the graph based on name.
  * \param g The instance of GraphManagerInterface.
  * \param executor The graph executor.
- * \param name The name of the input.
+ * \param index the index of inputs.
  * \param data_in The input data.
+ * \return 0 if successful
  */
-void GraphExecutorSetInput(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
+int GraphExecutorSetInput(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
 
 /*!
  * \brief Return NDArray for given output index.
@@ -250,8 +257,9 @@ int GraphExecutorLoadParams(GraphManagerInterface *g, const char *param_blob, ui
  * \brief Execute the graph.
  * \param g The instance of GraphManagerInterface.
  * \param executor The graph executor.
+ * \return 0 if successful
  */
-void GraphExecutorRun(GraphManagerInterface *g);
+int GraphExecutorRun(GraphManagerInterface *g);
 
 /*!
  * \brief Release memory associated with the GraphManagerInterface.
@@ -268,6 +276,21 @@ int GraphExecutorRelease(GraphManagerInterface **g);
  * \return 0 if successful
  */
 int GraphExecutorClone(GraphManagerInterface *g, GraphManagerInterface **cloned);
+
+/*--------------------------------some definition for graph executor function-----------------------------------------*/
+
+#define CHECK_GraphManagerInterface(g)                                                                                 \
+    do {                                                                                                               \
+        if (unlikely((g) == NULL)) {                                                                                   \
+            SET_ERROR_RETURN(-1, "invalid argument for GraphManagerInterface");                                        \
+        }                                                                                                              \
+        if (unlikely((g)->graphHandle == NULL)) {                                                                      \
+            SET_ERROR_RETURN(-1, "GraphExecutor is Not initialized yet!");                                             \
+        }                                                                                                              \
+    } while (0)
+
+/*! \brief GetEntryId for graphManagerInterface */
+#define DATA_ENTRY_ID(graph, nid, index) ((graph)->node_row_ptr[(nid)] + (index))
 
 #ifdef __cplusplus
 } // extern "C"

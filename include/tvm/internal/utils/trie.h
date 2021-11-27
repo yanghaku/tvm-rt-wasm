@@ -30,31 +30,38 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 typedef struct Trie Trie;
+
+#define TRIE_INVALID_CHARSET (-1)
+#define TRIE_NOT_FOUND (-2)
+#define TRIE_SUCCESS 0
 
 /*!
  * \brief alloc a new Trie and init it
- * @return the pointer to new Trie
+ * @param trie the pointer to receive new Trie
+ * @return 0 if successful
  */
-Trie *TrieCreate();
+int TrieCreate(Trie **trie);
 
 /*!
  * \brief insert a new <str,data> to trie
  * @param trie the instance of Trie
  * @param name the key
  * @param data the value
- * @return 0 if success
+ * @return 0 if successful
  */
-int TrieInsert(Trie *trie, const char *name, void *data);
+int TrieInsert(Trie *trie, const uint8_t *name, void *data);
 
 /*!
  * \brief query the value for given key
  * @param trie the instance of Trie
  * @param name the key
  * @param data the pointer to receive value
- * @return 0 if success and found
+ * @return 0 if successful and found
  */
-int TrieQuery(Trie *trie, const char *name, void **data);
+int TrieQuery(Trie *trie, const uint8_t *name, void **data);
 
 /*!
  * \brief Traversal the trie, and use visit function to visit every node's data
@@ -62,13 +69,12 @@ int TrieQuery(Trie *trie, const char *name, void **data);
  * @param visit the visit function
  * @param source_handle for visit function
  */
-void TrieVisit(Trie *trie, void (*visit)(char c, void *data, void *source_handle),
-               void *source_handle);
+void TrieVisit(Trie *trie, void (*visit)(char c, void *data, void *source_handle), void *source_handle);
 
 /*!
  * \brief free the instance of trie
  * @param trie the point to instance of Trie
- * @return 0 if success
+ * @return 0 if successful
  */
 int TrieRelease(Trie *trie);
 

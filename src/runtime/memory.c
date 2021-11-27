@@ -34,16 +34,14 @@ int memory_alloc(uint32_t num_bytes, DLDevice dev, void **out_ptr) {
     case kDLCUDA:
         status = cudaMalloc(out_ptr, num_bytes);
         if (unlikely(status)) {
-            fprintf(stderr, "allocate fail, device=%d, err=%s\n", dev.device_type,
-                    cudaGetErrorString(status));
+            fprintf(stderr, "allocate fail, device=%d, err=%s\n", dev.device_type, cudaGetErrorString(status));
             return status;
         }
         return 0;
     case kDLCUDAHost:
         status = cudaMallocHost(out_ptr, num_bytes);
         if (unlikely(status)) {
-            fprintf(stderr, "allocate fail, device=%d, err=%s\n", dev.device_type,
-                    cudaGetErrorString(status));
+            fprintf(stderr, "allocate fail, device=%d, err=%s\n", dev.device_type, cudaGetErrorString(status));
             return status;
         }
         return 0;
@@ -62,16 +60,14 @@ int memory_free(DLDevice dev, void *ptr) {
     case kDLCUDA:
         status = cudaFree(ptr);
         if (unlikely(status)) {
-            fprintf(stderr, "free fail, device=%d, err=%s\n", dev.device_type,
-                    cudaGetErrorString(status));
+            fprintf(stderr, "free fail, device=%d, err=%s\n", dev.device_type, cudaGetErrorString(status));
             return status;
         }
         return 0;
     case kDLCUDAHost:
         status = cudaFreeHost(ptr);
         if (unlikely(status)) {
-            fprintf(stderr, "free fail, device=%d, err=%s\n", dev.device_type,
-                    cudaGetErrorString(status));
+            fprintf(stderr, "free fail, device=%d, err=%s\n", dev.device_type, cudaGetErrorString(status));
             return status;
         }
         return 0;

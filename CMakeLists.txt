@@ -17,10 +17,10 @@ include_directories(${CUDAToolkit_ROOT}/include)
 
 set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/runtime/*.c)
-add_library(libtvm-rt STATIC ${LIB_SRC})
+add_library(tvm-rt STATIC ${LIB_SRC})
 
 
-install(TARGETS libtvm-rt ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS tvm-rt ${CMAKE_INSTALL_LIBDIR})
 set(INSTALL_INCLUDE_FILES)
 file(GLOB INSTALL_INCLUDE_FILES include/tvm/runtime/*.h)
 install(FILES ${INSTALL_INCLUDE_FILES} PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/include/tvm/runtime/)
