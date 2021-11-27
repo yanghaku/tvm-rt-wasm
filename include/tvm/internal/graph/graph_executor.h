@@ -64,17 +64,17 @@ extern "C" {
  */
 
 /*! \brief NodeEntry for graph */
-typedef struct NodeEntry {
+typedef struct GraphExecutorNodeEntry {
     /*! \brief id in node list */
     uint32_t node_id;
     /*! \brief an entry that represents output data from a node */
     uint32_t index;
     /*!\brief the version will not be used in this project */
     // uint32_t version;
-} NodeEntry;
+} GraphExecutorNodeEntry;
 
 /*! \brief Node for graph */
-typedef struct Node {
+typedef struct GraphExecutorNode {
     /*! \brief inputs number in attr for node */
     uint32_t num_inputs;
     /*! \brief outputs number in attr for node */
@@ -84,13 +84,15 @@ typedef struct Node {
 
     /*! \brief the operator type for node */
     const char *op_type;
+    /*! \brief the name for node */
+    const char *name;
     /*! \brief the function name in attr for node */
     const char *func_name;
-    /*! \brief the inputs data nodeEntry */
-    NodeEntry *inputs;
+    /*! \brief the inputs data NodeEntry */
+    GraphExecutorNodeEntry *inputs;
     /*! \brief control_dep, this will not be used in this project */
     // uint32_t *control_dep;
-} Node;
+} GraphExecutorNode;
 
 /*! \brief operator function information for every node */
 typedef struct NodeOp {
@@ -106,7 +108,7 @@ typedef struct NodeOp {
     TVMValue *arg_values;
     /*! \brief backend function pointer */
     TVMBackendPackedCFunc exec;
-} NodeOp;
+} GraphExecutorNodeOp;
 
 /*! \brief the attributes of graph */
 typedef struct GraphAttr {
@@ -136,13 +138,13 @@ typedef struct GraphAttr {
     /*! \brief the number of device */                                                                                 \
     uint32_t num_device;                                                                                               \
     /*! \brief Node array */                                                                                           \
-    Node *nodes;                                                                                                       \
+    GraphExecutorNode *nodes;                                                                                          \
     /*! \brief nodeOps array */                                                                                        \
-    NodeOp *nodeOps;                                                                                                   \
+    GraphExecutorNodeOp *nodeOps;                                                                                      \
     /*! \brief inputs nodes index array */                                                                             \
     uint32_t *inputs_nodes;                                                                                            \
     /*! \brief outputs node entry array */                                                                             \
-    NodeEntry *outputs_nodes;                                                                                          \
+    GraphExecutorNodeEntry *outputs_nodes;                                                                             \
     /*! \brief node_row_ptr array (to quickly get data entry id) */                                                    \
     uint32_t *node_row_ptr;                                                                                            \
     /*! \brief data_entry array */                                                                                     \

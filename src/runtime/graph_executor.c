@@ -59,6 +59,7 @@ int TVMGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle
     (*g)->Clone = GraphExecutorClone;
 
     memory_alloc(sizeof(GraphExecutor), cpu, &(*g)->graphHandle);
+    memset((*g)->graphHandle, 0, sizeof(GraphExecutor));
     return GraphExecutorLoad(graph_json, module_handle, devices, num_dev, (*g)->graphHandle);
 }
 
@@ -138,15 +139,10 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
 
     // release JsonReader
     status = JsonReader_Release(reader);
-    if (unlikely(status)) {
-        SET_ERROR_RETURN(-1, "JsonReader release fail");
-    }
 
     // other member init
     status = memory_alloc(sizeof(DLDevice) * num_dev, cpu, (void **)&graph->devices);
-    if (unlikely(status)) {
-        SET_ERROR_RETURN(-1, "memory_alloc error!");
-    }
+
     memcpy(graph->devices, devices, sizeof(DLDevice) * num_dev);
     graph->num_device = num_dev;
     graph->module_handle = module_handle;
@@ -367,7 +363,142 @@ int GraphExecutor_SetupOpExecs(GraphExecutor *graph) { return 0; }
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) { return 0; }
+int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
+    size_t node_size = 0;
+    int status = JsonReader_ArrayLength(reader, &node_size);
+    if (unlikely(status)) {
+        SET_ERROR_RETURN(-1, "JsonReader get Node Array length Error");
+    }
+    graph->num_nodes = (uint32_t)node_size;
+
+    DLDevice cpu = {kDLCPU, 0};
+    memory_alloc(sizeof(GraphExecutorNode) * node_size, cpu, (void **)&graph->nodes);
+    memset(graph->nodes, 0, sizeof(GraphExecutorNode) * node_size);
+
+    uint32_t nid = 0;
+    while (JsonReader_NextArrayItem(reader)) {
+        if (unlikely(nid == node_size)) {
+            SET_ERROR_RETURN(-1, "JsonReader Error: array length expect %d, but now >%d", nid, nid);
+        }
+
+        GraphExecutorNode *node = graph->nodes + nid;
+        char key[GRAPH_JSON_KEY_SIZE];
+        while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE)) {
+            if (!strcmp(key, "op")) {
+                status = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: Parse string for GraphExecutorNode.op fail");
+                }
+
+                size_t str_len = strlen(global_buf);
+                memory_alloc(str_len + 1, cpu, (void **)&node->op_type);
+                strcpy((char *)node->op_type, global_buf);
+
+            } else if (!strcmp(key, "name")) {
+                status = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphExecutorNode.op fail");
+                }
+
+                size_t str_len = strlen(global_buf);
+                memory_alloc(str_len + 1, cpu, (void **)&node->name);
+                strcpy((char *)node->name, global_buf);
+            } else if (!strcmp(key, "inputs")) {
+                size_t inputs_num;
+                status = JsonReader_ArrayLength(reader, &inputs_num);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: get GraphExecutorNode.inputs length fail");
+                }
+
+                node->num_inputs = inputs_num;
+                memory_alloc(sizeof(GraphExecutorNodeEntry) * inputs_num, cpu, (void **)&node->inputs);
+                memset(node->inputs, 0, sizeof(GraphExecutorNodeEntry));
+                int inputs_count = 0;
+                while (JsonReader_NextArrayItem(reader)) {
+                    if (unlikely(inputs_count == inputs_num)) {
+                        SET_ERROR_RETURN(-1, "JsonReader Error: inputs array length expect %d, but now >%d",
+                                         inputs_count, inputs_count);
+                    }
+
+                    size_t entry_size;
+                    status = JsonReader_ArrayLength(reader, &entry_size);
+                    if (unlikely(status)) {
+                        SET_ERROR_RETURN(-1, "JsonReader Error: parse NodeEntry instance fail");
+                    }
+                    if (likely(entry_size == 2 || entry_size == 3)) {
+                        JsonReader_NextArrayItem(reader);
+                        status = JsonReader_Read_uint32(reader, &node->inputs[inputs_count].node_id);
+                        if (unlikely(status)) {
+                            SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for NodeEntry.node_id");
+                        }
+                        JsonReader_NextArrayItem(reader);
+                        status = JsonReader_Read_uint32(reader, &node->inputs[inputs_count].index);
+                        if (unlikely(status)) {
+                            SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for NodeEntry.index");
+                        }
+
+                        if (likely(entry_size == 3)) { // version
+                            JsonReader_NextArrayItem(reader);
+                            uint32_t version_tmp;
+                            status = JsonReader_Read_uint32(reader, &version_tmp);
+                            if (unlikely(status)) {
+                                SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for NodeEntry.version");
+                            }
+                        }
+                    } else {
+                        SET_ERROR_RETURN(-1, "JsonReader Error: NodeEntry need len = 2/3, but given %zu", entry_size);
+                    }
+                    ++inputs_count;
+                }
+
+            } else if (!strcmp(key, "attr") || !strcmp(key, "attrs")) {
+                while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE)) {
+                    if (!strcmp(key, "func_name")) {
+                        status = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                        if (unlikely(status)) {
+                            SET_ERROR_RETURN(-1, "JsonReader Error: Parse string for Node Attrs.func_name fail");
+                        }
+
+                        size_t str_len = strlen(global_buf);
+                        memory_alloc(str_len + 1, cpu, (void **)&node->func_name);
+                        strcpy((char *)node->func_name, global_buf);
+
+                    } else if (!strcmp(key, "num_inputs")) {
+                        uint32_t num_inputs_tmp;
+                        status = JsonReader_Read_uint32(reader, &num_inputs_tmp);
+                        if (unlikely(status)) {
+                            SET_ERROR_RETURN(-1, "JsonReader Error: Parse uint32 for Node Attrs.num_inputs fail");
+                        }
+                        if (unlikely(node->inputs != NULL && num_inputs_tmp != node->num_inputs)) {
+                            SET_ERROR_RETURN(-1,
+                                             "JsonReader Data error: Node Attrs.num_inputs(%d) != Attrs.inputs.len(%d)",
+                                             num_inputs_tmp, node->num_inputs);
+                        }
+
+                    } else if (!strcmp(key, "num_outputs")) {
+                        status = JsonReader_Read_uint32(reader, &node->num_outputs);
+                        if (unlikely(status)) {
+                            SET_ERROR_RETURN(-1, "JsonReader Error: Parse uint32 for Node Attrs.num_outputs fail");
+                        }
+                    } else if (!strcmp(key, "flatten_data")) {
+                        status = JsonReader_Read_uint32(reader, &node->flatten_data);
+                        if (unlikely(status)) {
+                            SET_ERROR_RETURN(-1, "JsonReader Error: Parse uint32 for Node Attrs.flatten_data fail");
+                        }
+                    }
+                }
+            } else if (!strcmp(key, "control_deps")) {
+                SET_ERROR_RETURN(-1, "unimplemented key: %s", key);
+            } else {
+                SET_ERROR_RETURN(-1, "unsupported key: %s", key);
+            }
+        }
+
+        ++nid;
+    }
+
+    return 0;
+}
 
 /*!
  * \brief load graph input node indices from json
@@ -399,4 +530,4 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) { r
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor *graph) {}
+int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor *graph) { return 0; }

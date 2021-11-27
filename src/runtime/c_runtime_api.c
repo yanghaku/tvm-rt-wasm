@@ -28,14 +28,14 @@
 #include <tvm/internal/utils/common.h>
 #include <tvm/runtime/c_runtime_api.h>
 
-char global_error_buf[GLOBAL_BUF_SIZE];
+char global_buf[GLOBAL_BUF_SIZE];
 
 /*!
  * \brief Used for implementing C API function.
  *  Set last error message before return.
  * \param msg The error message to be set.
  */
-TVM_DLL void TVMAPISetLastError(const char *msg) { strcpy(global_error_buf, msg); }
+TVM_DLL void TVMAPISetLastError(const char *msg) { strcpy(global_buf, msg); }
 
 /*!
  * \brief return str message of the last error
@@ -46,7 +46,7 @@ TVM_DLL void TVMAPISetLastError(const char *msg) { strcpy(global_error_buf, msg)
  *  this function is thread safe and can be called by different thread
  *  \return error info
  */
-TVM_DLL const char *TVMGetLastError(void) { return global_error_buf; }
+TVM_DLL const char *TVMGetLastError(void) { return global_buf; }
 
 /*!
  * \brief Load module from file.

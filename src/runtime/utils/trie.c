@@ -60,11 +60,9 @@ typedef struct Trie {
 
 int TrieCreate(Trie **trie) {
     DLDevice cpu = {kDLCPU, 0};
-    int status = memory_alloc(sizeof(Trie), cpu, (void **)&trie);
-    if (likely(status == 0)) {
-        memset(*trie, 0, sizeof(Trie));
-    }
-    return status;
+    memory_alloc(sizeof(Trie), cpu, (void **)&trie);
+    memset(*trie, 0, sizeof(Trie));
+    return 0;
 }
 
 int TrieInsert(Trie *trie, const uint8_t *name, void *data) {
