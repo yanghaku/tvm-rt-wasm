@@ -42,7 +42,7 @@ extern "C" {
  *      arg_nodes: [],  // the node_id for input nodes  (array)
  *      heads: [],      // the node_id for output nodes (array)
  *      attrs: {},      // the graph attributes     (dict)
- *      node_row_ptr: []// the node_id for entry    (array)
+ *      node_row_ptr: []// the data entry index for node    (array)
  *  }
  *
  *  for every node is:
@@ -112,14 +112,18 @@ typedef struct NodeOp {
 
 /*! \brief the attributes of graph */
 typedef struct GraphAttr {
-    /*! storage id for every node */
+    /*! \brief the number of dataEntry, for validate */
+    uint32_t num_entry;
+    /*! \brief storage id for every dataEntry */
     uint32_t *storage_id;
-    /*! device id for every node */
+    /*! \brief device id for every dataEntry */
     uint32_t *device_id;
-    /*! shape for every node */
+    /*! \brief shape for every dataEntry */
     uint64_t **shape;
-    /*! dltype for every node */
-    char dltype[][10];
+    /*! \brief ndim for every shape */
+    uint32_t *ndim;
+    /*! \brief dltype for every dataEntry */
+    DLDataType *dl_type;
 } GraphAttr;
 
 #define GRAPH_BASE_MEMBER                                                                                              \
@@ -150,7 +154,7 @@ typedef struct GraphAttr {
     /*! \brief data_entry array */                                                                                     \
     DLTensor *data_entry;                                                                                              \
     /*! \brief storage array */                                                                                        \
-    DLTensor *storages;                                                                                                \
+    void **storages;                                                                                                   \
     /*! \brief device array */                                                                                         \
     DLDevice *devices;                                                                                                 \
     /*! \brief bool flag for storage */                                                                                \

@@ -53,6 +53,8 @@ extern char global_buf[];
         sprintf(global_buf, "function[%s] " fmt, __FUNCTION__, ##__VA_ARGS__);                                         \
     } while (0)
 
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

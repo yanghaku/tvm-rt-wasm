@@ -290,7 +290,61 @@ static inline int JsonReader_NextObjectItem(JsonReader *reader, char *out_key, s
  * @param out_size the pointer to receive array length
  * @return 0 if successful
  */
-int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size);
+static inline int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
+    const char *ptr = *reader;
+    int now_dep = 0;
+    int now_size = 0;
+    char ch;
+
+    NextNonSpace(ptr, ch); // read the start of ptr
+    CheckEQ(ch, '[');      // check it is '['
+
+    ch = NextChar(ptr);
+    while (1) {
+        switch (ch) {
+
+        case '\0': {
+            return -1;
+        }
+        case '\"': {
+            do {
+                ch = NextChar(ptr);
+                if (unlikely(ch == '\\')) { // escape character
+                    ch = NextChar(ptr);     // discard it
+                    ch = NextChar(ptr);
+                }
+            } while (ch && ch != '\"');
+            break;
+        }
+        case '[':
+        case '{':
+            ++now_dep;
+            break;
+        case '}': {
+            --now_dep;
+            break;
+        }
+        case ']': {
+            if (now_dep == 0) {
+                *out_size = now_size + 1;
+                return 0;
+            }
+            --now_dep;
+            break;
+        }
+        case ',': {
+            if (now_dep == 0) {
+                ++now_size;
+            }
+            break;
+        }
+        default:
+            break;
+        }
+
+        ch = NextChar(ptr);
+    }
+}
 
 #ifdef __cplusplus
 } // extern "C"

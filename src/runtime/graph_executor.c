@@ -104,48 +104,65 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
 
     char key[GRAPH_JSON_KEY_SIZE];
     // start to load graph
+    int bitmask = 0;
     while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
         if (!strcmp(key, "nodes")) {
             status = JsonReader_ReadGraphNodesArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
+            bitmask |= 1;
         } else if (!strcmp(key, "arg_nodes")) {
             status = JsonReader_ReadGraphInputNodeIndicesArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
+            bitmask |= 2;
         } else if (!strcmp(key, "heads")) {
             status = JsonReader_ReadGraphOutputNodeEntryArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
+            bitmask |= 4;
         } else if (!strcmp(key, "attrs")) {
             status = JsonReader_ReadGraphAttrObject(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
+            bitmask |= 8;
         } else if (!strcmp(key, "node_row_ptr")) {
             status = JsonReader_ReadGraphNodeRowPtrArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
+            bitmask |= 16;
         } else if (!strcmp(key, "metadata")) {
             break;
         } else {
             SET_ERROR_RETURN(-1, "unsupported Json key: %s", key);
         }
     }
+    if (unlikely(bitmask != (1 | 2 | 4 | 8 | 16))) {
+        SET_ERROR_RETURN(-1, "GraphExecutor need key: nodes,arg_nodes,heads,attrs,node_row_ptr");
+    }
 
     // release JsonReader
     status = JsonReader_Release(reader);
+    if (unlikely(status)) {
+        SET_ERROR_RETURN(-1, "JsonReader instance destroy error!");
+    }
 
     // other member init
-    status = memory_alloc(sizeof(DLDevice) * num_dev, cpu, (void **)&graph->devices);
-
+    memory_alloc(sizeof(DLDevice) * num_dev, cpu, (void **)&graph->devices);
     memcpy(graph->devices, devices, sizeof(DLDevice) * num_dev);
     graph->num_device = num_dev;
     graph->module_handle = module_handle;
+    graph->num_data_entry = graph->node_row_ptr[graph->num_node_row_ptr - 1];
+
+    if (unlikely(graph->num_data_entry != graph->graph_attr.num_entry)) {
+        SET_ERROR_RETURN(-1, "must be equal: num_data_entry(%d) and graph_attr_num_entry(%d)", graph->num_data_entry,
+                         graph->graph_attr.num_entry);
+    }
 
     // init storage
     status = GraphExecutor_SetupStorage(graph);
@@ -348,7 +365,25 @@ int GraphExecutorClone(GraphManagerInterface *g, GraphManagerInterface **cloned)
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-int GraphExecutor_SetupStorage(GraphExecutor *graph) { return 0; }
+int GraphExecutor_SetupStorage(GraphExecutor *graph) {
+    DLDevice cpu = {kDLCPU, 0};
+
+    graph->num_storage = 0;
+    for (int i = 0; i < graph->num_data_entry; ++i) {
+        graph->num_storage = MAX(graph->num_storage, graph->graph_attr.storage_id[i]);
+    }
+    memory_alloc(sizeof(void *) * graph->num_storage, cpu, (void **)&graph->storages);
+    memset(graph->storages, 0, sizeof(void *) * graph->num_storage);
+
+
+
+
+
+
+
+    memory_alloc(sizeof(DLTensor) * graph->num_data_entry, cpu, (void **)&graph->data_entry);
+    memset(graph->data_entry, 0, sizeof(DLTensor) * graph->num_data_entry);
+}
 
 /*!
  * \brief setup operators for graph executor
@@ -356,6 +391,24 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) { return 0; }
  * @return 0 if successful
  */
 int GraphExecutor_SetupOpExecs(GraphExecutor *graph) { return 0; }
+
+/*! \brief json next array item exist check */
+#define ARRAY_CHECK_NEXT_EXISTS(reader, err, fmt, ...)                                                                 \
+    do {                                                                                                               \
+        status = JsonReader_NextArrayItem(reader);                                                                     \
+        if (unlikely(status)) {                                                                                        \
+            SET_ERROR_RETURN((err), fmt, ##__VA_ARGS__);                                                               \
+        }                                                                                                              \
+    } while (0)
+
+/*! \brief json next array item no-exist check */
+#define ARRAY_CHECK_NEXT_NON_EXISTS(reader, err, fmt, ...)                                                             \
+    do {                                                                                                               \
+        status = JsonReader_NextArrayItem(reader);                                                                     \
+        if (unlikely(!status)) {                                                                                       \
+            SET_ERROR_RETURN((err), fmt, ##__VA_ARGS__);                                                               \
+        }                                                                                                              \
+    } while (0)
 
 /*!
  * \brief load graph nodes from json
@@ -370,37 +423,35 @@ int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
         SET_ERROR_RETURN(-1, "JsonReader Error: parse Node Array length fail");
     }
     graph->num_nodes = (uint32_t)node_size;
+    if (unlikely(node_size == 0)) {
+        SET_ERROR_RETURN(-1, "the number of Node must at least 1");
+    }
 
     DLDevice cpu = {kDLCPU, 0};
     memory_alloc(sizeof(GraphExecutorNode) * node_size, cpu, (void **)&graph->nodes);
     memset(graph->nodes, 0, sizeof(GraphExecutorNode) * node_size);
 
-    uint32_t nid = 0;
-    while (JsonReader_NextArrayItem(reader)) {
-        if (unlikely(nid == node_size)) {
-            SET_ERROR_RETURN(-1, "JsonReader Error: array length expect %d, but now >%d", nid, nid);
-        }
+    for (uint32_t nid = 0; nid < node_size; ++nid) {
+        ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: nodes array len expect %zu, parse fail", node_size);
 
         GraphExecutorNode *node = graph->nodes + nid;
         char key[GRAPH_JSON_KEY_SIZE];
-        while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE)) {
+        while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
             if (!strcmp(key, "op")) {
-                status = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
-                if (unlikely(status)) {
+                int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                if (unlikely(str_len <= 0)) {
                     SET_ERROR_RETURN(-1, "JsonReader Error: Parse string for GraphExecutorNode.op fail");
                 }
 
-                size_t str_len = strlen(global_buf);
                 memory_alloc(str_len + 1, cpu, (void **)&node->op_type);
                 strcpy((char *)node->op_type, global_buf);
 
             } else if (!strcmp(key, "name")) {
-                status = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
-                if (unlikely(status)) {
+                int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                if (unlikely(str_len <= 0)) {
                     SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphExecutorNode.op fail");
                 }
 
-                size_t str_len = strlen(global_buf);
                 memory_alloc(str_len + 1, cpu, (void **)&node->name);
                 strcpy((char *)node->name, global_buf);
             } else if (!strcmp(key, "inputs")) {
@@ -413,27 +464,19 @@ int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
                 node->num_inputs = inputs_num;
                 memory_alloc(sizeof(GraphExecutorNodeEntry) * inputs_num, cpu, (void **)&node->inputs);
                 memset(node->inputs, 0, sizeof(GraphExecutorNodeEntry));
-                int inputs_count = 0;
-                while (JsonReader_NextArrayItem(reader)) {
-                    if (unlikely(inputs_count == inputs_num)) {
-                        SET_ERROR_RETURN(-1, "JsonReader Data Error: inputs array length expect %d, but now >%d",
-                                         inputs_count, inputs_count);
-                    }
+                for (int inputs_count = 0; inputs_count < inputs_num; ++inputs_count) {
+                    ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse NodeEntry Error"); // '[' or ','
 
                     // node_id
-                    status = JsonReader_NextArrayItem(reader);
-                    if (unlikely(status)) {
-                        SET_ERROR_RETURN(-1, "JsonReader Error: no element for NodeEntry.node_id");
-                    }
+                    ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: no element for NodeEntry.node_id"); // '['
+
                     status = JsonReader_Read_uint32(reader, &node->inputs[inputs_count].node_id);
                     if (unlikely(status)) {
                         SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for NodeEntry.node_id");
                     }
                     // index
-                    status = JsonReader_NextArrayItem(reader);
-                    if (unlikely(status)) {
-                        SET_ERROR_RETURN(-1, "JsonReader Error: no element for NodeEntry.index");
-                    }
+                    ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: no element for NodeEntry.index"); // ','
+
                     status = JsonReader_Read_uint32(reader, &node->inputs[inputs_count].index);
                     if (unlikely(status)) {
                         SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for NodeEntry.index");
@@ -448,30 +491,21 @@ int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
                             SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for NodeEntry.version");
                         }
 
-                        status = JsonReader_NextArrayItem(reader);
-                        if (unlikely(!status)) {
-                            SET_ERROR_RETURN(-1, "JsonReader Error: NodeEntry need len = 2 or 3, but given >3");
-                        }
+                        ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1,
+                                                    "JsonReader Error: NodeEntry need len = 2 or 3, but given >3");
                     }
-
-                    ++inputs_count;
                 }
-
-                if (unlikely(inputs_count != inputs_num)) {
-                    SET_ERROR_RETURN(
-                        -1, "JsonReader Data Error: parse inputs array length Inconsistent. len=%zu, but got %d",
-                        inputs_num, inputs_count);
-                }
+                ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: inputs len expect %zu, parse fail",
+                                            inputs_num); // ']'
 
             } else if (!strcmp(key, "attr") || !strcmp(key, "attrs")) {
-                while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE)) {
+                while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
                     if (!strcmp(key, "func_name")) {
-                        status = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
-                        if (unlikely(status)) {
+                        int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                        if (unlikely(str_len <= 0)) {
                             SET_ERROR_RETURN(-1, "JsonReader Error: Parse string for Node Attrs.func_name fail");
                         }
 
-                        size_t str_len = strlen(global_buf);
                         memory_alloc(str_len + 1, cpu, (void **)&node->func_name);
                         strcpy((char *)node->func_name, global_buf);
 
@@ -505,15 +539,9 @@ int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
                 SET_ERROR_RETURN(-1, "unsupported key: %s", key);
             }
         }
-
-        ++nid;
     }
 
-    if (unlikely(nid != node_size)) {
-        SET_ERROR_RETURN(-1, "JsonReader Data Error: parse node array length Inconsistent. len=%zu, but got %d",
-                         node_size, nid);
-    }
-
+    ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: nodes array len expect %zu, parse fail", node_size);
     return 0;
 }
 
@@ -529,31 +557,26 @@ int JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader, GraphExecutor 
     if (unlikely(status)) {
         SET_ERROR_RETURN(-1, "JsonReader Error: parse input node indices array length fail");
     }
+    if (unlikely(input_size == 0)) {
+        SET_ERROR_RETURN(-1, "the number of graph input nodes must at least 1");
+    }
 
     DLDevice cpu = {kDLCPU, 0};
     memory_alloc(sizeof(uint32_t) * input_size, cpu, (void **)&graph->inputs_nodes);
     memset(graph->inputs_nodes, 0, sizeof(uint32_t) * input_size);
     graph->num_inputs_nodes = input_size;
 
-    int input_count = 0;
-    while (JsonReader_NextArrayItem(reader)) {
-        if (unlikely(input_count == input_size)) {
-            SET_ERROR_RETURN(-1, "JsonReader Data Error: input node array length expect %d, but now >%d", input_count,
-                             input_count);
-        }
+    for (int input_count = 0; input_count < input_size; ++input_count) {
+        ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse input node array element error"); // '['
 
         status = JsonReader_Read_uint32(reader, graph->inputs_nodes + input_count);
         if (unlikely(status)) {
             SET_ERROR_RETURN(-1, "JSONReader Error: parse uint32 fail for inputs_nodes");
         }
-
-        ++input_count;
     }
 
-    if (unlikely(input_size != input_count)) {
-        SET_ERROR_RETURN(-1, "JsonReader Data Error: parse input nodes length Inconsistent. len=%zu, but got %d",
-                         input_size, input_count);
-    }
+    ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: input node array len expect %zu, parse fail",
+                                input_size); // ']'
     return 0;
 }
 
@@ -569,33 +592,27 @@ int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExecutor *
     if (unlikely(status)) {
         SET_ERROR_RETURN(-1, "JsonReader Error: parse input node indices array length fail");
     }
+    if (unlikely(entry_size == 0)) {
+        SET_ERROR_RETURN(-1, "the number of Outputs nodeEntry must at least 1");
+    }
 
     DLDevice cpu = {kDLCPU, 0};
     memory_alloc(sizeof(GraphExecutorNodeEntry) * entry_size, cpu, (void **)&graph->outputs_nodes);
     memset(graph->outputs_nodes, 0, sizeof(GraphExecutorNodeEntry) * entry_size);
     graph->num_inputs_nodes = entry_size;
 
-    int entry_count = 0;
-    while (JsonReader_NextArrayItem(reader)) {
-        if (unlikely(entry_count == entry_size)) {
-            SET_ERROR_RETURN(-1, "JsonReader Data Error: input node array length expect %d, but now >%d", entry_count,
-                             entry_count);
-        }
-
+    for (int entry_count = 0; entry_count < entry_size; ++entry_count) {
+        ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse outputs NodeEntry fail"); // '[' or ','
         // node_id
-        status = JsonReader_NextArrayItem(reader);
-        if (unlikely(status)) {
-            SET_ERROR_RETURN(-1, "JsonReader Error: no element for outputs NodeEntry.node_id");
-        }
+        ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: no element for outputs NodeEntry.node_id"); // '['
+
         status = JsonReader_Read_uint32(reader, &(graph->outputs_nodes[entry_count].node_id));
         if (unlikely(status)) {
             SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for outputs NodeEntry.node_id");
         }
         // index
-        status = JsonReader_NextArrayItem(reader);
-        if (unlikely(status)) {
-            SET_ERROR_RETURN(-1, "JsonReader Error: no element for outputs NodeEntry.index");
-        }
+        ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: no element for outputs NodeEntry.index");
+
         status = JsonReader_Read_uint32(reader, &(graph->outputs_nodes[entry_count].index));
         if (unlikely(status)) {
             SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for outputs NodeEntry.index");
@@ -610,19 +627,12 @@ int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExecutor *
                 SET_ERROR_RETURN(-1, "JsonReader Error: Read uint32 fail for outputs NodeEntry.version");
             }
 
-            status = JsonReader_NextArrayItem(reader);
-            if (unlikely(!status)) {
-                SET_ERROR_RETURN(-1, "JsonReader Error: NodeEntry need len = 2 or 3, but given >3");
-            }
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: NodeEntry need len = 2 or 3, but given >3");
         }
-
-        ++entry_count;
     }
+    ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: NodeEntry array len expect = %zu, parse fail",
+                                entry_size); // ']'
 
-    if (unlikely(entry_size != entry_count)) {
-        SET_ERROR_RETURN(-1, "JsonReader Data Error: parse input nodes length Inconsistent. len=%zu, but got %d",
-                         entry_size, entry_count);
-    }
     return 0;
 }
 
@@ -634,10 +644,173 @@ int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExecutor *
  */
 int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
     DLDevice cpu = {kDLCPU, 0};
-    memory_alloc(sizeof(uint32_t) * graph->num_nodes, cpu, (void **)&graph->graph_attr.storage_id);
-    memset(graph->graph_attr.storage_id, 0, sizeof(uint32_t)*graph->num_nodes);
-    memory_alloc(sizeof(uint32_t) * graph->num_nodes, cpu, (void**)&graph->graph_attr.device_id);
+    GraphAttr *graphAttr = &graph->graph_attr;
+    int status = 0;
+    size_t storage_id_size;
+    size_t device_id_size;
+    size_t shape_size;
+    size_t data_type_size;
+    char key[GRAPH_JSON_KEY_SIZE];
 
+    while (JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
+        if (!strcmp(key, "dltype")) {
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse graphAttr dltype fail"); // '['
+
+            int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+            if (unlikely(str_len <= 0)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dltype element fail");
+            }
+            if (unlikely(strcmp(global_buf, "list_str"))) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dltype element expect list_str");
+            }
+
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr dltype no array entry"); // '['
+
+            status = JsonReader_ArrayLength(reader, &data_type_size);
+            if (unlikely(status)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dltype array length fail");
+            }
+            memory_alloc(sizeof(DLDataType) * data_type_size, cpu, (void **)&graphAttr->dl_type);
+            memset(graphAttr->dl_type, 0, sizeof(DLDataType) * data_type_size);
+
+            for (int i = 0; i < data_type_size; ++i) {
+                ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr dltype array element fail");
+
+                str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                if (unlikely(str_len <= 0)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dltype array element fail");
+                }
+                status = DLDataType_ParseFromString(global_buf, str_len, graphAttr->dl_type + i);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "Parse Error: cannot parse the DLDataType string to DLDataType");
+                }
+            }
+
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+
+        } else if (!strcmp(key, "storage_id")) {
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse graphAttr storage_id fail"); // '['
+
+            int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+            if (unlikely(str_len <= 0)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr storage_id element fail");
+            }
+            if (unlikely(strcmp(global_buf, "list_int"))) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr storage_id element expect list_str");
+            }
+
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr storage_id no array entry"); // '['
+
+            status = JsonReader_ArrayLength(reader, &storage_id_size);
+            if (unlikely(status)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr storage_id array length fail");
+            }
+            memory_alloc(sizeof(uint32_t) * storage_id_size, cpu, (void **)&graphAttr->storage_id);
+            memset(graphAttr->storage_id, 0, sizeof(uint32_t) * storage_id_size);
+
+            for (int i = 0; i < storage_id_size; ++i) {
+                ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr storage_id array element fail");
+
+                status = JsonReader_Read_uint32(reader, graphAttr->storage_id + i);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr storage_id array element fail");
+                }
+            }
+
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+        } else if (!strcmp(key, "device_index")) {
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse graphAttr dev_id fail"); // '['
+
+            int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+            if (unlikely(str_len <= 0)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id element fail");
+            }
+            if (unlikely(strcmp(global_buf, "list_int"))) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id element expect list_str");
+            }
+
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr dev_id no array entry"); // '['
+
+            status = JsonReader_ArrayLength(reader, &device_id_size);
+            if (unlikely(status)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id array length fail");
+            }
+            memory_alloc(sizeof(uint32_t) * device_id_size, cpu, (void **)&graphAttr->device_id);
+            memset(graphAttr->device_id, 0, sizeof(uint32_t) * device_id_size);
+
+            for (int i = 0; i < device_id_size; ++i) {
+                ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr dev_id array element fail");
+
+                status = JsonReader_Read_uint32(reader, graphAttr->device_id + i);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id array element fail");
+                }
+            }
+
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+        } else if (!strcmp(key, "shape")) {
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse graphAttr shape fail"); // '['
+
+            int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+            if (unlikely(str_len <= 0)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr shape element fail");
+            }
+            if (unlikely(strcmp(global_buf, "list_shape"))) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr shape element expect list_str");
+            }
+
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr shape no array entry"); // '['
+
+            status = JsonReader_ArrayLength(reader, &shape_size);
+            if (unlikely(status)) {
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr shape array length fail");
+            }
+            memory_alloc(shape_size * sizeof(uint64_t *), cpu, (void **)&graphAttr->shape);
+            memset(graphAttr->shape, 0, sizeof(uint64_t *) * shape_size);
+            memory_alloc(shape_size * sizeof(uint32_t), cpu, (void **)&graphAttr->ndim);
+            memset(graphAttr->ndim, 0, sizeof(uint32_t) * shape_size);
+
+            for (int i = 0; i < shape_size; ++i) {
+                ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr shape array length fail");
+
+                size_t ndim;
+                status = JsonReader_ArrayLength(reader, &ndim);
+                if (unlikely(status)) {
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr shape.dim element fail");
+                }
+                memory_alloc(sizeof(uint64_t) * ndim, cpu, (void **)&graphAttr->shape[i]);
+                memset(graphAttr->shape[i], 0, sizeof(uint64_t) * ndim);
+                graphAttr->ndim[i] = ndim;
+
+                for (int dim = 0; dim < ndim; ++dim) {
+                    ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr shape.dim element fail");
+                    status = JsonReader_Read_uint64(reader, graphAttr->shape[i] + dim);
+                    if (unlikely(status)) {
+                        SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr shape.dim (uint64_t) fail");
+                    }
+                }
+                ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+            }
+
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
+        } else {
+            SET_ERROR_RETURN(-1, "JsonReader Error: unsupported key (%s) for graphAttr", key);
+        }
+    }
+
+    if (unlikely(storage_id_size != data_type_size || storage_id_size != shape_size ||
+                 storage_id_size != device_id_size)) {
+        SET_ERROR_RETURN(
+            -1, "invalid size, not the same: storage_id_size=%zu,data_type_size=%zu,shape_size=%zu,device_id_size=%zu",
+            storage_id_size, data_type_size, shape_size, device_id_size);
+    }
+    graphAttr->num_entry = data_type_size;
+
+    return status;
 }
 
 /*!
@@ -652,30 +825,24 @@ int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor *graph
     if (unlikely(status)) {
         SET_ERROR_RETURN(-1, "JsonReader Error: parse node_row_ptr array length fail");
     }
+    if (unlikely(ptr_size == 0)) {
+        SET_ERROR_RETURN(-1, "the number of node_row_ptr must at least 1");
+    }
 
     DLDevice cpu = {kDLCPU, 0};
     memory_alloc(sizeof(uint32_t) * ptr_size, cpu, (void **)&graph->node_row_ptr);
     memset(graph->node_row_ptr, 0, sizeof(uint32_t) * ptr_size);
     graph->num_node_row_ptr = ptr_size;
 
-    int ptr_count = 0;
-    while (JsonReader_NextArrayItem(reader)) {
-        if (unlikely(ptr_count == ptr_size)) {
-            SET_ERROR_RETURN(-1, "JsonReader Data Error: node_row_ptr array length expect %d, but now >%d", ptr_count,
-                             ptr_count);
-        }
+    for (int ptr_count = 0; ptr_count < ptr_size; ++ptr_count) {
+        ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JSONReader Error: parse node_row_ptr array element fail");
 
         status = JsonReader_Read_uint32(reader, graph->node_row_ptr + ptr_count);
         if (unlikely(status)) {
             SET_ERROR_RETURN(-1, "JSONReader Error: parse uint32 Error for node_row_ptr");
         }
-
-        ++ptr_count;
     }
 
-    if (unlikely(ptr_size != ptr_count)) {
-        SET_ERROR_RETURN(-1, "JsonReader Data Error: parse input nodes length Inconsistent. len=%zu, but got %d",
-                         ptr_size, ptr_count);
-    }
+    ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JSONReader Error: node_row_ptr len expect %zu", ptr_size);
     return 0;
 }
