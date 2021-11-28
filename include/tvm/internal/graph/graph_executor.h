@@ -119,7 +119,7 @@ typedef struct GraphAttr {
     /*! shape for every node */
     uint64_t **shape;
     /*! dltype for every node */
-    char **dltype;
+    char dltype[][10];
 } GraphAttr;
 
 #define GRAPH_BASE_MEMBER                                                                                              \
@@ -160,7 +160,9 @@ typedef struct GraphAttr {
     /*! \brief map outputs name to output indices */                                                                   \
     Trie *outputs_map;                                                                                                 \
     /*! \brief map inputs name to inputs indices */                                                                    \
-    Trie *inputs_map;
+    Trie *inputs_map;                                                                                                  \
+    /*! \brief graph attributes */                                                                                     \
+    GraphAttr graph_attr;
 
 typedef struct GraphExecutor {
     GRAPH_BASE_MEMBER
