@@ -72,6 +72,14 @@ int TrieQuery(Trie *trie, const uint8_t *name, void **data);
 void TrieVisit(Trie *trie, void (*visit)(char c, void *data, void *source_handle), void *source_handle);
 
 /*!
+ * \brief clone this Trie, and create a new Instance
+ * @param trie the instance of Trie
+ * @param cloned the pointer to receive new instance
+ * @return 0 if successful
+ */
+int TrieClone(const Trie *trie, Trie **cloned);
+
+/*!
  * \brief free the instance of trie
  * @param trie the point to instance of Trie
  * @return 0 if successful

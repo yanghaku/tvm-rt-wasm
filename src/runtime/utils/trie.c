@@ -110,6 +110,18 @@ void TrieVisit(Trie *trie, void (*visit)(char, void *, void *), void *source_han
     }
 }
 
+int TrieClone(const Trie *trie, Trie **cloned) {
+    DLDevice cpu = {kDLCPU, 0};
+    memory_alloc(sizeof(Trie), cpu, (void **)cloned);
+    memcpy(*cloned, trie, sizeof(Trie));
+    for (int i = 0; i < CHAR_SET_SIZE; ++i) {
+        if (trie->son[i]) {
+            TrieClone(trie->son[i], &(*cloned)->son[i]);
+        }
+    }
+    return 0;
+}
+
 int TrieRelease(Trie *trie) {
     DLDevice cpu = {kDLCPU, 0};
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {

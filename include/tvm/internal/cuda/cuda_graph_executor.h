@@ -44,18 +44,6 @@ typedef struct CUDAGraphExecutor {
 } CUDAGraphExecutor;
 
 /*!
- * \brief init a new CUDAGraphExecutor from graph.json
- *
- * \param sym_json JSON-encoded graph.
- * \param module_handle TVM Module that exposes the functions to call.
- * \param devices runtime execution device.
- * \param executor the instance instance.
- * \return 0 if successful.
- */
-int CUDAGraphExecutorLoad(const char *sym_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                          CUDAGraphExecutor *executor);
-
-/*!
  * \brief Execute the graph.
  * \param g The instance of GraphManagerInterface.
  * \param executor The graph executor.

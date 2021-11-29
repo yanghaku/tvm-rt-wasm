@@ -181,7 +181,7 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
     if (unlikely(status)) {
         SET_ERROR_RETURN(-1, "create inputs_map fail");
     }
-    for (int i = 0; i < graph->num_inputs_nodes; ++i) {
+    for (uint32_t i = 0; i < graph->num_inputs_nodes; ++i) {
         uint32_t nid = graph->inputs_nodes[i];
         status = TrieInsert(graph->inputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
         if (status) {
@@ -193,7 +193,7 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
     if (unlikely(status)) {
         SET_ERROR_RETURN(-1, "create outputs_map fail");
     }
-    for (int i = 0; i < graph->num_outputs; ++i) {
+    for (uint32_t i = 0; i < graph->num_outputs; ++i) {
         uint32_t nid = graph->outputs_nodes[i].node_id;
         status = TrieInsert(graph->outputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
         if (status) {
@@ -386,7 +386,7 @@ int GraphExecutorLoadParams(GraphManagerInterface *g, const char *param_blob, ui
     const char *name = blob;
 
     // scan names
-    for (int i = 0; i < name_num; ++i) {
+    for (uint32_t i = 0; i < (uint32_t)name_num; ++i) {
         uint32_t str_len = 0;
         while (*blob) {
             ++blob;
@@ -407,7 +407,7 @@ int GraphExecutorLoadParams(GraphManagerInterface *g, const char *param_blob, ui
     }
 
     // scan name and load param
-    for (int i = 0; i < arr_num; ++i) {
+    for (uint32_t i = 0; i < (uint32_t)arr_num; ++i) {
         int index = -1;
         if (unlikely(TrieQuery(graph->inputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
             SET_ERROR_RETURN(-1, "invalid param blob: param node name(%s) not found", name);
@@ -442,7 +442,7 @@ int GraphExecutorRun(GraphManagerInterface *g) {
     CHECK_GraphManagerInterface(g);
     GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
 
-    for (int i = 0; i < graph->num_nodes; ++i) {
+    for (uint32_t i = 0; i < graph->num_nodes; ++i) {
         if (graph->nodeOps[i].exec) { // call backend function
             graph->nodeOps[i].exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
                                    graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
@@ -459,8 +459,72 @@ int GraphExecutorRun(GraphManagerInterface *g) {
  * \return 0 if successful
  */
 int GraphExecutorRelease(GraphManagerInterface **g) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    if (unlikely(g == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid param: the graphManagerInterface pointer cannot be NULL");
+    }
+    CHECK_GraphManagerInterface(*g);
+
+    DLDevice cpu = {kDLCPU, 0};
+    GraphExecutor *graph = (GraphExecutor *)(*g)->graphHandle;
+
+    // free nodes
+    for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
+        memory_free(cpu, (void *)graph->nodes[nid].op_type);
+        memory_free(cpu, (void *)graph->nodes[nid].name);
+        memory_free(cpu, (void *)graph->nodes[nid].func_name);
+        memory_free(cpu, (void *)graph->nodes[nid].inputs);
+    }
+    memory_free(cpu, graph->nodes);
+
+    // free node operators
+    for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
+        memory_free(cpu, graph->nodeOps[nid].arg_values);
+        memory_free(cpu, graph->nodeOps[nid].arg_type_codes);
+    }
+    memory_free(cpu, graph->nodeOps);
+
+    // free inputs nodes
+    memory_free(cpu, graph->inputs_nodes);
+
+    // free output nodes entry
+    memory_free(cpu, graph->outputs_nodes);
+
+    // free node_row_ptr
+    memory_free(cpu, graph->node_row_ptr);
+
+    // free data entry + storage + storage_is_linked_param
+    for (uint32_t eid = 0; eid < graph->num_data_entry; ++eid) {
+        uint32_t sid = graph->graph_attr.storage_id[eid];
+        if (!graph->storage_is_linked_param[sid]) {
+            memory_free(graph->data_entry->device, graph->storages[sid]);
+            graph->storage_is_linked_param[sid] = 1;
+        }
+    }
+    memory_free(cpu, graph->data_entry);
+    memory_free(cpu, graph->storages);
+    memory_free(cpu, graph->storage_is_linked_param);
+
+    // free input map and output map
+    TrieRelease(graph->inputs_map);
+    TrieRelease(graph->outputs_map);
+
+    // free graph attributes
+    memory_free(cpu, graph->graph_attr.storage_id);
+    if (graph->graph_attr.device_type) {
+        memory_free(cpu, graph->graph_attr.device_type);
+    }
+    memory_free(cpu, graph->graph_attr.ndim);
+    memory_free(cpu, graph->graph_attr.data_type);
+    for (uint32_t i = 0; i < graph->graph_attr.num_entry; ++i) {
+        memory_free(cpu, graph->graph_attr.shape[i]);
+    }
+    memory_free(cpu, graph->graph_attr.shape);
+
+    // free itself
+    memory_free(cpu, graph);
+    memory_free(cpu, g);
+
+    return 0;
 }
 
 /*!
@@ -470,8 +534,132 @@ int GraphExecutorRelease(GraphManagerInterface **g) {
  * \return 0 if successful
  */
 int GraphExecutorClone(GraphManagerInterface *g, GraphManagerInterface **cloned) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    CHECK_GraphManagerInterface(g);
+    if (unlikely(cloned == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: cloned pointer cannot be NULL");
+    }
+
+    DLDevice cpu = {kDLCPU, 0};
+    memory_alloc(sizeof(GraphManagerInterface), cpu, (void **)&cloned);
+    memcpy(*cloned, g, sizeof(GraphManagerInterface));
+    memory_alloc(sizeof(GraphExecutor), cpu, &(*cloned)->graphHandle);
+    memcpy((*cloned)->graphHandle, g->graphHandle, sizeof(GraphExecutor));
+
+    GraphExecutor *new_g = (GraphExecutor *)(*cloned)->graphHandle;
+    GraphExecutor *old_g = (GraphExecutor *)g->graphHandle;
+
+    // deep copy
+
+    // nodes
+    memory_alloc(sizeof(GraphExecutorNode) * new_g->num_nodes, cpu, (void **)&new_g->nodes);
+    for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
+        new_g->nodes[nid].flatten_data = old_g->nodes[nid].flatten_data;
+        new_g->nodes[nid].num_inputs = old_g->nodes[nid].num_inputs;
+        new_g->nodes[nid].num_outputs = old_g->nodes[nid].num_outputs;
+        // op type
+        memory_alloc(sizeof(char) * strlen(old_g->nodes[nid].op_type) + 1, cpu, (void **)&new_g->nodes[nid].op_type);
+        strcpy((char *)new_g->nodes[nid].op_type, old_g->nodes[nid].op_type);
+        // name
+        memory_alloc(sizeof(char) * strlen(old_g->nodes[nid].name) + 1, cpu, (void **)&new_g->nodes[nid].name);
+        strcpy((char *)new_g->nodes[nid].name, old_g->nodes[nid].name);
+        // func_name
+        memory_alloc(sizeof(char) * strlen(old_g->nodes[nid].func_name) + 1, cpu,
+                     (void **)&new_g->nodes[nid].func_name);
+        strcpy((char *)new_g->nodes[nid].func_name, old_g->nodes[nid].func_name);
+        // inputs
+        memory_alloc(sizeof(GraphExecutorNodeEntry) * new_g->nodes[nid].num_inputs, cpu,
+                     (void **)&new_g->nodes[nid].inputs);
+        memcpy(new_g->nodes[nid].inputs, old_g->nodes[nid].inputs,
+               sizeof(GraphExecutorNodeEntry) * new_g->nodes[nid].num_inputs);
+    }
+
+    // input nodes
+    memory_alloc(sizeof(uint32_t) * new_g->num_inputs_nodes, cpu, (void **)&new_g->inputs_nodes);
+    memcpy(new_g->inputs_nodes, old_g->inputs_nodes, sizeof(uint32_t) * new_g->num_inputs_nodes);
+
+    // out nodes entry
+    memory_alloc(sizeof(GraphExecutorNodeEntry) * new_g->num_outputs, cpu, (void **)&new_g->outputs_nodes);
+    memcpy(new_g->outputs_nodes, old_g->outputs_nodes, sizeof(uint32_t) * new_g->num_outputs);
+
+    // node_row_ptr
+    memory_alloc(sizeof(uint32_t) * new_g->num_node_row_ptr, cpu, (void **)&new_g->node_row_ptr);
+    memcpy(new_g->node_row_ptr, old_g->node_row_ptr, sizeof(uint32_t) * new_g->num_node_row_ptr);
+
+    // graph attributes
+    memory_alloc(sizeof(uint32_t) * new_g->num_data_entry, cpu, (void **)new_g->graph_attr.storage_id);
+    memcpy(new_g->graph_attr.storage_id, old_g->graph_attr.storage_id, sizeof(uint32_t) * new_g->num_data_entry);
+    memory_alloc(sizeof(uint32_t) * new_g->num_data_entry, cpu, (void **)new_g->graph_attr.ndim);
+    memcpy(new_g->graph_attr.ndim, old_g->graph_attr.ndim, sizeof(uint32_t) * new_g->num_data_entry);
+    memory_alloc(sizeof(DLDataType) * new_g->num_data_entry, cpu, (void **)&new_g->graph_attr.data_type);
+    memcpy(new_g->graph_attr.data_type, old_g->graph_attr.data_type, sizeof(DLDataType) * new_g->num_data_entry);
+    if (old_g->graph_attr.device_type) {
+        memory_alloc(sizeof(uint32_t) * new_g->num_data_entry, cpu, (void **)&new_g->graph_attr.device_type);
+        memcpy(new_g->graph_attr.device_type, old_g->graph_attr.device_type, sizeof(uint32_t) * new_g->num_data_entry);
+    }
+    memory_alloc(sizeof(uint64_t *) * old_g->num_data_entry, cpu, (void **)&new_g->graph_attr.shape);
+    for (uint32_t i = 0; i < new_g->num_data_entry; ++i) {
+        memory_alloc(sizeof(uint64_t) * new_g->graph_attr.ndim[i], cpu, (void **)(new_g->graph_attr.shape + i));
+        memcpy(new_g->graph_attr.shape[i], old_g->graph_attr.shape[i], sizeof(uint64_t) * new_g->graph_attr.ndim[i]);
+    }
+
+    // input and output map
+    TrieClone(old_g->inputs_map, &new_g->inputs_map);
+    TrieClone(old_g->outputs_map, &new_g->outputs_map);
+
+    // data entry and is linked param
+    memory_alloc(sizeof(DLTensor) * new_g->num_data_entry, cpu, (void **)&new_g->data_entry);
+    memcpy(new_g->data_entry, old_g->data_entry, sizeof(DLTensor) * new_g->num_data_entry);
+    memory_alloc(sizeof(uint8_t) * new_g->num_storage, cpu, (void **)&new_g->storage_is_linked_param);
+    memcpy(new_g->storage_is_linked_param, old_g->storage_is_linked_param, sizeof(uint8_t) * new_g->num_storage);
+    memory_alloc(sizeof(void *) * new_g->num_storage, cpu, (void **)&new_g->storages);
+    memset(new_g->storages, 0, sizeof(void *) * new_g->num_storage);
+
+    // setup storage !!!
+    uint32_t *tmp_storage_size;
+    memory_alloc(sizeof(uint32_t) * new_g->num_storage, cpu, (void **)&tmp_storage_size);
+    memset(tmp_storage_size, 0, sizeof(uint32_t) * new_g->num_storage);
+    for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
+        uint32_t sid = new_g->graph_attr.storage_id[eid];
+        if (new_g->storage_is_linked_param[sid]) {
+            new_g->storages[sid] = old_g->storages[sid];
+            continue;
+        }
+        uint32_t size = (uint32_t)DLTensor_GetDataBytes(new_g->data_entry + eid);
+        tmp_storage_size[sid] = MAX(tmp_storage_size[sid], size);
+    }
+    for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
+        uint32_t sid = new_g->graph_attr.storage_id[eid];
+        if (new_g->storages == NULL) {
+            memory_alloc(tmp_storage_size[sid], new_g->data_entry[eid].device, (void **)(new_g->storages + sid));
+            DLTensor_CopyFromTo(old_g->data_entry, new_g->data_entry + eid, NULL);
+        } else {
+            new_g->data_entry[eid].data = new_g->storages[sid];
+        }
+    }
+    memory_free(cpu, tmp_storage_size);
+
+    // node ops
+    memory_alloc(sizeof(GraphExecutorNodeOp) * new_g->num_nodes, cpu, (void **)&new_g->nodeOps);
+    // setup operators !!!
+    memcpy(new_g->nodeOps, old_g->nodes, sizeof(GraphExecutorNodeOp) * new_g->num_nodes);
+    for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
+        GraphExecutorNode *node = new_g->nodes + nid;
+        GraphExecutorNodeOp *nodeOp = new_g->nodeOps + nid;
+        memory_alloc(sizeof(TVMValue) * nodeOp->num_args, cpu, (void **)&nodeOp->arg_values);
+        memory_alloc(sizeof(TVMValue) * nodeOp->num_args, cpu, (void **)&nodeOp->arg_type_codes);
+        for (uint32_t i = 0; i < node->num_inputs; ++i) {
+            int eid = DATA_ENTRY_ID(new_g, node->inputs[i].node_id, node->inputs[i].index);
+            nodeOp->arg_values[i].v_handle = &new_g->data_entry[eid];
+            nodeOp->arg_type_codes[i] = kTVMDLTensorHandle;
+        }
+        for (uint32_t i = 0; i < node->num_outputs; ++i) {
+            int eid = DATA_ENTRY_ID(new_g, nid, i);
+            nodeOp->arg_values[node->num_inputs + i].v_handle = &new_g->data_entry[eid];
+            nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
+        }
+    }
+
+    return 0;
 }
 
 /**-----------------------------------------private functions---------------------------------------------------------*/
@@ -488,7 +676,7 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
 
     // get the number of storage
     graph->num_storage = 0;
-    for (int i = 0; i < graph->num_data_entry; ++i) {
+    for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
         graph->num_storage = MAX(graph->num_storage, graph->graph_attr.storage_id[i]);
     }
     memory_alloc(sizeof(void *) * graph->num_storage, cpu, (void **)&graph->storages);
@@ -497,7 +685,7 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
     // get the data size for every storage
     memory_alloc(sizeof(size_t) * graph->num_storage, cpu, (void **)&storage_size);
     memset(storage_size, 0, sizeof(size_t) * graph->num_storage);
-    for (int i = 0; i < graph->num_data_entry; ++i) {
+    for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
         size_t now_size = DLTensor_GetDataSize(graph->graph_attr.shape[i], (int)graph->graph_attr.ndim[i]);
         now_size = ((graph->graph_attr.data_type[i].bits * graph->graph_attr.data_type[i].lanes + 7U) / 8U) * now_size;
         if (unlikely(now_size == 0)) {
@@ -510,13 +698,13 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
     memory_alloc(sizeof(DLDevice) * graph->num_storage, cpu, (void **)&storage_device);
     if (graph->graph_attr.device_type == NULL) {
         // default device
-        for (int i = 0; i < graph->num_data_entry; ++i) {
+        for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
             storage_device[i] = graph->devices[0];
         }
     } else {
         memset(storage_device, 0xFF, sizeof(DLDeviceType) * graph->num_storage);
-        for (int i = 0; i < graph->num_data_entry; ++i) {
-            if (storage_device[i].device_type == -1) {
+        for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
+            if ((int)storage_device[i].device_type == -1) {
                 storage_device[i].device_type = graph->graph_attr.device_type[i];
             } else {
                 if (unlikely(storage_device[i].device_type != graph->graph_attr.device_type[i])) {
@@ -525,9 +713,9 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
                 }
             }
         }
-        for (int i = 0; i < graph->num_storage; ++i) {
+        for (uint32_t i = 0; i < graph->num_storage; ++i) {
             // find the fit device
-            for (int x = 0; x < graph->num_device; ++x) {
+            for (uint32_t x = 0; x < graph->num_device; ++x) {
                 if (graph->devices[x].device_type == storage_device[i].device_type) {
                     storage_device[i].device_id = graph->devices[x].device_id;
                     break;
@@ -549,7 +737,7 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
         arg_type = kTVMArgInt;
-        for (int i = 0; i < graph->num_storage; ++i) {
+        for (uint32_t i = 0; i < graph->num_storage; ++i) {
             arg_val.v_int64 = i;
             status = func(&arg_val, &arg_type, 1, &ret_val, &ret_type, graph->module_handle);
             if (likely(status == 0 && ret_val.v_handle != NULL)) {
@@ -560,7 +748,7 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
     }
 
     // alloc memory for storage
-    for (int i = 0; i < graph->num_storage; ++i) {
+    for (uint32_t i = 0; i < graph->num_storage; ++i) {
         if (graph->storage_is_linked_param[i] == 0) {
             memory_alloc(storage_size[i], storage_device[i], &(graph->storages[i]));
         }
@@ -568,7 +756,7 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
 
     // set up the data_entry
     memory_alloc(sizeof(DLTensor) * graph->num_data_entry, cpu, (void **)&graph->data_entry);
-    for (int i = 0; i < graph->num_data_entry; ++i) {
+    for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
         graph->data_entry[i].data = graph->storages[graph->graph_attr.storage_id[i]];
 
         graph->data_entry[i].ndim = (int)graph->graph_attr.ndim[i];
@@ -596,7 +784,7 @@ int GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
     memory_alloc(sizeof(GraphExecutorNodeOp) * graph->num_nodes, cpu, (void **)&graph->nodeOps);
     memset(graph->nodeOps, 0, sizeof(GraphExecutorNodeOp) * graph->num_nodes);
 
-    for (int nid = 0; nid < graph->num_nodes; ++nid) {
+    for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
         GraphExecutorNode *node = graph->nodes + nid;
         if (strcmp(node->op_type, "tvm_op") == 0) {
             GraphExecutorNodeOp *nodeOp = graph->nodeOps + nid;
@@ -604,12 +792,12 @@ int GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
 
             memory_alloc(sizeof(TVMValue) * nodeOp->num_args, cpu, (void **)&nodeOp->arg_values);
             memory_alloc(sizeof(TVMValue) * nodeOp->num_args, cpu, (void **)&nodeOp->arg_type_codes);
-            for (int i = 0; i < node->num_inputs; ++i) {
+            for (uint32_t i = 0; i < node->num_inputs; ++i) {
                 int eid = DATA_ENTRY_ID(graph, node->inputs[i].node_id, node->inputs[i].index);
                 nodeOp->arg_values[i].v_handle = &graph->data_entry[eid];
                 nodeOp->arg_type_codes[i] = kTVMDLTensorHandle;
             }
-            for (int i = 0; i < node->num_outputs; ++i) {
+            for (uint32_t i = 0; i < node->num_outputs; ++i) {
                 int eid = DATA_ENTRY_ID(graph, nid, i);
                 nodeOp->arg_values[node->num_inputs + i].v_handle = &graph->data_entry[eid];
                 nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
@@ -702,7 +890,7 @@ int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
                 node->num_inputs = inputs_num;
                 memory_alloc(sizeof(GraphExecutorNodeEntry) * inputs_num, cpu, (void **)&node->inputs);
                 memset(node->inputs, 0, sizeof(GraphExecutorNodeEntry));
-                for (int inputs_count = 0; inputs_count < inputs_num; ++inputs_count) {
+                for (uint32_t inputs_count = 0; inputs_count < inputs_num; ++inputs_count) {
                     ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse NodeEntry Error"); // '[' or ','
 
                     // node_id
@@ -804,7 +992,7 @@ int JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader, GraphExecutor 
     memset(graph->inputs_nodes, 0, sizeof(uint32_t) * input_size);
     graph->num_inputs_nodes = input_size;
 
-    for (int input_count = 0; input_count < input_size; ++input_count) {
+    for (size_t input_count = 0; input_count < input_size; ++input_count) {
         ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse input node array element error"); // '['
 
         status = JsonReader_Read_uint32(reader, graph->inputs_nodes + input_count);
@@ -839,7 +1027,7 @@ int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExecutor *
     memset(graph->outputs_nodes, 0, sizeof(GraphExecutorNodeEntry) * entry_size);
     graph->num_inputs_nodes = entry_size;
 
-    for (int entry_count = 0; entry_count < entry_size; ++entry_count) {
+    for (size_t entry_count = 0; entry_count < entry_size; ++entry_count) {
         ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse outputs NodeEntry fail"); // '[' or ','
         // node_id
         ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: no element for outputs NodeEntry.node_id"); // '['
@@ -911,7 +1099,7 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
             memory_alloc(sizeof(DLDataType) * data_type_size, cpu, (void **)&graphAttr->data_type);
             memset(graphAttr->data_type, 0, sizeof(DLDataType) * data_type_size);
 
-            for (int i = 0; i < data_type_size; ++i) {
+            for (size_t i = 0; i < data_type_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr data_type array element fail");
 
                 str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
@@ -947,7 +1135,7 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
             memory_alloc(sizeof(uint32_t) * storage_id_size, cpu, (void **)&graphAttr->storage_id);
             memset(graphAttr->storage_id, 0, sizeof(uint32_t) * storage_id_size);
 
-            for (int i = 0; i < storage_id_size; ++i) {
+            for (size_t i = 0; i < storage_id_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr storage_id array element fail");
 
                 status = JsonReader_Read_uint32(reader, graphAttr->storage_id + i);
@@ -978,7 +1166,7 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
             memory_alloc(sizeof(uint32_t) * device_type_size, cpu, (void **)&graphAttr->device_type);
             memset(graphAttr->device_type, 0, sizeof(uint32_t) * device_type_size);
 
-            for (int i = 0; i < device_type_size; ++i) {
+            for (size_t i = 0; i < device_type_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr dev_type array element fail");
 
                 status = JsonReader_Read_uint32(reader, graphAttr->device_type + i);
@@ -1011,7 +1199,7 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
             memory_alloc(shape_size * sizeof(uint32_t), cpu, (void **)&graphAttr->ndim);
             memset(graphAttr->ndim, 0, sizeof(uint32_t) * shape_size);
 
-            for (int i = 0; i < shape_size; ++i) {
+            for (size_t i = 0; i < shape_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr shape array length fail");
 
                 size_t ndim;
@@ -1023,7 +1211,7 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
                 memset(graphAttr->shape[i], 0, sizeof(uint64_t) * ndim);
                 graphAttr->ndim[i] = ndim;
 
-                for (int dim = 0; dim < ndim; ++dim) {
+                for (size_t dim = 0; dim < ndim; ++dim) {
                     ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr shape.dim element fail");
                     status = JsonReader_Read_uint64(reader, graphAttr->shape[i] + dim);
                     if (unlikely(status)) {
@@ -1070,7 +1258,7 @@ int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor *graph
     memset(graph->node_row_ptr, 0, sizeof(uint32_t) * ptr_size);
     graph->num_node_row_ptr = ptr_size;
 
-    for (int ptr_count = 0; ptr_count < ptr_size; ++ptr_count) {
+    for (size_t ptr_count = 0; ptr_count < ptr_size; ++ptr_count) {
         ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JSONReader Error: parse node_row_ptr array element fail");
 
         status = JsonReader_Read_uint32(reader, graph->node_row_ptr + ptr_count);

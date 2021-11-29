@@ -8,8 +8,8 @@ set(CUDAToolkit_ROOT D:/software/cuda/toolkit)
 set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
 project(tvm-rt)
 
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-fno-exceptions -O3")
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-fno-exceptions -O3")
+add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -fno-rtti)
+add_link_options(-Wl,--allow-undefined)
 
 include_directories(include)
 include_directories(3rdparty/dlpack/include)
@@ -24,3 +24,6 @@ install(TARGETS tvm-rt ${CMAKE_INSTALL_LIBDIR})
 set(INSTALL_INCLUDE_FILES)
 file(GLOB INSTALL_INCLUDE_FILES include/tvm/runtime/*.h)
 install(FILES ${INSTALL_INCLUDE_FILES} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/tvm/runtime/)
+install(FILES 3rdparty/dlpack/include/dlpack/dlpack.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/dlpack/)
+
+add_subdirectory(examples EXCLUDE_FROM_ALL)

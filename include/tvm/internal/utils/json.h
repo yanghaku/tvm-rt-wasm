@@ -224,7 +224,7 @@ static inline int JsonReader_ReadString(JsonReader *reader, char *out_str, size_
         }
 
         int new_size = size + 1;
-        if (unlikely(new_size == out_str_size)) { // buf is two short
+        if (unlikely(new_size == (int)out_str_size)) { // buf is two short
             fprintf(stderr, "Error: string buf is too short! now buf size = %d\n", new_size);
             return -1;
         }
