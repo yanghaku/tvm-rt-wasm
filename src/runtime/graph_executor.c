@@ -52,6 +52,7 @@ int TVMGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle
     (*g)->GetNumInputs = GraphExecutorGetNumInputs;
     (*g)->GetNumOutputs = GraphExecutorGetNumOutputs;
     (*g)->SetInput = GraphExecutorSetInput;
+    (*g)->SetInputByName = GraphExecutorSetInputByName;
     (*g)->GetOutput = GraphExecutorGetOutput;
     (*g)->LoadParams = GraphExecutorLoadParams;
     (*g)->Run = GraphExecutorRun;
@@ -91,6 +92,15 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
     }
     if (unlikely(graph == NULL)) {
         SET_ERROR_RETURN(-1, "invalid argument: graph executor cannot be NULL");
+    }
+    if (unlikely(devices == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: devices cannot be NULL");
+    }
+    if (unlikely(num_dev == 0)) {
+        SET_ERROR_RETURN(-1, "invalid argument: the number of devices cannot be zero, at least 1");
+    }
+    if (unlikely(module_handle == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: module_handle cannot be NULL");
     }
 
     DLDevice cpu = {kDLCPU, 0};
@@ -163,6 +173,33 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
         SET_ERROR_RETURN(-1, "must be equal: num_data_entry(%d) and graph_attr_num_entry(%d)", graph->num_data_entry,
                          graph->graph_attr.num_entry);
     }
+    if (unlikely(graph->data_entry == 0)) {
+        SET_ERROR_RETURN(-1, "the number of graph data_entry cannot be 0, at least 1");
+    }
+
+    status = TrieCreate(&graph->inputs_map);
+    if (unlikely(status)) {
+        SET_ERROR_RETURN(-1, "create inputs_map fail");
+    }
+    for (int i = 0; i < graph->num_inputs_nodes; ++i) {
+        uint32_t nid = graph->inputs_nodes[i];
+        status = TrieInsert(graph->inputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
+        if (status) {
+            SET_ERROR_RETURN(-1, "inputs_map: insert data fail");
+        }
+    }
+
+    status = TrieCreate(&graph->outputs_map);
+    if (unlikely(status)) {
+        SET_ERROR_RETURN(-1, "create outputs_map fail");
+    }
+    for (int i = 0; i < graph->num_outputs; ++i) {
+        uint32_t nid = graph->outputs_nodes[i].node_id;
+        status = TrieInsert(graph->outputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
+        if (status) {
+            SET_ERROR_RETURN(-1, "outputs_map: insert data fail");
+        }
+    }
 
     // init storage
     status = GraphExecutor_SetupStorage(graph);
@@ -217,7 +254,7 @@ int GraphExecutorGetInputIndex(GraphManagerInterface *g, const char *name) {
     }
     int index = -1;
     if (unlikely(TrieQuery(graph->inputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
-        SET_ERROR_RETURN(-1, "name(%s)is not FOUND", name);
+        SET_ERROR_RETURN(-1, "name(%s)is not FOUND in input nodes", name);
     }
     return index;
 }
@@ -236,7 +273,7 @@ int GraphExecutorGetOutputIndex(GraphManagerInterface *g, const char *name) {
     }
     int index = -1;
     if (unlikely(TrieQuery(graph->outputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
-        SET_ERROR_RETURN(-1, "name(%s)is not FOUND", name);
+        SET_ERROR_RETURN(-1, "name(%s)is not FOUND in output nodes", name);
     }
     return index;
 }
@@ -283,6 +320,22 @@ int GraphExecutorSetInput(GraphManagerInterface *g, uint32_t index, const DLTens
 }
 
 /*!
+ * \brief set input to the graph based on name.
+ * \param g The instance of GraphManagerInterface.
+ * \param executor The graph executor.
+ * \param name the name string for node
+ * \param data_in The input data.
+ * \return 0 if successful
+ */
+int GraphExecutorSetInputByName(GraphManagerInterface *g, const char *name, const DLTensor *data_in) {
+    int index = GraphExecutorGetInputIndex(g, name);
+    if (unlikely(index == -1)) {
+        return index;
+    }
+    return GraphExecutorSetInput(g, index, data_in);
+}
+
+/*!
  * \brief Return NDArray for given output index.
  * \param g The instance of GraphManagerInterface.
  * \param executor The graph executor.
@@ -312,8 +365,71 @@ int GraphExecutorGetOutput(GraphManagerInterface *g, uint32_t index, DLTensor *d
  * \return The result of this function execution.
  */
 int GraphExecutorLoadParams(GraphManagerInterface *g, const char *param_blob, uint32_t param_size) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    CHECK_GraphManagerInterface(g);
+    GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
+
+    if (unlikely(param_blob == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: param_blob cannot be null");
+    }
+    if (unlikely(param_size < sizeof(uint64_t) * 2)) {
+        SET_ERROR_RETURN(-1, "invalid argument: param_size is too short, at least %zu", sizeof(uint64_t) * 2);
+    }
+    if (unlikely(*((uint64_t *)param_blob) != kTVMNDArrayListMagic)) {
+        SET_ERROR_RETURN(-1, "invalid param blob: magic error, expected %llu, given %llu", kTVMNDArrayListMagic,
+                         *((uint64_t *)param_blob));
+    }
+    const char *blob = param_blob + sizeof(uint64_t) + sizeof(uint64_t); // magic(8 bytes), reserved(8 bytes)
+
+    uint64_t name_num;
+    memcpy(&name_num, blob, sizeof(name_num));
+    blob += sizeof(name_num);
+    const char *name = blob;
+
+    // scan names
+    for (int i = 0; i < name_num; ++i) {
+        uint32_t str_len = 0;
+        while (*blob) {
+            ++blob;
+            ++str_len;
+        }
+        if (unlikely(str_len == 0)) {
+            SET_ERROR_RETURN(-1, "invalid param blob: node name cannot be \"\"");
+        }
+        ++blob;
+    }
+
+    uint64_t arr_num;
+    memcpy(&arr_num, blob, sizeof(arr_num));
+    blob += sizeof(arr_num);
+
+    if (unlikely(name_num != arr_num)) {
+        SET_ERROR_RETURN(-1, "invalid param blob: name_num(%llu) != arr_num(%llu)", name_num, arr_num);
+    }
+
+    // scan name and load param
+    for (int i = 0; i < arr_num; ++i) {
+        int index = -1;
+        if (unlikely(TrieQuery(graph->inputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
+            SET_ERROR_RETURN(-1, "invalid param blob: param node name(%s) not found", name);
+        }
+
+        uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
+        if (unlikely(eid >= graph->num_data_entry)) {
+            SET_ERROR_RETURN(-1, "Error, entry id (%u) is greater than the number of data entry (%u)", eid,
+                             graph->num_data_entry);
+        }
+
+        int status = DLTensor_LoadDataFromBinary(graph->data_entry + eid, &blob);
+        if (unlikely(status)) {
+            return status;
+        }
+
+        // point to next name
+        while (*name++)
+            ;
+    }
+
+    return 0;
 }
 
 /*!
@@ -367,7 +483,10 @@ int GraphExecutorClone(GraphManagerInterface *g, GraphManagerInterface **cloned)
  */
 int GraphExecutor_SetupStorage(GraphExecutor *graph) {
     DLDevice cpu = {kDLCPU, 0};
+    size_t *storage_size;
+    DLDevice *storage_device;
 
+    // get the number of storage
     graph->num_storage = 0;
     for (int i = 0; i < graph->num_data_entry; ++i) {
         graph->num_storage = MAX(graph->num_storage, graph->graph_attr.storage_id[i]);
@@ -375,14 +494,94 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
     memory_alloc(sizeof(void *) * graph->num_storage, cpu, (void **)&graph->storages);
     memset(graph->storages, 0, sizeof(void *) * graph->num_storage);
 
+    // get the data size for every storage
+    memory_alloc(sizeof(size_t) * graph->num_storage, cpu, (void **)&storage_size);
+    memset(storage_size, 0, sizeof(size_t) * graph->num_storage);
+    for (int i = 0; i < graph->num_data_entry; ++i) {
+        size_t now_size = DLTensor_GetDataSize(graph->graph_attr.shape[i], (int)graph->graph_attr.ndim[i]);
+        now_size = ((graph->graph_attr.data_type[i].bits * graph->graph_attr.data_type[i].lanes + 7U) / 8U) * now_size;
+        if (unlikely(now_size == 0)) {
+            SET_ERROR_RETURN(-1, "shape cannot contains 0 in the %d shape", i);
+        }
+        storage_size[i] = MAX(storage_size[i], now_size);
+    }
 
+    // get the device for every storage
+    memory_alloc(sizeof(DLDevice) * graph->num_storage, cpu, (void **)&storage_device);
+    if (graph->graph_attr.device_type == NULL) {
+        // default device
+        for (int i = 0; i < graph->num_data_entry; ++i) {
+            storage_device[i] = graph->devices[0];
+        }
+    } else {
+        memset(storage_device, 0xFF, sizeof(DLDeviceType) * graph->num_storage);
+        for (int i = 0; i < graph->num_data_entry; ++i) {
+            if (storage_device[i].device_type == -1) {
+                storage_device[i].device_type = graph->graph_attr.device_type[i];
+            } else {
+                if (unlikely(storage_device[i].device_type != graph->graph_attr.device_type[i])) {
+                    SET_ERROR_RETURN(-1, "The same storage requires the same device_type, but given %d and %d",
+                                     storage_device[i].device_type, graph->graph_attr.device_type[i]);
+                }
+            }
+        }
+        for (int i = 0; i < graph->num_storage; ++i) {
+            // find the fit device
+            for (int x = 0; x < graph->num_device; ++x) {
+                if (graph->devices[x].device_type == storage_device[i].device_type) {
+                    storage_device[i].device_id = graph->devices[x].device_id;
+                    break;
+                }
+            }
+            if (unlikely(storage_device[i].device_id == -1)) {
+                storage_device[i] = graph->devices[0];
+            }
+        }
+    }
 
+    // find linked param
+    memory_alloc(sizeof(uint8_t) * graph->num_storage, cpu, (void **)&graph->storage_is_linked_param);
+    memset(graph->storage_is_linked_param, 0, sizeof(uint8_t) * graph->num_storage);
+    static const char *lookup_linked_param_func_name = "_lookup_linked_param";
+    TVMBackendPackedCFunc func;
+    int status = TVMModGetFunction(graph->module_handle, lookup_linked_param_func_name, 1, (TVMFunctionHandle)&func);
+    if (status == 0) {
+        TVMValue arg_val, ret_val;
+        int arg_type, ret_type;
+        arg_type = kTVMArgInt;
+        for (int i = 0; i < graph->num_storage; ++i) {
+            arg_val.v_int64 = i;
+            status = func(&arg_val, &arg_type, 1, &ret_val, &ret_type, graph->module_handle);
+            if (likely(status == 0 && ret_val.v_handle != NULL)) {
+                graph->storage_is_linked_param[i] = 1;
+                graph->storages[i] = ret_val.v_handle;
+            }
+        }
+    }
 
+    // alloc memory for storage
+    for (int i = 0; i < graph->num_storage; ++i) {
+        if (graph->storage_is_linked_param[i] == 0) {
+            memory_alloc(storage_size[i], storage_device[i], &(graph->storages[i]));
+        }
+    }
 
-
-
+    // set up the data_entry
     memory_alloc(sizeof(DLTensor) * graph->num_data_entry, cpu, (void **)&graph->data_entry);
-    memset(graph->data_entry, 0, sizeof(DLTensor) * graph->num_data_entry);
+    for (int i = 0; i < graph->num_data_entry; ++i) {
+        graph->data_entry[i].data = graph->storages[graph->graph_attr.storage_id[i]];
+
+        graph->data_entry[i].ndim = (int)graph->graph_attr.ndim[i];
+        graph->data_entry[i].shape = (int64_t *)graph->graph_attr.shape[i];
+        graph->data_entry[i].dtype = graph->graph_attr.data_type[i];
+        graph->data_entry[i].device = storage_device[i];
+        graph->data_entry[i].strides = NULL;
+        graph->data_entry[i].byte_offset = 0;
+    }
+
+    memory_free(cpu, storage_device);
+    memory_free(cpu, storage_size);
+    return 0;
 }
 
 /*!
@@ -390,7 +589,46 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-int GraphExecutor_SetupOpExecs(GraphExecutor *graph) { return 0; }
+int GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
+    DLDevice cpu = {kDLCPU, 0};
+
+    // init memory
+    memory_alloc(sizeof(GraphExecutorNodeOp) * graph->num_nodes, cpu, (void **)&graph->nodeOps);
+    memset(graph->nodeOps, 0, sizeof(GraphExecutorNodeOp) * graph->num_nodes);
+
+    for (int nid = 0; nid < graph->num_nodes; ++nid) {
+        GraphExecutorNode *node = graph->nodes + nid;
+        if (strcmp(node->op_type, "tvm_op") == 0) {
+            GraphExecutorNodeOp *nodeOp = graph->nodeOps + nid;
+            nodeOp->num_args = (int)(node->num_inputs + node->num_outputs);
+
+            memory_alloc(sizeof(TVMValue) * nodeOp->num_args, cpu, (void **)&nodeOp->arg_values);
+            memory_alloc(sizeof(TVMValue) * nodeOp->num_args, cpu, (void **)&nodeOp->arg_type_codes);
+            for (int i = 0; i < node->num_inputs; ++i) {
+                int eid = DATA_ENTRY_ID(graph, node->inputs[i].node_id, node->inputs[i].index);
+                nodeOp->arg_values[i].v_handle = &graph->data_entry[eid];
+                nodeOp->arg_type_codes[i] = kTVMDLTensorHandle;
+            }
+            for (int i = 0; i < node->num_outputs; ++i) {
+                int eid = DATA_ENTRY_ID(graph, nid, i);
+                nodeOp->arg_values[node->num_inputs + i].v_handle = &graph->data_entry[eid];
+                nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
+            }
+
+            int status =
+                TVMModGetFunction(graph->module_handle, node->func_name, 1, (TVMFunctionHandle *)&nodeOp->exec);
+            if (unlikely(status)) {
+                SET_ERROR_RETURN(-1, "cannot find func from module, name = %s", node->func_name);
+            }
+
+        } else if (strcmp(node->op_type, "null") == 0) {
+            continue;
+        } else {
+            SET_ERROR_RETURN(-1, "unsupported graph node op_type: %s", node->op_type);
+        }
+    }
+    return 0;
+}
 
 /*! \brief json next array item exist check */
 #define ARRAY_CHECK_NEXT_EXISTS(reader, err, fmt, ...)                                                                 \
@@ -647,7 +885,7 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
     GraphAttr *graphAttr = &graph->graph_attr;
     int status = 0;
     size_t storage_id_size;
-    size_t device_id_size;
+    size_t device_type_size;
     size_t shape_size;
     size_t data_type_size;
     char key[GRAPH_JSON_KEY_SIZE];
@@ -668,19 +906,19 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
 
             status = JsonReader_ArrayLength(reader, &data_type_size);
             if (unlikely(status)) {
-                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dltype array length fail");
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr data_type array length fail");
             }
-            memory_alloc(sizeof(DLDataType) * data_type_size, cpu, (void **)&graphAttr->dl_type);
-            memset(graphAttr->dl_type, 0, sizeof(DLDataType) * data_type_size);
+            memory_alloc(sizeof(DLDataType) * data_type_size, cpu, (void **)&graphAttr->data_type);
+            memset(graphAttr->data_type, 0, sizeof(DLDataType) * data_type_size);
 
             for (int i = 0; i < data_type_size; ++i) {
-                ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr dltype array element fail");
+                ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr data_type array element fail");
 
                 str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
                 if (unlikely(str_len <= 0)) {
-                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dltype array element fail");
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr data_type array element fail");
                 }
-                status = DLDataType_ParseFromString(global_buf, str_len, graphAttr->dl_type + i);
+                status = DLDataType_ParseFromString(global_buf, str_len, graphAttr->data_type + i);
                 if (unlikely(status)) {
                     SET_ERROR_RETURN(-1, "Parse Error: cannot parse the DLDataType string to DLDataType");
                 }
@@ -721,31 +959,31 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, -1, "JsonReader Error: invalid array end character);"); // ']'
         } else if (!strcmp(key, "device_index")) {
-            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse graphAttr dev_id fail"); // '['
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse graphAttr device_index fail"); // '['
 
             int str_len = JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
             if (unlikely(str_len <= 0)) {
-                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id element fail");
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr device_index element fail");
             }
             if (unlikely(strcmp(global_buf, "list_int"))) {
-                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id element expect list_str");
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr device_index element expect list_str");
             }
 
-            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr dev_id no array entry"); // '['
+            ARRAY_CHECK_NEXT_EXISTS(reader, -1, "JsonReader Error: parse GraphAttr dev_type no array entry"); // '['
 
-            status = JsonReader_ArrayLength(reader, &device_id_size);
+            status = JsonReader_ArrayLength(reader, &device_type_size);
             if (unlikely(status)) {
-                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id array length fail");
+                SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr device_index array length fail");
             }
-            memory_alloc(sizeof(uint32_t) * device_id_size, cpu, (void **)&graphAttr->device_id);
-            memset(graphAttr->device_id, 0, sizeof(uint32_t) * device_id_size);
+            memory_alloc(sizeof(uint32_t) * device_type_size, cpu, (void **)&graphAttr->device_type);
+            memset(graphAttr->device_type, 0, sizeof(uint32_t) * device_type_size);
 
-            for (int i = 0; i < device_id_size; ++i) {
-                ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr dev_id array element fail");
+            for (int i = 0; i < device_type_size; ++i) {
+                ARRAY_CHECK_NEXT_EXISTS(reader, 1, "JsonReader Error: parse GraphAttr dev_type array element fail");
 
-                status = JsonReader_Read_uint32(reader, graphAttr->device_id + i);
+                status = JsonReader_Read_uint32(reader, graphAttr->device_type + i);
                 if (unlikely(status)) {
-                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_id array element fail");
+                    SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr dev_type array element fail");
                 }
             }
 
@@ -802,11 +1040,9 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
         }
     }
 
-    if (unlikely(storage_id_size != data_type_size || storage_id_size != shape_size ||
-                 storage_id_size != device_id_size)) {
-        SET_ERROR_RETURN(
-            -1, "invalid size, not the same: storage_id_size=%zu,data_type_size=%zu,shape_size=%zu,device_id_size=%zu",
-            storage_id_size, data_type_size, shape_size, device_id_size);
+    if (unlikely(storage_id_size != data_type_size || storage_id_size != shape_size)) {
+        SET_ERROR_RETURN(-1, "invalid size, not the same: storage_id_size=%zu,data_type_size=%zu,shape_size=%zu",
+                         storage_id_size, data_type_size, shape_size);
     }
     graphAttr->num_entry = data_type_size;
 

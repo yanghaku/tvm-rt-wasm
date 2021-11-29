@@ -89,7 +89,7 @@ struct GraphManagerInterface {
     int (*GetNumOutputs)(GraphManagerInterface *g);
 
     /*!
-     * \brief set input to the graph based on name.
+     * \brief set input to the graph based on index.
      * \param g The instance of GraphManagerInterface.
      * \param executor The graph executor.
      * \param index the index of inputs.
@@ -97,6 +97,16 @@ struct GraphManagerInterface {
      * \return 0 if successful
      */
     int (*SetInput)(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
+
+    /*!
+     * \brief set input to the graph based on name.
+     * \param g The instance of GraphManagerInterface.
+     * \param executor The graph executor.
+     * \param name the name string for node
+     * \param data_in The input data.
+     * \return 0 if successful
+     */
+    int (*SetInputByName)(GraphManagerInterface *g, const char *name, const DLTensor *data_in);
 
     /*!
      * \brief Return NDArray for given output index.

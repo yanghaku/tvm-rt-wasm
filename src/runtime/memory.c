@@ -28,7 +28,7 @@
 #include <tvm/internal/memory/memory.h>
 #include <tvm/internal/utils/common.h>
 
-int memory_alloc(uint32_t num_bytes, DLDevice dev, void **out_ptr) {
+int memory_alloc(size_t num_bytes, DLDevice dev, void **out_ptr) {
     int status;
     switch (dev.device_type) {
     case kDLCUDA:

@@ -95,7 +95,7 @@ typedef struct GraphExecutorNode {
 } GraphExecutorNode;
 
 /*! \brief operator function information for every node */
-typedef struct NodeOp {
+typedef struct GraphExecutorNodeOp {
     /*! \brief the number of argument */
     int num_args;
     /*! \brief the return typeCode */
@@ -116,14 +116,14 @@ typedef struct GraphAttr {
     uint32_t num_entry;
     /*! \brief storage id for every dataEntry */
     uint32_t *storage_id;
-    /*! \brief device id for every dataEntry */
-    uint32_t *device_id;
+    /*! \brief device type for every dataEntry */
+    uint32_t *device_type;
     /*! \brief shape for every dataEntry */
     uint64_t **shape;
     /*! \brief ndim for every shape */
     uint32_t *ndim;
-    /*! \brief dltype for every dataEntry */
-    DLDataType *dl_type;
+    /*! \brief DLTensor type for every dataEntry */
+    DLDataType *data_type;
 } GraphAttr;
 
 #define GRAPH_BASE_MEMBER                                                                                              \
@@ -240,6 +240,16 @@ int GraphExecutorGetNumOutputs(GraphManagerInterface *g);
  * \return 0 if successful
  */
 int GraphExecutorSetInput(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
+
+/*!
+ * \brief set input to the graph based on name.
+ * \param g The instance of GraphManagerInterface.
+ * \param executor The graph executor.
+ * \param name the name string for node
+ * \param data_in The input data.
+ * \return 0 if successful
+ */
+int GraphExecutorSetInputByName(GraphManagerInterface *g, const char *name, const DLTensor *data_in);
 
 /*!
  * \brief Return NDArray for given output index.

@@ -32,7 +32,7 @@ extern "C" {
 
 #include <tvm/runtime/c_runtime_api.h>
 
-int memory_alloc(uint32_t num_bytes, DLDevice dev, void **out_ptr);
+int memory_alloc(size_t num_bytes, DLDevice dev, void **out_ptr);
 
 int memory_free(DLDevice dev, void *ptr);
 
