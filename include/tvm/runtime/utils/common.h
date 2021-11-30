@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file internal/utils/common.h
+ * \file runtime/utils/common.h
  * \brief some common auxiliary definitions and functions
  * \author YangBo MG21330067@smail.nju.edu.cn
  *

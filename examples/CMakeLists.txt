@@ -22,7 +22,7 @@ message("examples for tvm-rt")
 add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -fno-rtti)
 add_link_options(-Wl,--allow-undefined)
 
-message("USE_CUDA= ${USE_CUDA}")
+message("examples USE_CUDA = ${USE_CUDA}")
 
 include_directories(${TVM_RT_ROOT}/include)
 link_directories(${TVM_RT_ROOT}/lib)

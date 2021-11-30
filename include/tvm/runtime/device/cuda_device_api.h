@@ -18,26 +18,46 @@
  */
 
 /*!
- * \file internal/memory/memory.h
- * \brief dynamic memory manager, using std::malloc,std::free
+ * \file runtime/device/cuda_device_api.h
+ * \brief cuda device api
  * \author YangBo MG21330067@smail.nju.edu.cn
  *
  */
-#ifndef TVM_RT_MEMORY_H
-#define TVM_RT_MEMORY_H
+#ifndef TVM_RT_CUDA_DEVICE_API_H
+#define TVM_RT_CUDA_DEVICE_API_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/device/device_api.h>
 
-int memory_alloc(size_t num_bytes, DLDevice dev, void **out_ptr);
+#if USE_CUDA // USE_CUDA = 1
+#include <tvm/runtime/utils/cuda_common.h>
+#endif // USE_CUDA
 
-int memory_free(DLDevice dev, void *ptr);
+/*! \brief CUDADeviceAPI implement the interface DeviceAPI */
+typedef struct CUDADeviceAPI {
+    DEVICE_API_INTERFACE
+
+    int num_device;
+
+#if USE_CUDA // USE_CUDA = 1
+    CUcontext *contexts;
+#elif // USE_CUDA
+
+#endif
+} CUDADeviceAPI;
+
+/*!
+ * \brief create a instance of cuda device api
+ * @param cudaDeviceApi the pointer to receive instance
+ * @return 0 if successful
+ */
+int CUDADeviceAPICreate(CUDADeviceAPI **cudaDeviceApi);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_MEMORY_H
+#endif // TVM_RT_CUDA_DEVICE_API_H

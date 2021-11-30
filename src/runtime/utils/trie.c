@@ -25,9 +25,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <tvm/internal/memory/memory.h>
-#include <tvm/internal/utils/common.h>
-#include <tvm/internal/utils/trie.h>
+#include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/utils/common.h>
+#include <tvm/runtime/utils/trie.h>
 
 /*! \brief charset = 0-9,a-z,A-Z, _, : */
 #define CHAR_SET_SIZE 64
@@ -60,9 +60,10 @@ typedef struct Trie {
 
 int TrieCreate(Trie **trie) {
     DLDevice cpu = {kDLCPU, 0};
-    memory_alloc(sizeof(Trie), cpu, (void **)&trie);
+    DLDataType no_type = {0, 0, 0};
+    int status = TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)&trie);
     memset(*trie, 0, sizeof(Trie));
-    return 0;
+    return status;
 }
 
 int TrieInsert(Trie *trie, const uint8_t *name, void *data) {
@@ -112,7 +113,8 @@ void TrieVisit(Trie *trie, void (*visit)(char, void *, void *), void *source_han
 
 int TrieClone(const Trie *trie, Trie **cloned) {
     DLDevice cpu = {kDLCPU, 0};
-    memory_alloc(sizeof(Trie), cpu, (void **)cloned);
+    DLDataType no_type = {0, 0, 0};
+    TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)&cloned);
     memcpy(*cloned, trie, sizeof(Trie));
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {
         if (trie->son[i]) {
@@ -129,5 +131,5 @@ int TrieRelease(Trie *trie) {
             TrieRelease(trie->son[i]);
         }
     }
-    return memory_free(cpu, trie);
+    return TVMDeviceFreeDataSpace(cpu, trie);
 }

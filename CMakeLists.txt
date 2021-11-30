@@ -9,11 +9,19 @@ set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
 project(tvm-rt)
 
 add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -fno-rtti)
-add_link_options(-Wl,--allow-undefined)
+
+OPTION(USE_CUDA "USE CUDA" ON)
+message("lib USE_CUDA=${USE_CUDA}")
+if (${USE_CUDA})
+    add_definitions(-DUSE_CUDA=1)
+    add_link_options(-Wl,--allow-undefined)
+    include_directories(${CUDAToolkit_ROOT}/include)
+else ()
+    add_definitions(-DUSE_CUDA=0)
+endif ()
 
 include_directories(include)
 include_directories(3rdparty/dlpack/include)
-include_directories(${CUDAToolkit_ROOT}/include)
 
 set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/runtime/*.c)

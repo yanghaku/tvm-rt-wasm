@@ -24,8 +24,8 @@
  */
 
 #include <stdio.h>
-#include <tvm/internal/utils/common.h>
 #include <tvm/runtime/c_backend_api.h>
+#include <tvm/runtime/utils/common.h>
 
 /*!
  * \brief Backend function for modules to get function

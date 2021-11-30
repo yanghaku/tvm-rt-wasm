@@ -25,8 +25,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <tvm/internal/utils/common.h>
 #include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/device/device_api.h>
+#include <tvm/runtime/utils/common.h>
 
 char global_buf[GLOBAL_BUF_SIZE];
 
@@ -339,62 +340,74 @@ TVM_DLL void TVMDLManagedTensorCallDeleter(DLManagedTensor *dltensor) {
 
 /*!
  * \brief Create a new runtime stream.
- *
  * \param device_type The device type.
  * \param device_id The device id.
  * \param out The new stream handle.
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    *out = deviceApi->CreateStream(deviceApi, device_id);
+    return status;
 }
 
 /*!
  * \brief Free a created stream handle.
- *
  * \param device_type The device type.
  * \param device_id The device id.
  * \param stream The stream to be freed.
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->FreeStream(deviceApi, device_id, stream);
+    return status;
 }
 
 /*!
  * \brief Set the runtime stream of current thread to be stream.
- *  The subsequent calls to the same device_type
- *  will use the setted stream handle.
- *  The specific type of stream is runtime device dependent.
- *
  * \param device_type The device type.
  * \param device_id The device id.
  * \param handle The stream handle.
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->SetStream(deviceApi, device_id, handle);
+    return status;
 }
 
 /*!
  * \brief Wait until all computations on stream completes.
- *
  * \param device_type The device type.
  * \param device_id The device id.
  * \param stream The stream to be synchronized.
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle stream) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->StreamSync(deviceApi, device_id, stream);
+    return status;
 }
 
 /*!
  * \brief Synchronize two streams of execution.
- *
  * \param device_type The device type.
  * \param device_id The device id.
  * \param src The source stream to synchronize.
@@ -402,8 +415,13 @@ TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle strea
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle src, TVMStreamHandle dst) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->SyncStreamFromTo(deviceApi, device_id, src, dst);
+    return status;
 }
 
 /*!
@@ -480,34 +498,40 @@ TVM_DLL int TVMByteArrayFree(TVMByteArray *arr) {
  * \param dev The device to perform operation.
  * \param nbytes The number of bytes in memory.
  * \param alignment The alignment of the memory.
- * \param type_hint The type of elements. Only needed by certain backends such
- *                   as nbytes & alignment are sufficient for most backends.
+ * \param type_hint The type of elements.
  * \param out_data The allocated device pointer.
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint,
                                     void **out_data) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(dev.device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    *out_data = deviceApi->AllocDataSpace(deviceApi, dev.device_id, nbytes, alignment, type_hint);
+    return status;
 }
 
 /*!
  * \brief Allocate a data space on device with special memory scope.
- * \note The memory could use a special multi-dimensional memory layout.
- *       That is why we pass shape and dtype instead of raw number of bytes.
  * \param dev The device to perform operation.
  * \param ndim The number of dimension of the tensor.
  * \param shape The shape of the tensor.
  * \param dtype The type of elements.
- * \param mem_scope The memory scope of the tensor,
- *        can be nullptr, which indicate the default global DRAM
+ * \param mem_scope The memory scope of the tensor can be nullptr, which indicate the default global DRAM
  * \param out_data The allocated device pointer.
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64_t *shape, DLDataType dtype,
                                              const char *mem_scope, void **out_data) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(dev.device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    *out_data = deviceApi->AllocDataSpaceScope(deviceApi, dev.device_id, ndim, shape, dtype, mem_scope);
+    return status;
 }
 
 /*!
@@ -517,22 +541,30 @@ TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(dev.device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->FreeDataSpace(deviceApi, dev.device_id, ptr);
+    return status;
 }
 
 /*!
  * \brief Copy data from one place to another.
- * \note This API is designed to support special memory with shape dependent layout.
- *       We pass in DLTensor* with shape information to support these cases.
  * \param from The source tensor.
  * \param to The target tensor.
  * \param stream Optional stream object.
  * \return 0 when success, nonzero when failure happens.
  */
 TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(from->device.device_type, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->CopyDataFromTo(deviceApi, from, to, stream);
+    return status;
 }
 
 /*!
@@ -543,6 +575,5 @@ TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandl
  * \return 0 when success, nonzero when failure happens.
  */
 TVM_DLL int TVMObjectDerivedFrom(uint32_t child_type_index, uint32_t parent_type_index, int *is_derived) {
-    // todo: implement this api
     SET_ERROR_RETURN(-1, "This API has not yet been implemented");
 }

@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file internal/utils/tensor.h
+ * \file runtime/utils/tensor.h
  * \brief the utils function for DLTensor
  * \author YangBo MG21330067@smail.nju.edu.cn
  *

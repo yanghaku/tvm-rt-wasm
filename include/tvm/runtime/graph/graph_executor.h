@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file internal/graph/graph_executor.h
+ * \file runtime/graph/graph_executor.h
  * \brief graph_executor struct definition
  * \author YangBo MG21330067@smail.nju.edu.cn
  *
@@ -30,10 +30,10 @@
 extern "C" {
 #endif
 
-#include <tvm/internal/utils/trie.h>
 #include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/c_runtime_api.h>
-#include <tvm/runtime/graph_manager_interface.h>
+#include <tvm/runtime/graph_executor_manager.h>
+#include <tvm/runtime/utils/trie.h>
 
 /**
  * A graph.json struct is:
@@ -173,13 +173,26 @@ typedef struct GraphExecutor {
 } GraphExecutor;
 
 /*!
+ * \brief Allocate a new GraphExecutorManager and initialize it with GraphExecutor.
+ *
+ * \param graph_json JSON-encoded graph.
+ * \param module_handle TVM Module that exposes the functions to call.
+ * \param devices runtime execution device.
+ * \param num_dev the number of devices
+ * \param g Pointer which receives a pointer to the newly-created instance.
+ * \return 0 if successful.
+ */
+TVM_DLL int GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                uint32_t num_dev, GraphExecutorManager **g);
+
+/*!
  * \brief init a new GraphExecutor from graph.json
  *
  * \param graph_json JSON-encoded graph.
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
  * \param num_dev the number of devices
- * \param executor the instance instance.
+ * \param executor the instance.
  * \return 0 if successful.
  */
 int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices, uint32_t num_dev,
@@ -187,127 +200,127 @@ int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, con
 
 /*!
  * \brief Get total number of nodes.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \return Total number of nodes.
  */
-int GraphExecutorGetNumOfNodes(GraphManagerInterface *g);
+int GraphExecutorGetNumOfNodes(GraphExecutorManager *g);
 
 /*!
  * \brief Get the name of node for given index.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param nid the node index
  * \param name the pointer to receive string pointer
  * \return 0 if successful
  */
-int GraphExecutorGetNodeName(GraphManagerInterface *g, uint32_t nid, const char **name);
+int GraphExecutorGetNodeName(GraphExecutorManager *g, uint32_t nid, const char **name);
 
 /*!
  * \brief Get the input index given the name of input.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param name The name of the input.
  * \return The index of input.
  */
-int GraphExecutorGetInputIndex(GraphManagerInterface *g, const char *name);
+int GraphExecutorGetInputIndex(GraphExecutorManager *g, const char *name);
 
 /*!
  * \brief Get the output index given the name of output.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param name The name of the output.
  * \return The index of output.
  */
-int GraphExecutorGetOutputIndex(GraphManagerInterface *g, const char *name);
+int GraphExecutorGetOutputIndex(GraphExecutorManager *g, const char *name);
 
 /*!
  * \brief get number of input tensors allocated.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \return integer number of tensors available to use.
  */
-int GraphExecutorGetNumInputs(GraphManagerInterface *g);
+int GraphExecutorGetNumInputs(GraphExecutorManager *g);
 
 /*!
  * \brief get number of output tensors allocated.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \return integer number of output tensors allocated.
  */
-int GraphExecutorGetNumOutputs(GraphManagerInterface *g);
+int GraphExecutorGetNumOutputs(GraphExecutorManager *g);
 
 /*!
  * \brief set input to the graph based on name.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param executor The graph executor.
  * \param index the index of inputs.
  * \param data_in The input data.
  * \return 0 if successful
  */
-int GraphExecutorSetInput(GraphManagerInterface *g, uint32_t index, const DLTensor *data_in);
+int GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, const DLTensor *data_in);
 
 /*!
  * \brief set input to the graph based on name.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param executor The graph executor.
  * \param name the name string for node
  * \param data_in The input data.
  * \return 0 if successful
  */
-int GraphExecutorSetInputByName(GraphManagerInterface *g, const char *name, const DLTensor *data_in);
+int GraphExecutorSetInputByName(GraphExecutorManager *g, const char *name, const DLTensor *data_in);
 
 /*!
  * \brief Return NDArray for given output index.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param executor The graph executor.
  * \param index The output index.
  * \param out The DLTensor corresponding to given output node index.
  * \return The result of this function execution.
  */
-int GraphExecutorGetOutput(GraphManagerInterface *g, uint32_t index, DLTensor *data_out);
+int GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, DLTensor *data_out);
 
 /*!
  * \brief Load parameters from parameter blob.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param executor The graph executor.
  * \param param_blob A binary blob of parameter.
  * \param param_size The parameter size.
  * \return The result of this function execution.
  */
-int GraphExecutorLoadParams(GraphManagerInterface *g, const char *param_blob, uint32_t param_size);
+int GraphExecutorLoadParams(GraphExecutorManager *g, const char *param_blob, uint32_t param_size);
 
 /*!
  * \brief Execute the graph.
- * \param g The instance of GraphManagerInterface.
+ * \param g The instance of GraphExecutorManager.
  * \param executor The graph executor.
  * \return 0 if successful
  */
-int GraphExecutorRun(GraphManagerInterface *g);
+int GraphExecutorRun(GraphExecutorManager *g);
 
 /*!
- * \brief Release memory associated with the GraphManagerInterface.
- * \param g The instance of GraphManagerInterface.
+ * \brief Release memory associated with the GraphExecutorManager.
+ * \param g The instance of GraphExecutorManager.
  * \param executor Pointer to graph executor.
  * \return 0 if successful
  */
-int GraphExecutorRelease(GraphManagerInterface **g);
+int GraphExecutorRelease(GraphExecutorManager **g);
 
 /*!
- * \brief Clone a new instance of GraphManagerInterface.
- * \param g The instance of GraphManagerInterface.
+ * \brief Clone a new instance of GraphExecutorManager.
+ * \param g The instance of GraphExecutorManager.
  * \param cloned Pointer which receive the new instance.
  * \return 0 if successful
  */
-int GraphExecutorClone(GraphManagerInterface *g, GraphManagerInterface **cloned);
+int GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned);
 
 /*--------------------------------some definition for graph executor function-----------------------------------------*/
 
-#define CHECK_GraphManagerInterface(g)                                                                                 \
+#define CHECK_GraphExecutorManager(g)                                                                                  \
     do {                                                                                                               \
         if (unlikely((g) == NULL)) {                                                                                   \
-            SET_ERROR_RETURN(-1, "invalid argument for GraphManagerInterface");                                        \
+            SET_ERROR_RETURN(-1, "invalid argument for GraphExecutorManager");                                         \
         }                                                                                                              \
         if (unlikely((g)->graphHandle == NULL)) {                                                                      \
             SET_ERROR_RETURN(-1, "GraphExecutor is Not initialized yet!");                                             \
         }                                                                                                              \
     } while (0)
 
-/*! \brief GetEntryId for graphManagerInterface */
+/*! \brief GetEntryId for GraphExecutorManager */
 #define DATA_ENTRY_ID(graph, nid, index) ((graph)->node_row_ptr[(nid)] + (index))
 
 #ifdef __cplusplus

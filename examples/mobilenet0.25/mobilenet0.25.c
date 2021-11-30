@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <tvm/runtime/c_runtime_api.h>
-#include <tvm/runtime/graph_manager_interface.h>
+#include <tvm/runtime/graph_executor_manager.h>
 
 #define OUTPUT_LEN 1024
 
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     DLTensor input, output;
 
     struct timeval t0, t1, t2, t3, t4, t5;
-    GraphManagerInterface *graphManager;
+    GraphExecutorManager *graphManager;
     TVMModuleHandle syslib = NULL;
     int status;
 
@@ -65,9 +65,9 @@ int main(int argc, char **argv) {
 
 #if USE_CUDA
     DLDevice cuda = {kDLCUDA, 0};
-    RUN(TVMGraphExecutorCUDACreate((const char *)graph_json, syslib, &cuda, 1, &graphManager));
+    RUN(GraphExecutorManagerFactory("cuda_graph_executor", (const char *)graph_json, syslib, &cuda, 1, &graphManager));
 #else
-    RUN(TVMGraphExecutorCreate((const char *)graph_json, syslib, &cpu, 1, &graphManager));
+    RUN(GraphExecutorManagerFactory("graph_executor", (const char *)graph_json, syslib, &cpu, 1, &graphManager));
 #endif
 
     RUN(graphManager->LoadParams(graphManager, (const char *)graph_params, graph_params_len));

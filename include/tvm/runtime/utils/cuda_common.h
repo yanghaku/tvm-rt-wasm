@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file internal/cuda/cuda_common.h
+ * \file runtime/utils/cuda_common.h
  * \brief some common auxiliary definitions and functions for cuda
  * \author YangBo MG21330067@smail.nju.edu.cn
  *

@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file internal/utils/trie.h
+ * \file runtime/utils/trie.h
  * \brief the trie util
  * \author YangBo MG21330067@smail.nju.edu.cn
  *

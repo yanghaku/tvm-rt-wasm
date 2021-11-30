@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file internal/utils/json.h
+ * \file runtime/utils/json.h
  * \brief the parse util for load graph json
  * \author YangBo MG21330067@smail.nju.edu.cn
  *
@@ -34,8 +34,8 @@ extern "C" {
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <tvm/internal/memory/memory.h>
-#include <tvm/internal/utils/common.h>
+#include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/utils/common.h>
 
 /*! \brief get next char from the str, and change pointer to next */
 #define NextChar(ptr) (*((ptr)++))
@@ -127,7 +127,8 @@ typedef const char *JsonReader;
  */
 static inline int JsonReader_Create(const char *json_str, JsonReader **out_reader) {
     DLDevice cpu = {kDLCPU, 0};
-    int status = memory_alloc(sizeof(JsonReader), cpu, (void **)&out_reader);
+    DLDataType no_type = {0, 0, 0};
+    int status = TVMDeviceAllocDataSpace(cpu, sizeof(JsonReader), 0, no_type, (void **)&out_reader);
     **out_reader = json_str;
     return status;
 }
@@ -139,7 +140,7 @@ static inline int JsonReader_Create(const char *json_str, JsonReader **out_reade
  */
 static inline int JsonReader_Release(JsonReader *reader) {
     DLDevice cpu = {kDLCPU, 0};
-    return memory_free(cpu, reader);
+    return TVMDeviceFreeDataSpace(cpu, reader);
 }
 
 /*!
