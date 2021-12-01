@@ -49,7 +49,7 @@ def build_module(opts):
     shape_dict = {"data": dshape}
     mod, params = relay.frontend.from_mxnet(block, shape_dict)
     func = mod["main"]
-    func = relay.Function(
+    func = tvm.IRModule(
         func.params, relay.nn.softmax(func.body), None, func.type_params, func.attrs
     )
 

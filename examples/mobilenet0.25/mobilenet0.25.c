@@ -65,9 +65,9 @@ int main(int argc, char **argv) {
 
 #if USE_CUDA
     DLDevice cuda = {kDLCUDA, 0};
-    RUN(GraphExecutorManagerFactory("cuda_graph_executor", (const char *)graph_json, syslib, &cuda, 1, &graphManager));
+    RUN(GraphExecutorManagerFactory(graphExecutorCUDA, (const char *)graph_json, syslib, &cuda, 1, &graphManager));
 #else
-    RUN(GraphExecutorManagerFactory("graph_executor", (const char *)graph_json, syslib, &cpu, 1, &graphManager));
+    RUN(GraphExecutorManagerFactory(graphExecutor, (const char *)graph_json, syslib, &cpu, 1, &graphManager));
 #endif
 
     RUN(graphManager->LoadParams(graphManager, (const char *)graph_params, graph_params_len));

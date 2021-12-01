@@ -1,28 +1,10 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 /*!
  * \file graph_interface_manager.h
  * \brief A Interface for graph executor
  * \author YangBo MG21330067@smail.nju.edu.cn
  *
  */
+
 #ifndef TVM_RT_GRAPH_EXECUTOR_MANAGER_H
 #define TVM_RT_GRAPH_EXECUTOR_MANAGER_H
 
@@ -32,10 +14,33 @@ extern "C" {
 
 #include <tvm/runtime/c_runtime_api.h>
 
-typedef void *TVMGraphHandle;
-
 typedef struct GraphExecutorManager GraphExecutorManager;
 
+/*! \brief the graph type that can be created now */
+typedef enum GraphExecutorType {
+    graphExecutor = 0,
+    graphExecutorCUDA,
+} GraphExecutorType;
+
+/*!
+ * \brief Create a GraphExecutorManager Instance for given type name
+ * @param type graph type to create
+ * @param graph_json the json for graph
+ * @param module_handle TVM Module that exposes the functions to call.
+ *
+ * \note if the module_handle is NULL, the manager Factory will use the default Module: SystemLib
+ *
+ * @param devices runtime execution device.
+ * @param num_dev the number of devices
+ * @param g Pointer which receives a pointer to the newly-created instance.
+ * @return 0 if successful
+ */
+TVM_DLL int GraphExecutorManagerFactory(GraphExecutorType type, const char *graph_json, TVMModuleHandle module_handle,
+                                        const DLDevice *devices, uint32_t num_dev, GraphExecutorManager **g);
+
+typedef void *TVMGraphHandle;
+
+/*! \brief the GraphExecutorManager Interface */
 struct GraphExecutorManager {
 
     // handle the graph instance
@@ -152,19 +157,6 @@ struct GraphExecutorManager {
      */
     int (*Clone)(GraphExecutorManager *g, GraphExecutorManager **cloned);
 };
-
-/*!
- * \brief Create a GraphExecutorManager Instance for given type name
- * @param graph_name graph type name
- * @param graph_json the json for graph
- * @param module_handle TVM Module that exposes the functions to call.
- * @param devices runtime execution device.
- * @param num_dev the number of devices
- * @param g Pointer which receives a pointer to the newly-created instance.
- * @return 0 if successful
- */
-TVM_DLL int GraphExecutorManagerFactory(const char *graph_name, const char *graph_json, TVMModuleHandle module_handle,
-                                        const DLDevice *devices, uint32_t num_dev, GraphExecutorManager **g);
 
 #ifdef __cplusplus
 } // extern "C"

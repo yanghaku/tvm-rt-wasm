@@ -8,7 +8,7 @@ set(CUDAToolkit_ROOT D:/software/cuda/toolkit)
 set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
 project(tvm-rt)
 
-add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -fno-rtti)
+add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility=hidden -fno-rtti -flto=full)
 
 OPTION(USE_CUDA "USE CUDA" ON)
 message("lib USE_CUDA=${USE_CUDA}")
@@ -29,9 +29,9 @@ add_library(tvm-rt STATIC ${LIB_SRC})
 
 
 install(TARGETS tvm-rt ${CMAKE_INSTALL_LIBDIR})
-set(INSTALL_INCLUDE_FILES)
-file(GLOB INSTALL_INCLUDE_FILES include/tvm/runtime/*.h)
-install(FILES ${INSTALL_INCLUDE_FILES} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/tvm/runtime/)
+# only contain three public header file
+install(FILES include/tvm/runtime/c_runtime_api.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/tvm/runtime/)
+install(FILES include/tvm/runtime/graph_executor_manager.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/tvm/runtime/)
 install(FILES 3rdparty/dlpack/include/dlpack/dlpack.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/dlpack/)
 
 add_subdirectory(examples EXCLUDE_FROM_ALL)

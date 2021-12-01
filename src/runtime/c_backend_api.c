@@ -1,22 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 /*!
  * \file src/runtime/c_backend_api.c
  * \brief the implement for c_backend_api.h
@@ -25,6 +6,9 @@
 
 #include <stdio.h>
 #include <tvm/runtime/c_backend_api.h>
+#include <tvm/runtime/device/device_api.h>
+#include <tvm/runtime/module/library_module.h>
+#include <tvm/runtime/module/module.h>
 #include <tvm/runtime/utils/common.h>
 
 /*!
@@ -38,8 +22,7 @@
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    return ((Module *)mod_node)->GetFuncFromEnv((Module *)mod_node, func_name, out);
 }
 
 /*!
@@ -50,8 +33,14 @@ TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMF
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    if (unlikely(system_lib_symbol == NULL)) {
+        int status = TrieCreate(&system_lib_symbol);
+        if (unlikely(status)) {
+            fprintf(stderr, "%s:create a new trie node Error", __FUNCTION__);
+            return -1;
+        }
+    }
+    return TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
 }
 
 /*!
@@ -70,7 +59,13 @@ TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
  */
 TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, int dtype_code_hint,
                                        int dtype_bits_hint) {
-    return 0;
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return NULL;
+    }
+    DLDataType type = {dtype_code_hint, dtype_bits_hint, 1};
+    return deviceApi->AllocWorkspace(deviceApi, device_id, nbytes, type);
 }
 
 /*!
@@ -84,24 +79,13 @@ TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t 
  * \sa TVMBackendAllocWorkspace
  */
 TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
-}
-
-/*!
- * \brief Backend function to register execution environment(e.g. python)
- *        specific C APIs.
- *
- * \note  We only register the C API function when absolutely necessary (e.g. when signal handler
- *  cannot trap back into python). In most cases we should use the PackedFunc FFI.
- *
- * \param name The name of the symbol
- * \param ptr The symbol address.
- * \return 0 when no error is thrown, -1 when failure happens
- */
-TVM_DLL int TVMBackendRegisterEnvCAPI(const char *name, void *ptr) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    DeviceAPI *deviceApi;
+    int status = DeviceAPIGet(device_type, &deviceApi);
+    if (unlikely(status)) {
+        return -1;
+    }
+    deviceApi->FreeWorkspace(deviceApi, device_id, ptr);
+    return status;
 }
 
 /*!
@@ -109,8 +93,7 @@ TVM_DLL int TVMBackendRegisterEnvCAPI(const char *name, void *ptr) {
  *
  * \param flambda The parallel function to be launched.
  * \param cdata The closure data.
- * \param num_task Number of tasks to launch, can be 0, means launch
- *           with all available threads.
+ * \param num_task Number of tasks to launch, can be 0, means launch with all available threads.
  *
  * \return 0 when no error is thrown, -1 when failure happens
  */
@@ -126,22 +109,6 @@ TVM_DLL int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, in
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
-}
-
-/*!
- * \brief Simple static initialization function.
- *  Run f once and set handle to be not null.
- *  This function is mainly used for test purpose.
- *
- * \param handle A global address to indicate f
- * \param f The function to be run
- * \param cdata The closure data to pass to the function.
- * \param nbytes Number of bytes in the closure data.
- * \return 0 when no error is thrown, -1 when failure happens
- */
-TVM_DLL int TVMBackendRunOnce(void **handle, int (*f)(void *), void *cdata, int nbytes) {
     // todo: implement this api
     SET_ERROR_RETURN(-1, "This API has not yet been implemented");
 }
