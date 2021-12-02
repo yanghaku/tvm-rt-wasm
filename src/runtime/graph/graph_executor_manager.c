@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <tvm/runtime/graph/graph_executor.h>
 #include <tvm/runtime/module/module.h>
 #include <tvm/runtime/utils/common.h>
@@ -31,7 +32,7 @@ TVM_DLL int GraphExecutorManagerFactory(GraphExecutorType type, const char *grap
 
     // if module_handle is NULL, we use the systemLib
     if (unlikely(module_handle)) {
-        int status = ModuleFactory("systemLib", NULL, 0, (Module **)module_handle);
+        int status = ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)module_handle);
         if (unlikely(status)) {
             return status;
         }

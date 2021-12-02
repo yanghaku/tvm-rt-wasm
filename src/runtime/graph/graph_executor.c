@@ -428,10 +428,10 @@ int GraphExecutorRun(GraphExecutorManager *g) {
     GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
-        if (graph->nodeOps[i].exec) { // call backend function
-            graph->nodeOps[i].exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
-                                   graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
-                                   &graph->nodeOps[i].return_type_code, graph->module_handle);
+        if (graph->nodeOps[i].exec) { // call function handle
+            TVMFuncCall(graph->nodeOps[i].exec, graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
+                        graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
+                        &graph->nodeOps[i].return_type_code);
         }
     }
     return 0;
@@ -730,15 +730,15 @@ int GraphExecutor_SetupStorage(GraphExecutor *graph) {
                             (void **)&graph->storage_is_linked_param);
     memset(graph->storage_is_linked_param, 0, sizeof(uint8_t) * graph->num_storage);
     static const char *lookup_linked_param_func_name = "_lookup_linked_param";
-    TVMBackendPackedCFunc func;
-    int status = TVMModGetFunction(graph->module_handle, lookup_linked_param_func_name, 1, (TVMFunctionHandle)&func);
+    TVMFunctionHandle func;
+    int status = TVMModGetFunction(graph->module_handle, lookup_linked_param_func_name, 1, &func);
     if (status == 0) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
         arg_type = kTVMArgInt;
         for (uint32_t i = 0; i < graph->num_storage; ++i) {
             arg_val.v_int64 = i;
-            status = func(&arg_val, &arg_type, 1, &ret_val, &ret_type, graph->module_handle);
+            status = TVMFuncCall(func, &arg_val, &arg_type, 1, &ret_val, &ret_type);
             if (likely(status == 0 && ret_val.v_handle != NULL)) {
                 graph->storage_is_linked_param[i] = 1;
                 graph->storages[i] = ret_val.v_handle;
@@ -804,8 +804,7 @@ int GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
                 nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
             }
 
-            int status =
-                TVMModGetFunction(graph->module_handle, node->func_name, 1, (TVMFunctionHandle *)&nodeOp->exec);
+            int status = TVMModGetFunction(graph->module_handle, node->func_name, 1, &nodeOp->exec);
             if (unlikely(status)) {
                 SET_ERROR_RETURN(-1, "cannot find func from module, name = %s", node->func_name);
             }

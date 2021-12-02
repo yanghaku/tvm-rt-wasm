@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/device/device_api.h>
-#include <tvm/runtime/module/library_module.h>
 #include <tvm/runtime/module/module.h>
 #include <tvm/runtime/utils/common.h>
 
@@ -22,7 +21,14 @@
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
-    return ((Module *)mod_node)->GetFuncFromEnv((Module *)mod_node, func_name, out);
+    int status = TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
+    if (unlikely(status == TRIE_NOT_FOUND)) {
+        status = TVMFuncGetGlobal(func_name, out);
+        if (likely(status == TRIE_SUCCESS)) {
+            TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, *out);
+        }
+    }
+    return status;
 }
 
 /*!

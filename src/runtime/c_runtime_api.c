@@ -14,13 +14,19 @@
 /**
  * in this implement:
  *  TVMModuleHandle = Module*
- *  TVMFunctionHandle = TVMBackendPackedCFunc
+ *
+ *  TVMFunctionHandle = (void*)
+ *  the void* will use 64bit or 32 bit
+ *  In WebAssembly, every function pointer will be indirect call and it will be stored in indirect call table.
+ *  We assume that the indirect call table size will not larger than half of point size.
+ *
+ *  \sa module.h
  */
 
 /*! \brief the global buffer storage */
 char global_buf[GLOBAL_BUF_SIZE];
 
-/*! \brief the global function storage, <string,TVMBackendPackedCFunc> */
+/*! \brief the global function storage, <string,TVMFunctionHandle> */
 static Trie *global_functions = NULL;
 
 /*!
@@ -52,7 +58,7 @@ TVM_DLL const char *TVMGetLastError(void) { return global_buf; }
  *  It can be reconstructed by TVMModImport.
  */
 TVM_DLL int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandle *out) {
-    return ModuleFactory(format, file_name, 0, (Module **)&out);
+    return ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)&out);
 }
 
 /*!
@@ -64,7 +70,7 @@ TVM_DLL int TVMModLoadFromFile(const char *file_name, const char *format, TVMMod
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
-    return ((Module *)mod)->Import((Module *)mod, (Module *)dep);
+    return ModuleImport((Module *)mod, (Module *)dep);
 }
 
 /*!
@@ -76,7 +82,16 @@ TVM_DLL int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
  * \return 0 when no error is thrown, nonzero when failure happens
  */
 TVM_DLL int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_imports, TVMFunctionHandle *out) {
-    return ((Module *)mod)->GetFunction((Module *)mod, func_name, query_imports, out);
+    Module *m = (Module *)mod;
+    int status = TrieQuery(m->module_funcs_map, (const uint8_t *)func_name, out);
+    if (likely(status != TRIE_NOT_FOUND)) {
+        return status;
+    }
+
+    if (query_imports) {
+        status = TrieQuery(m->env_funcs_map, (const uint8_t *)func_name, out);
+    }
+    return status;
 }
 
 /*!
@@ -93,9 +108,9 @@ TVM_DLL int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int qu
 TVM_DLL int TVMModFree(TVMModuleHandle mod) { return ((Module *)mod)->Release((Module *)mod); }
 
 /*!
- * \brief Free the function when it is no longer needed.
+ * \brief in this implement, TVMFunctionHandle do not need to be free
  * \param func The function handle
- * \return 0 when success, nonzero when failure happens
+ * \return 0
  */
 TVM_DLL int TVMFuncFree(TVMFunctionHandle func) { return 0; }
 
@@ -115,9 +130,9 @@ TVM_DLL int TVMFuncFree(TVMFunctionHandle func) { return 0; }
  */
 TVM_DLL int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_codes, int num_args, TVMValue *ret_val,
                         int *ret_type_code) {
-    TVMBackendPackedCFunc exec = (TVMBackendPackedCFunc)func;
-    // todo: resources for func
-    return exec(arg_values, type_codes, num_args, ret_val, ret_type_code, NULL);
+    TVMBackendPackedCFunc exec = TVM_FUNCTION_HANDLE_DECODE_EXEC(func);
+    uintptr_t source = TVM_FUNCTION_HANDLE_DECODE_RESOURCE(func);
+    return exec(arg_values, type_codes, num_args, ret_val, ret_type_code, &source);
 }
 
 /*!

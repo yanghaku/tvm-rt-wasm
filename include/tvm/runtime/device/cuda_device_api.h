@@ -26,9 +26,8 @@ typedef struct CUDADeviceAPI {
 
 #if USE_CUDA // USE_CUDA = 1
     CUcontext *contexts;
-#elif // USE_CUDA
+#endif // USE_CUDA
 
-#endif
 } CUDADeviceAPI;
 
 /*!

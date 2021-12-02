@@ -1,2 +1,3 @@
-TVM-RT-WASM
-Copyright 2021-2022
+TVM-RT-WASM: A TVM runtime for WebAssembly target
+Copyright (C) 2021-- <bo.yang@smail.nju.edu.cn>
+All rights reserved

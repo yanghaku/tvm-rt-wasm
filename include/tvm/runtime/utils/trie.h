@@ -37,6 +37,14 @@ int TrieCreate(Trie **trie);
 int TrieInsert(Trie *trie, const uint8_t *name, void *data);
 
 /*!
+ * \brief insert all data from src to dst
+ * @param dst the instance of dst Trie
+ * @param src the instance of src Trie
+ * @return 0 if successful
+ */
+int TrieInsertAll(Trie *dst, Trie *src);
+
+/*!
  * \brief query the value for given key
  * @param trie the instance of Trie
  * @param name the key

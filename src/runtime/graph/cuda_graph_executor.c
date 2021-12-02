@@ -4,6 +4,7 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/graph_executor_manager.h>
@@ -31,7 +32,7 @@ int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handl
 
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(GraphExecutorManager), 0, no_type, (void **)g);
+    TVMDeviceAllocDataSpace(cpu, sizeof(GraphExecutorManager), 0, no_type, (void **)&g);
 
     (*g)->GetNumOfNodes = GraphExecutorGetNumOfNodes;
     (*g)->GetNodeName = GraphExecutorGetNodeName;
@@ -77,10 +78,10 @@ int CUDAGraphExecutorRun(GraphExecutorManager *g) {
     CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_GLOBAL));
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
-        if (graph->nodeOps[i].exec) { // call backend function
-            graph->nodeOps[i].exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
-                                   graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
-                                   &graph->nodeOps[i].return_type_code, graph->module_handle);
+        if (graph->nodeOps[i].exec) { // run function handle
+            TVMFuncCall(graph->nodeOps[i].exec, graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
+                        graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
+                        &graph->nodeOps[i].return_type_code);
         }
     }
 

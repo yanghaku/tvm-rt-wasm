@@ -5,6 +5,8 @@
  */
 
 #include <tvm/runtime/device/cuda_device_api.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /*!
  * \brief create a instance of cuda device api
@@ -19,7 +21,7 @@ int CUDADeviceAPICreate(CUDADeviceAPI **cudaDeviceApi) {
     DLDataType no_type = {0, 0, 0};
     TVMDeviceAllocDataSpace(cpu, sizeof(cudaDeviceApi), 0, no_type, (void **)&cudaDeviceApi);
 
-    CUDA_CALL(cudaGetDeviceCount(&(*cudaDeviceApi)->num_device));
+    CUDA_CALL(cudaGetDeviceCount((int *)&(*cudaDeviceApi)->num_device));
     // todo: init CUcontext
     return 0;
 

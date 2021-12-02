@@ -88,8 +88,8 @@ typedef struct GraphExecutorNodeOp {
     int *arg_type_codes;
     /*! \brief argument values */
     TVMValue *arg_values;
-    /*! \brief backend function pointer */
-    TVMBackendPackedCFunc exec;
+    /*! \brief the function handle */
+    TVMFunctionHandle exec;
 } GraphExecutorNodeOp;
 
 /*! \brief the attributes of graph */

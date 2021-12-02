@@ -10,7 +10,7 @@ project(tvm-rt)
 
 add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility=hidden -fno-rtti -flto=full)
 
-OPTION(USE_CUDA "USE CUDA" ON)
+OPTION(USE_CUDA "USE CUDA" OFF)
 message("lib USE_CUDA=${USE_CUDA}")
 if (${USE_CUDA})
     add_definitions(-DUSE_CUDA=1)
