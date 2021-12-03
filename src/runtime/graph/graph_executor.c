@@ -8,7 +8,7 @@
 #include <tvm/runtime/graph/graph_executor.h>
 #include <tvm/runtime/utils/common.h>
 #include <tvm/runtime/utils/json.h>
-#include <tvm/runtime/utils/tensor.h>
+#include <tvm/runtime/utils/tensor_helper.h>
 
 /*!
  * \brief Allocate a new GraphExecutorManager and initialize it with GraphExecutor.
@@ -301,7 +301,7 @@ int GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, const DLTenso
     }
 
     uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
-    return DLTensor_CopyFromTo(data_in, graph->data_entry + eid, NULL);
+    return TVMDeviceCopyDataFromTo((DLTensor *)data_in, graph->data_entry + eid, NULL);
 }
 
 /*!
@@ -338,7 +338,7 @@ int GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, DLTensor *da
     }
 
     uint32_t eid = DATA_ENTRY_ID(graph, graph->outputs_nodes[index].node_id, graph->outputs_nodes[index].index);
-    return DLTensor_CopyFromTo(graph->data_entry + eid, data_out, NULL);
+    return TVMDeviceCopyDataFromTo(graph->data_entry + eid, data_out, NULL);
 }
 
 /*!
@@ -628,7 +628,7 @@ int GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned) {
         if (new_g->storages == NULL) {
             TVMDeviceAllocDataSpace(new_g->data_entry[eid].device, tmp_storage_size[sid], 0, no_type,
                                     (void **)(new_g->storages + sid));
-            DLTensor_CopyFromTo(old_g->data_entry, new_g->data_entry + eid, NULL);
+            TVMDeviceCopyDataFromTo(old_g->data_entry, new_g->data_entry + eid, NULL);
         } else {
             new_g->data_entry[eid].data = new_g->storages[sid];
         }
@@ -1113,9 +1113,9 @@ int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
                 if (unlikely(str_len <= 0)) {
                     SET_ERROR_RETURN(-1, "JsonReader Error: parse GraphAttr data_type array element fail");
                 }
-                status = DLDataType_ParseFromString(global_buf, str_len, graphAttr->data_type + i);
+                status = DLDataType_ParseFromString(global_buf, graphAttr->data_type + i);
                 if (unlikely(status)) {
-                    SET_ERROR_RETURN(-1, "Parse Error: cannot parse the DLDataType string to DLDataType");
+                    return status;
                 }
             }
 

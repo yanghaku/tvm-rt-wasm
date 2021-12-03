@@ -19,10 +19,15 @@ extern "C" {
 
 typedef struct CUDAGraphExecutor {
     GRAPH_BASE_MEMBER
+
+#if USE_CUDA // USE_CUDA = 1
+
     /*! \brief The CUDA stream on which to capture a CUDA graph. */
     CUstream cu_stream;
     /*! \brief The captured CUDA graph will be instantiated to this. */
     CUgraphExec cu_graph_exec;
+
+#endif // USE_CUDA
 } CUDAGraphExecutor;
 
 /*!

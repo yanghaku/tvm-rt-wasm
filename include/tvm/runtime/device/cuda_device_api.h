@@ -13,10 +13,7 @@ extern "C" {
 #endif
 
 #include <tvm/runtime/device/device_api.h>
-
-#if USE_CUDA // USE_CUDA = 1
 #include <tvm/runtime/utils/cuda_common.h>
-#endif // USE_CUDA
 
 /*! \brief CUDADeviceAPI implement the interface DeviceAPI */
 typedef struct CUDADeviceAPI {

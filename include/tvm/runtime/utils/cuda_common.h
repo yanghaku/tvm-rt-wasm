@@ -12,9 +12,13 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+#include <stdlib.h>
+
+#if USE_CUDA // USE_CUDA = 1
+
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <stdio.h>
 
 #define CUDA_DRIVER_CALL(x)                                                                                            \
     do {                                                                                                               \
@@ -33,7 +37,18 @@ extern "C" {
             fprintf(stderr, "CUDA runtime Error in %s %d : %s\n", __FILE__, __LINE__, cudaGetErrorString(e));          \
     } while (0)
 
+#else
+
+#define CUDA_NOT_SUPPORTED()                                                                                           \
+    do {                                                                                                               \
+        fprintf(stderr, "CUDA library is not supported! you can recompile from source and set USE_CUDA option ON\n");  \
+        exit(-1);                                                                                                      \
+    } while (0)
+
+#endif
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
 #endif // TVM_RT_CUDA_COMMON_H

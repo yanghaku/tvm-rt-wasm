@@ -7,13 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/graph/cuda_graph_executor.h>
 #include <tvm/runtime/graph_executor_manager.h>
 #include <tvm/runtime/utils/common.h>
 #include <tvm/runtime/utils/json.h>
-
-#if USE_CUDA
-#include <tvm/runtime/graph/cuda_graph_executor.h>
-#endif
 
 /*!
  * \brief Allocate a new GraphExecutorManager and initialize it with CUDAGraphExecutor.
@@ -53,8 +50,7 @@ int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handl
     return GraphExecutorLoad(graph_json, module_handle, devices, num_dev, (*g)->graphHandle);
 
 #else  // USE_CUDA = 0
-    fprintf(stderr, "CUDA library is not supported! you can compile from source and set USE_CUDA option ON\n");
-    exit(-1);
+    CUDA_NOT_SUPPORTED();
 #endif // USE_CUDA
 }
 

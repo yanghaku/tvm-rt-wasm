@@ -106,7 +106,7 @@ typedef const char *JsonReader;
  * @param out_reader the pointer to receive out_reader
  * @return 0 if successful
  */
-static inline int JsonReader_Create(const char *json_str, JsonReader **out_reader) {
+INLINE int JsonReader_Create(const char *json_str, JsonReader **out_reader) {
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
     int status = TVMDeviceAllocDataSpace(cpu, sizeof(JsonReader), 0, no_type, (void **)&out_reader);
@@ -119,7 +119,7 @@ static inline int JsonReader_Create(const char *json_str, JsonReader **out_reade
  * @param reader the instance pointer
  * @return 0 if successful
  */
-static inline int JsonReader_Release(JsonReader *reader) {
+INLINE int JsonReader_Release(JsonReader *reader) {
     DLDevice cpu = {kDLCPU, 0};
     return TVMDeviceFreeDataSpace(cpu, reader);
 }
@@ -131,7 +131,7 @@ static inline int JsonReader_Release(JsonReader *reader) {
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-static inline int JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_num) { str2unsigned(*reader, *out_num); }
+INLINE int JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_num) { str2unsigned(*reader, *out_num); }
 
 /*!
  * \brief read a 32 bit signed int
@@ -139,7 +139,7 @@ static inline int JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_num) 
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-static inline int JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { str2signed(*reader, *out_num); }
+INLINE int JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { str2signed(*reader, *out_num); }
 
 /*!
  * \brief read a 64 bit unsigned int
@@ -147,7 +147,7 @@ static inline int JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { 
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-static inline int JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_num) { str2unsigned(*reader, *out_num); }
+INLINE int JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_num) { str2unsigned(*reader, *out_num); }
 
 /*!
  * \brief read a 64 bit signed int
@@ -155,7 +155,7 @@ static inline int JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_num) 
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-static inline int JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { str2signed(*reader, *out_num); }
+INLINE int JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { str2signed(*reader, *out_num); }
 
 /*!
  * \brief read string and save to out_str
@@ -164,7 +164,7 @@ static inline int JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { 
  * @param out_str_size the store buffer size
  * @return if successful return actual length ( > 0 ), -1: buffer_size tool short, <= -1: error code
  */
-static inline int JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_str_size) {
+INLINE int JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_str_size) {
     char ch;
     NextNonSpace(*reader, ch);
     CheckEQ(ch, '\"'); // check the start is '\"'
@@ -221,7 +221,7 @@ static inline int JsonReader_ReadString(JsonReader *reader, char *out_str, size_
  * @param reader the instance of JsonReader
  * @return if successful return 1, 0: no array item, <0 : error code
  */
-static inline int JsonReader_NextArrayItem(JsonReader *reader) {
+INLINE int JsonReader_NextArrayItem(JsonReader *reader) {
     char ch;
     NextNonSpace(*reader, ch);
     if (likely(ch == '[' || ch == ',')) {
@@ -245,7 +245,7 @@ static inline int JsonReader_NextArrayItem(JsonReader *reader) {
  * @return if successful return actual length of key ( >0 ), 0: no object to read, -1: buffer_size tool short, <= -2:
  * error
  */
-static inline int JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size) {
+INLINE int JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size) {
     char ch;
     NextNonSpace(*reader, ch);
     if (likely(ch == '{' || ch == ',')) {
@@ -272,7 +272,7 @@ static inline int JsonReader_NextObjectItem(JsonReader *reader, char *out_key, s
  * @param out_size the pointer to receive array length
  * @return 0 if successful
  */
-static inline int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
+INLINE int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
     const char *ptr = *reader;
     int now_dep = 0;
     int now_size = 0;

@@ -14,7 +14,13 @@
  * @return 0 if successful
  */
 int CUDAModuleCreate(const char *resource, int resource_len, CUDAModule **cudaModule) {
+#if USE_CUDA // USE_CUDA = 1
+
     TrieCreate(&(*cudaModule)->env_funcs_map);
     TrieInsert((*cudaModule)->env_funcs_map, (const uint8_t *)"11", TVM_FUNCTION_HANDLE_ENCODE(0, 1));
     return 0;
+
+#else
+    CUDA_NOT_SUPPORTED();
+#endif
 }

@@ -37,6 +37,18 @@ extern char global_buf[];
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
+#ifdef __STDC_VERSION__
+
+#if __STDC_VERSION__ >= 199901L
+#define INLINE inline
+#else
+#define INLINE
+#endif
+
+#else // c89 c90
+#define INLINE static inline
+#endif
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

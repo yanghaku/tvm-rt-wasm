@@ -12,10 +12,7 @@ extern "C" {
 #endif
 
 #include <tvm/runtime/module/module.h>
-
-#if USE_CUDA // USE_CUDA = 1
 #include <tvm/runtime/utils/cuda_common.h>
-#endif // USE_CUDA
 
 /*! \brief define the cuda module derived from module */
 typedef struct CUDAModule {
