@@ -23,11 +23,41 @@
  *  \sa module.h
  */
 
+/**-------------------------------------global variables--------------------------------------------------------------*/
+
 /*! \brief the global buffer storage */
 char global_buf[GLOBAL_BUF_SIZE];
 
 /*! \brief the global function storage, <string,TVMFunctionHandle> */
 static Trie *global_functions = NULL;
+
+/*! \brief this is a table for char to index (for all uint8_t )  for Trie */
+const unsigned char char2index[] = {
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 0,   255, 1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  255, 255, 255, 255, 255, 255, 255, 11,
+    12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,
+    34,  35,  36,  255, 255, 255, 255, 37,  255, 38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,
+    51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
+
+const char index2char[] = {'.', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E',
+                           'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+                           'V', 'W', 'X', 'Y', 'Z', '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+                           'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+
+/*! \brief Magic number for NDArray file */
+const uint64_t kTVMNDArrayMagic = 0xDD5E40F096B4A13F;
+
+/*! \brief Magic number for NDArray list file  */
+const uint64_t kTVMNDArrayListMagic = 0xF7E58D4F05049CB7;
+
+/**--------------------------------------public functions-------------------------------------------------------------*/
 
 /*!
  * \brief Used for implementing C API function.
@@ -201,7 +231,7 @@ TVM_DLL int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out
     if (unlikely(status)) {
         return status;
     }
-    *out = deviceApi->CreateStream(deviceApi, device_id);
+    *out = deviceApi->CreateStream(device_id);
     return status;
 }
 
@@ -218,7 +248,7 @@ TVM_DLL int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->FreeStream(deviceApi, device_id, stream);
+    deviceApi->FreeStream(device_id, stream);
     return status;
 }
 
@@ -235,7 +265,7 @@ TVM_DLL int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle)
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->SetStream(deviceApi, device_id, handle);
+    deviceApi->SetStream(device_id, handle);
     return status;
 }
 
@@ -252,7 +282,7 @@ TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle strea
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->StreamSync(deviceApi, device_id, stream);
+    deviceApi->StreamSync(device_id, stream);
     return status;
 }
 
@@ -270,7 +300,7 @@ TVM_DLL int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStream
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->SyncStreamFromTo(deviceApi, device_id, src, dst);
+    deviceApi->SyncStreamFromTo(device_id, src, dst);
     return status;
 }
 
@@ -290,7 +320,7 @@ TVM_DLL int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignmen
     if (unlikely(status)) {
         return status;
     }
-    *out_data = deviceApi->AllocDataSpace(deviceApi, dev.device_id, nbytes, alignment, type_hint);
+    *out_data = deviceApi->AllocDataSpace(dev.device_id, nbytes, alignment, type_hint);
     return status;
 }
 
@@ -311,7 +341,7 @@ TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64
     if (unlikely(status)) {
         return status;
     }
-    *out_data = deviceApi->AllocDataSpaceScope(deviceApi, dev.device_id, ndim, shape, dtype, mem_scope);
+    *out_data = deviceApi->AllocDataSpaceScope(dev.device_id, ndim, shape, dtype, mem_scope);
     return status;
 }
 
@@ -327,7 +357,7 @@ TVM_DLL int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->FreeDataSpace(deviceApi, dev.device_id, ptr);
+    deviceApi->FreeDataSpace(dev.device_id, ptr);
     return status;
 }
 
@@ -339,12 +369,27 @@ TVM_DLL int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
  * \return 0 when success, nonzero when failure happens.
  */
 TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
+    DLDeviceType type;
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(from->device.device_type, &deviceApi);
+
+    if (from->device.device_type == to->device.device_type || from->device.device_type == kDLCPU) {
+        // same device or from is cpu
+        type = to->device.device_type;
+    } else if (to->device.device_type == kDLCPU) { // to is cpu
+        type = from->device.device_type;
+    } else if ((from->device.device_type == kDLCUDA && to->device.device_type == kDLCUDAHost) ||
+               (from->device.device_type == kDLCUDAHost && to->device.device_type == kDLCUDA)) {
+        type = kDLCUDA;
+    } else {
+        SET_ERROR_RETURN(-1, "unsupported operator: copy data from device_type(%d) to device_typ(%d)\n",
+                         from->device.device_type, to->device.device_type);
+    }
+
+    int status = DeviceAPIGet(type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->CopyDataFromTo(deviceApi, from, to, stream);
+    deviceApi->CopyDataFromTo(from, to, stream);
     return status;
 }
 

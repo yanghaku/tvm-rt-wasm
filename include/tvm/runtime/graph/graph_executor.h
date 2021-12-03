@@ -164,8 +164,8 @@ typedef struct GraphExecutor {
  * \param g Pointer which receives a pointer to the newly-created instance.
  * \return 0 if successful.
  */
-TVM_DLL int GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                                uint32_t num_dev, GraphExecutorManager **g);
+int GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                        uint32_t num_dev, GraphExecutorManager **g);
 
 /*!
  * \brief init a new GraphExecutor from graph.json

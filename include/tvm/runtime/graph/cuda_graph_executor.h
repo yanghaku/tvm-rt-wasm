@@ -40,7 +40,7 @@ typedef struct CUDAGraphExecutor {
  * \param g Pointer which receives a pointer to the newly-created instance.
  * \return 0 if successful.
  */
-TVM_DLL int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
                                     uint32_t num_dev, GraphExecutorManager **g);
 
 /*!

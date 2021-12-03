@@ -109,7 +109,7 @@ typedef const char *JsonReader;
 INLINE int JsonReader_Create(const char *json_str, JsonReader **out_reader) {
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    int status = TVMDeviceAllocDataSpace(cpu, sizeof(JsonReader), 0, no_type, (void **)&out_reader);
+    int status = TVMDeviceAllocDataSpace(cpu, sizeof(JsonReader), 0, no_type, (void **)out_reader);
     **out_reader = json_str;
     return status;
 }
@@ -280,6 +280,12 @@ INLINE int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
 
     NextNonSpace(ptr, ch); // read the start of ptr
     CheckEQ(ch, '[');      // check it is '['
+
+    PeekNextNonSpace(ptr, ch);
+    if (ch == ']') { // empty array
+        *out_size = 0;
+        return 0;
+    }
 
     ch = NextChar(ptr);
     while (1) {

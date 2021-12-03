@@ -29,10 +29,10 @@ typedef struct CUDADeviceAPI {
 
 /*!
  * \brief create a instance of cuda device api
- * @param cudaDeviceApi the pointer to receive instance
+ * @param out the pointer to receive instance
  * @return 0 if successful
  */
-int CUDADeviceAPICreate(CUDADeviceAPI **cudaDeviceApi);
+int CUDADeviceAPICreate(CUDADeviceAPI **out);
 
 #ifdef __cplusplus
 } // extern "C"

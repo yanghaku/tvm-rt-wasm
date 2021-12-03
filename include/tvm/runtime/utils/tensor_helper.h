@@ -19,10 +19,10 @@ extern "C" {
 #include <tvm/runtime/utils/json.h>
 
 /*! \brief Magic number for NDArray file */
-const uint64_t kTVMNDArrayMagic = 0xDD5E40F096B4A13F;
+extern const uint64_t kTVMNDArrayMagic;
 
 /*! \brief Magic number for NDArray list file  */
-const uint64_t kTVMNDArrayListMagic = 0xF7E58D4F05049CB7;
+extern const uint64_t kTVMNDArrayListMagic;
 
 /*!
  * \brief parse string to DLDataType
@@ -112,7 +112,7 @@ INLINE int DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob) {
     *blob += sizeof(DLDevice); // DLDevice
 
     if (unlikely(memcmp(&tensor->ndim, *blob, sizeof(int)))) { // ndim
-        SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, given %d", tensor->ndim, *(int *)blob);
+        SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, given %d", tensor->ndim, *(int *)(*blob));
     }
     *blob += sizeof(int); // ndim
 

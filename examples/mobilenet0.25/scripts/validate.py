@@ -31,5 +31,22 @@ print("output = ", output.shape)
 y = output.reshape(1000)
 
 print(y.shape)
+for i in range(len(y)):
+    p = int(y[i] * 1000)
+    if p != 0:
+        print(i, p)
 
 print("max = out[", np.argmax(y), "] = ", np.max(y))
+
+# 151 10
+# 186 7
+# 259 26
+# 263 62
+# 264 2
+# 271 1
+# 273 1
+# 274 5
+# 277 280
+# 278 590
+# 280 5
+# 287 1

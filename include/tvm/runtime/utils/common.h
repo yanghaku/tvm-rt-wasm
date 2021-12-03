@@ -24,11 +24,25 @@ extern char global_buf[];
 
 #define GLOBAL_BUF_SIZE 1024
 
+#undef NDEBUG
+#ifdef NDEBUG // release
 #define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
     do {                                                                                                               \
-        sprintf(global_buf, "function[%s] " fmt, __FUNCTION__, ##__VA_ARGS__);                                         \
+        sprintf(global_buf, fmt, ##__VA_ARGS__);                                                                       \
         return (err);                                                                                                  \
     } while (0)
+#else
+#define DBG(fmt, ...)                                                                                                  \
+    do {                                                                                                               \
+        fprintf(stderr, "%d" fmt, __LINE__, ##__VA_ARGS__);                                                            \
+    } while (0)
+
+#define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
+    do {                                                                                                               \
+        sprintf(global_buf, "function[%s]-line[%d]: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);                     \
+        return (err);                                                                                                  \
+    } while (0)
+#endif
 
 #define SET_ERROR(fmt, ...)                                                                                            \
     do {                                                                                                               \
@@ -40,9 +54,9 @@ extern char global_buf[];
 #ifdef __STDC_VERSION__
 
 #if __STDC_VERSION__ >= 199901L
-#define INLINE inline
+#define INLINE static inline
 #else
-#define INLINE
+#define INLINE static
 #endif
 
 #else // c89 c90

@@ -28,24 +28,9 @@ typedef struct Trie Trie;
 #define CHAR_SET_SIZE 64
 
 /*! \brief this is a table for char to index (for all uint8_t ) */
-const unsigned char char2index[] = {
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 0,   255, 1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  255, 255, 255, 255, 255, 255, 255, 11,
-    12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,
-    34,  35,  36,  255, 255, 255, 255, 37,  255, 38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,
-    51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
+extern const unsigned char char2index[];
 
-const char index2char[] = {'.', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E',
-                           'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-                           'V', 'W', 'X', 'Y', 'Z', '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-                           'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+extern const char index2char[];
 
 /*! \brief the definition of Trie */
 struct Trie {
@@ -62,7 +47,7 @@ struct Trie {
 INLINE int TrieCreate(Trie **trie) {
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    int status = TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)&trie);
+    int status = TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)trie);
     memset(*trie, 0, sizeof(Trie));
     return status;
 }
@@ -164,7 +149,7 @@ INLINE void TrieVisit(Trie *trie, void (*visit)(char c, void *data, void *source
 INLINE int TrieClone(const Trie *trie, Trie **cloned) {
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)&cloned);
+    TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)cloned);
     memcpy(*cloned, trie, sizeof(Trie));
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {
         if (trie->son[i]) {

@@ -30,7 +30,7 @@ static Module *sys_lib_module = NULL;
 int ModuleImport(Module *self, Module *other) { return -1; }
 
 /*! \brief the simple release function for system_lib_module and dso_lib_module */
-int DefaultModuleReleaseFunc(Module *self) {
+static int DefaultModuleReleaseFunc(Module *self) {
     DLDevice cpu = {kDLCPU, 0};
     if (self->imports) {
         for (uint32_t i = 0; i < self->num_imports; ++i) {
@@ -53,7 +53,7 @@ int DefaultModuleReleaseFunc(Module *self) {
  * @param lib_module the root module handle
  * @return 0 if successful
  */
-int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
+static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
     DLDevice cpu = {kDLCPU, 0};
     DLDataType dataType = {0, 0, 0};
 
@@ -154,7 +154,7 @@ int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
  * @param libraryModule the out handle
  * @return 0 if successful
  */
-int SystemLibraryModuleCreate(Module **libraryModule) {
+static int SystemLibraryModuleCreate(Module **libraryModule) {
     if (likely(sys_lib_module != NULL)) { // if the instance exists, return
         *libraryModule = sys_lib_module;
         return 0;
@@ -166,7 +166,7 @@ int SystemLibraryModuleCreate(Module **libraryModule) {
 
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(Module), 0, no_type, (void **)&libraryModule);
+    TVMDeviceAllocDataSpace(cpu, sizeof(Module), 0, no_type, (void **)libraryModule);
     memset(*libraryModule, 0, sizeof(Module));
 
     (*libraryModule)->Release = DefaultModuleReleaseFunc;
@@ -201,7 +201,7 @@ int SystemLibraryModuleCreate(Module **libraryModule) {
  * @param libraryModule the out handle
  * @return 0 if successful
  */
-int DSOLibraryModuleCreate(const char *filename, Module **libraryModule) {
+static int DSOLibraryModuleCreate(const char *filename, Module **libraryModule) {
     // todo: implement it
     SET_ERROR_RETURN(-1, "now it's unimplemented yet");
 }

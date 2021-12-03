@@ -48,8 +48,9 @@ def build_module(opts):
     block = get_model("mobilenet0.25", pretrained=True)
     shape_dict = {"data": dshape}
     mod, params = relay.frontend.from_mxnet(block, shape_dict)
+
     func = mod["main"]
-    func = tvm.IRModule(
+    func = relay.Function(
         func.params, relay.nn.softmax(func.body), None, func.type_params, func.attrs
     )
 
@@ -64,17 +65,19 @@ def build_module(opts):
             func, target=target, params=params
         )
 
-    factory.get_lib().export_library(opts.out_dir, emcc.save_to_bc)
+    factory.get_lib().save(os.path.join(opts.out_dir, "graph.o"))
 
-    json_path = os.path.join(opts.out_dir, "graph.json")
-    param_path = os.path.join(opts.out_dir, "graph.params")
+    json_str = "graph.json"
+    params_str = "graph.params"
+    json_path = os.path.join(opts.out_dir, json_str)
+    param_path = os.path.join(opts.out_dir, params_str)
     with open(json_path, "w") as f_graph:
         f_graph.write(factory.get_graph_json())
     with open(param_path, "wb") as f_params:
         f_params.write(runtime.save_param_dict(factory.get_params()))
 
-    data2c(json_path, os.path.join(opts.out_dir, "graph_json.c"), "graph_json")
-    data2c(param_path, os.path.join(opts.out_dir, "graph_params.c"), "graph_param")
+    data2c(json_path, os.path.join(opts.out_dir, json_str + ".c"), json_str.replace('.', '_'))
+    data2c(param_path, os.path.join(opts.out_dir, params_str + ".c"), params_str.replace('.', '_'))
 
 
 def build_inputs(opts):

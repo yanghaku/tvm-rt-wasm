@@ -4,8 +4,8 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include <tvm/runtime/graph/graph_executor.h>
 #include <tvm/runtime/module/module.h>
 #include <tvm/runtime/utils/common.h>
@@ -31,8 +31,8 @@ TVM_DLL int GraphExecutorManagerFactory(GraphExecutorType type, const char *grap
                                         const DLDevice *devices, uint32_t num_dev, GraphExecutorManager **g) {
 
     // if module_handle is NULL, we use the systemLib
-    if (unlikely(module_handle)) {
-        int status = ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)module_handle);
+    if (unlikely(module_handle == NULL)) {
+        int status = ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
         if (unlikely(status)) {
             return status;
         }

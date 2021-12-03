@@ -8,6 +8,7 @@
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/device/cpu_device_api.h>
 #include <tvm/runtime/device/cuda_device_api.h>
+#include <tvm/runtime/module/module.h>
 #include <tvm/runtime/utils/common.h>
 
 /*!
@@ -59,15 +60,14 @@ int DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api) {
  * \brief destroy all device api instance
  * @return 0 if successful
  */
-int DeviceReleaseAll() {
-    int status = 0;
-    for (int i = 0; i < DEVICE_TYPE_SIZE; ++i) {
+__attribute__((destructor)) void DeviceReleaseAll() {
+    Module *syslib;
+    ModuleFactory(MODULE_SYSTEM_LIB, 0, 0, &syslib);
+    syslib->Release(syslib);
+
+    for (int i = DEVICE_TYPE_SIZE - 1; i >= 0; --i) { // cpu device need to be the last to free
         if (g_device_api_instance[i]) {
-            status = g_device_api_instance[i]->Release(g_device_api_instance[i]);
-            if (unlikely(status)) {
-                return status;
-            }
+            g_device_api_instance[i]->Release(g_device_api_instance[i]);
         }
     }
-    return status;
 }

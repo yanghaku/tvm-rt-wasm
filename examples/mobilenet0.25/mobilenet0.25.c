@@ -41,7 +41,9 @@ extern const unsigned int graph_params_len;
         }                                                                                                              \
     } while (0)
 
+extern void *__tvm_module_cxt;
 int main(int argc, char **argv) {
+    fprintf(stderr, "module ctx = %p\n", &__tvm_module_cxt);
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE_NAME__);
         return -1;
@@ -76,7 +78,10 @@ int main(int argc, char **argv) {
 
     // load input from file
     FILE *fp = fopen(argv[1], "rb");
-    assert(fp != NULL && "can't open picture.bin");
+    if (fp == NULL) {
+        fprintf(stderr, "cannot open file %s\n", argv[1]);
+        return -1;
+    }
     (void)fread(input_storage, 3 * 224 * 224, 4, fp);
     fclose(fp);
 
@@ -119,6 +124,12 @@ int main(int argc, char **argv) {
         }
     }
 
+    for (int i = 0; i < OUTPUT_LEN; ++i) {
+        int s = (int)(output_storage[i] * 1000.0);
+        if (s != 0) {
+            fprintf(stderr, "%d: %d\n", i, s);
+        }
+    }
     RUN(graphManager->Release(&graphManager));
 
     gettimeofday(&t5, 0);

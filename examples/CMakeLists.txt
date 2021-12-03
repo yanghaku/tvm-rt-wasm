@@ -34,11 +34,11 @@ else ()
     SET(PY_TARGET cpu)
 endif ()
 
-find_package (Python3 COMPONENTS Interpreter)
+find_package(Python3 COMPONENTS Interpreter)
 
 # mobilenet0.25
 execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/scripts/mobilenet0.25.py --target ${PY_TARGET} -o ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/lib/)
 file(GLOB mobilenet0.25_LIB_C mobilenet0.25/lib/*.c)
-file(GLOB mobilenet0.25_LIB_BC mobilenet0.25/lib/*.bc)
-add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25_LIB_C} ${mobilenet0.25_LIB_BC})
+file(GLOB mobilenet0.25_LIB_OBJ mobilenet0.25/lib/*.o)
+add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25_LIB_C} ${mobilenet0.25_LIB_OBJ})
 target_link_libraries(mobilenet0.25.wasm tvm-rt)

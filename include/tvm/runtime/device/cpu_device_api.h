@@ -22,10 +22,10 @@ typedef struct CPUDeviceAPI {
 
 /*!
  * \brief create the cpu_device_api instance
- * @param cpuDeviceApi the pointer to receive instance
+ * @param out the pointer to receive instance
  * @return 0 if successful
  */
-int CPUDeviceAPICreate(CPUDeviceAPI **cpuDeviceApi);
+int CPUDeviceAPICreate(CPUDeviceAPI **out);
 
 #ifdef __cplusplus
 } // extern "C"

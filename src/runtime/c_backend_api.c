@@ -71,7 +71,7 @@ TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t 
         return NULL;
     }
     DLDataType type = {dtype_code_hint, dtype_bits_hint, 1};
-    return deviceApi->AllocWorkspace(deviceApi, device_id, nbytes, type);
+    return deviceApi->AllocWorkspace(device_id, nbytes, type);
 }
 
 /*!
@@ -90,7 +90,7 @@ TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
     if (unlikely(status)) {
         return -1;
     }
-    deviceApi->FreeWorkspace(deviceApi, device_id, ptr);
+    deviceApi->FreeWorkspace(device_id, ptr);
     return status;
 }
 
@@ -104,8 +104,8 @@ TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, int num_task) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    static TVMParallelGroupEnv parallelGroupEnv = {.num_task = 1, .sync_handle = NULL};
+    return flambda(0, &parallelGroupEnv, cdata);
 }
 
 /*!
@@ -114,7 +114,4 @@ TVM_DLL int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, in
  * \param penv The parallel environment backs the execution.
  * \return 0 when no error is thrown, -1 when failure happens
  */
-TVM_DLL int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
-}
+TVM_DLL int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) { return 0; }

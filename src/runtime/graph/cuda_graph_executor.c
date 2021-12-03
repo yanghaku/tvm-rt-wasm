@@ -10,7 +10,6 @@
 #include <tvm/runtime/graph/cuda_graph_executor.h>
 #include <tvm/runtime/graph_executor_manager.h>
 #include <tvm/runtime/utils/common.h>
-#include <tvm/runtime/utils/json.h>
 
 /*!
  * \brief Allocate a new GraphExecutorManager and initialize it with CUDAGraphExecutor.
@@ -29,7 +28,7 @@ int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handl
 
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(GraphExecutorManager), 0, no_type, (void **)&g);
+    TVMDeviceAllocDataSpace(cpu, sizeof(GraphExecutorManager), 0, no_type, (void **)g);
 
     (*g)->GetNumOfNodes = GraphExecutorGetNumOfNodes;
     (*g)->GetNodeName = GraphExecutorGetNodeName;
