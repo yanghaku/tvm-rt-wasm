@@ -27,6 +27,7 @@ static void *AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataT
 }
 
 static void *AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype, const char *mem_scope) {
+    fprintf(stderr, "%s is not supported yet\n", __FUNCTION__);
     exit(-1);
 }
 
@@ -42,13 +43,15 @@ static void CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream)
     memcpy(to->data, from->data, size_to);
 }
 
-TVMStreamHandle CreateStream(int dev_id) { return NULL; }
+static TVMStreamHandle CreateStream(int dev_id) { return NULL; }
 
 static void FreeStream(int dev_id, TVMStreamHandle stream) {}
 
 static void StreamSync(int dev_id, TVMStreamHandle stream) {}
 
 static void SetStream(int dev_id, TVMStreamHandle stream) {}
+
+static TVMStreamHandle GetStream() { return NULL; }
 
 static void SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {}
 
@@ -82,6 +85,7 @@ int CPUDeviceAPICreate(CPUDeviceAPI **out) {
     cpuDeviceApi.FreeStream = FreeStream;
     cpuDeviceApi.StreamSync = StreamSync;
     cpuDeviceApi.SetStream = SetStream;
+    cpuDeviceApi.GetStream = GetStream;
     cpuDeviceApi.SyncStreamFromTo = SyncStreamFromTo;
     cpuDeviceApi.AllocWorkspace = AllocWorkspace;
     cpuDeviceApi.FreeWorkspace = FreeWorkspace;

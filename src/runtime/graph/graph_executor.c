@@ -6,7 +6,6 @@
 
 #include <string.h>
 #include <tvm/runtime/graph/graph_executor.h>
-#include <tvm/runtime/utils/common.h>
 #include <tvm/runtime/utils/json.h>
 #include <tvm/runtime/utils/tensor_helper.h>
 
@@ -299,7 +298,6 @@ int GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, const DLTenso
         SET_ERROR_RETURN(-1, "invalid argument: index, expect it in range [0,%d), but given %d",
                          graph->num_inputs_nodes, index);
     }
-
     uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
     return TVMDeviceCopyDataFromTo((DLTensor *)data_in, graph->data_entry + eid, NULL);
 }
@@ -455,28 +453,46 @@ int GraphExecutorRelease(GraphExecutorManager **g) {
 
     // free nodes
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
-        TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].op_type);
-        TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].name);
-        TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].func_name);
-        TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].inputs);
+        if (likely(graph->nodes[nid].op_type)) {
+            TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].op_type);
+        }
+        if (likely(graph->nodes[nid].name)) {
+            TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].name);
+        }
+        if (likely(graph->nodes[nid].func_name)) {
+            TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].func_name);
+        }
+        if (likely(graph->nodes[nid].inputs)) {
+            TVMDeviceFreeDataSpace(cpu, (void *)graph->nodes[nid].inputs);
+        }
     }
     TVMDeviceFreeDataSpace(cpu, graph->nodes);
 
     // free node operators
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
-        TVMDeviceFreeDataSpace(cpu, graph->nodeOps[nid].arg_values);
-        TVMDeviceFreeDataSpace(cpu, graph->nodeOps[nid].arg_type_codes);
+        if (graph->nodeOps[nid].arg_values) {
+            TVMDeviceFreeDataSpace(cpu, graph->nodeOps[nid].arg_values);
+        }
+        if (graph->nodeOps[nid].arg_type_codes) {
+            TVMDeviceFreeDataSpace(cpu, graph->nodeOps[nid].arg_type_codes);
+        }
     }
     TVMDeviceFreeDataSpace(cpu, graph->nodeOps);
 
     // free inputs nodes
-    TVMDeviceFreeDataSpace(cpu, graph->inputs_nodes);
+    if (graph->inputs_nodes) {
+        TVMDeviceFreeDataSpace(cpu, graph->inputs_nodes);
+    }
 
     // free output nodes entry
-    TVMDeviceFreeDataSpace(cpu, graph->outputs_nodes);
+    if (graph->outputs_nodes) {
+        TVMDeviceFreeDataSpace(cpu, graph->outputs_nodes);
+    }
 
     // free node_row_ptr
-    TVMDeviceFreeDataSpace(cpu, graph->node_row_ptr);
+    if (graph->node_row_ptr) {
+        TVMDeviceFreeDataSpace(cpu, graph->node_row_ptr);
+    }
 
     // free data entry + storage + storage_is_linked_param
     for (uint32_t eid = 0; eid < graph->num_data_entry; ++eid) {
@@ -486,16 +502,24 @@ int GraphExecutorRelease(GraphExecutorManager **g) {
             graph->storage_is_linked_param[sid] = 1;
         }
     }
-    TVMDeviceFreeDataSpace(cpu, graph->data_entry);
-    TVMDeviceFreeDataSpace(cpu, graph->storages);
-    TVMDeviceFreeDataSpace(cpu, graph->storage_is_linked_param);
+    if (graph->num_data_entry) {
+        TVMDeviceFreeDataSpace(cpu, graph->data_entry);
+        TVMDeviceFreeDataSpace(cpu, graph->storages);
+        TVMDeviceFreeDataSpace(cpu, graph->storage_is_linked_param);
+    }
 
     // free input map and output map
-    TrieRelease(graph->inputs_map);
-    TrieRelease(graph->outputs_map);
+    if (graph->inputs_map) {
+        TrieRelease(graph->inputs_map);
+    }
+    if (graph->outputs_map) {
+        TrieRelease(graph->outputs_map);
+    }
 
     // free graph attributes
-    TVMDeviceFreeDataSpace(cpu, graph->graph_attr.storage_id);
+    if (graph->graph_attr.storage_id) {
+        TVMDeviceFreeDataSpace(cpu, graph->graph_attr.storage_id);
+    }
     if (graph->graph_attr.device_type) {
         TVMDeviceFreeDataSpace(cpu, graph->graph_attr.device_type);
     }
@@ -507,7 +531,9 @@ int GraphExecutorRelease(GraphExecutorManager **g) {
     TVMDeviceFreeDataSpace(cpu, graph->graph_attr.shape);
 
     // devices
-    TVMDeviceFreeDataSpace(cpu, graph->devices);
+    if (graph->devices) {
+        TVMDeviceFreeDataSpace(cpu, graph->devices);
+    }
 
     // free itself
     TVMDeviceFreeDataSpace(cpu, graph);

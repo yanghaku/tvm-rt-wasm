@@ -104,6 +104,7 @@ TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, int num_task) {
+    // Now WebAssembly does not support threads.
     static TVMParallelGroupEnv parallelGroupEnv = {.num_task = 1, .sync_handle = NULL};
     return flambda(0, &parallelGroupEnv, cdata);
 }

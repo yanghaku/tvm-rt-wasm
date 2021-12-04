@@ -10,6 +10,7 @@
 #include <tvm/runtime/device/device_api.h>
 #include <tvm/runtime/module/module.h>
 #include <tvm/runtime/utils/common.h>
+#include <tvm/runtime/utils/cuda_common.h>
 
 /**
  * in this implement:
@@ -135,7 +136,10 @@ TVM_DLL int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int qu
  *  The all functions remains valid until TVMFuncFree is called.
  * \return 0 when success, nonzero when failure happens
  */
-TVM_DLL int TVMModFree(TVMModuleHandle mod) { return ((Module *)mod)->Release((Module *)mod); }
+TVM_DLL int TVMModFree(TVMModuleHandle mod) {
+    // todo: Prevent being free when it is still being used
+    return ((Module *)mod)->Release((Module *)mod);
+}
 
 /*!
  * \brief in this implement, TVMFunctionHandle do not need to be free
@@ -391,6 +395,47 @@ TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandl
     }
     deviceApi->CopyDataFromTo(from, to, stream);
     return status;
+}
+
+int TVMSetDevice(TVMValue *args, int *type_codes, int num_args, TVMValue *ret_val, int *ret_type_code,
+                 void *resource_handle) {
+    DeviceAPI *api;
+    DeviceAPIGet(args->v_device.device_type, &api);
+    api->SetDevice(args->v_device.device_id);
+    return 0;
+}
+
+static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor() {
+
+#if USE_CUDA // USE_CUDA = 1
+    CUDA_DRIVER_CALL(cuInit(0));
+#endif
+
+    TrieCreate(&global_functions);
+    if (unlikely(TrieInsert(global_functions, (const uint8_t *)"__tvm_set_device", TVMSetDevice)) != TRIE_SUCCESS) {
+        fprintf(stderr, "register global function fail!\n");
+        exit(-1);
+    }
+}
+
+static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor() {
+    // release global functions
+    if (global_functions) {
+        TrieRelease(global_functions);
+    }
+
+    // if sys_lib_symbols, release it
+    if (system_lib_symbol) {
+        TrieRelease(system_lib_symbol);
+    }
+
+    // if sys_lib_modules, release it
+    Module *sys_lib;
+    ModuleFactory(MODULE_SYSTEM_LIB, 0, 0, &sys_lib);
+    sys_lib->Release(sys_lib);
+
+    // release the devices instance
+    DeviceReleaseAll();
 }
 
 /**-------------------------The following API will not be implemented in this project---------------------------------*/

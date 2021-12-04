@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 
 # the dependence prefix
 set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
-set(CUDAToolkit_ROOT D:/software/cuda/toolkit)
+set(CUDAToolkit_ROOT D:/lib/cuda/)
 
 # wasi-sdk
 set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
@@ -10,7 +10,7 @@ project(tvm-rt)
 
 add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility=hidden -fno-rtti -flto=full)
 
-OPTION(USE_CUDA "USE CUDA" OFF)
+OPTION(USE_CUDA "USE CUDA" ON)
 message("lib USE_CUDA=${USE_CUDA}")
 if (${USE_CUDA})
     add_definitions(-DUSE_CUDA=1)

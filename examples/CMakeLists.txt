@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.19)
 set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
 
 # if use cuda
-set(USE_CUDA OFF)
+set(EXAMPLE_USE_CUDA ON)
 
 # tvm-rt-wasm installed path
 set(TVM_RT_ROOT D:/lib/tvm-rt/)
@@ -22,13 +22,13 @@ message("examples for tvm-rt")
 add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -fno-rtti)
 add_link_options(-Wl,--allow-undefined)
 
-message("examples USE_CUDA = ${USE_CUDA}")
+message("EXAMPLE_USE_CUDA = ${EXAMPLE_USE_CUDA}")
 
 include_directories(${TVM_RT_ROOT}/include)
 link_directories(${TVM_RT_ROOT}/lib)
 
-if (${USE_CUDA})
-    add_definitions(-DUSE_CUDA=1)
+if (${EXAMPLE_USE_CUDA})
+    add_definitions(-DEXAMPLE_USE_CUDA=1)
     SET(PY_TARGET cuda)
 else ()
     SET(PY_TARGET cpu)

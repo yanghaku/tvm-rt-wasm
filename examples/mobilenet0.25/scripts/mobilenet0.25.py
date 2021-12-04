@@ -21,7 +21,6 @@ from tvm import relay
 import tvm
 from tvm import runtime
 from tvm.target import Target
-from tvm.contrib import emcc
 import sys
 
 

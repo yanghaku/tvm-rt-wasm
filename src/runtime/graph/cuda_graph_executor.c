@@ -8,8 +8,6 @@
 #include <string.h>
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/graph/cuda_graph_executor.h>
-#include <tvm/runtime/graph_executor_manager.h>
-#include <tvm/runtime/utils/common.h>
 
 /*!
  * \brief Allocate a new GraphExecutorManager and initialize it with CUDAGraphExecutor.
@@ -37,6 +35,7 @@ int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handl
     (*g)->GetNumInputs = GraphExecutorGetNumInputs;
     (*g)->GetNumOutputs = GraphExecutorGetNumOutputs;
     (*g)->SetInput = GraphExecutorSetInput;
+    (*g)->SetInputByName = GraphExecutorSetInputByName;
     (*g)->GetOutput = GraphExecutorGetOutput;
     (*g)->LoadParams = GraphExecutorLoadParams;
 
@@ -66,8 +65,8 @@ int CUDAGraphExecutorRun(GraphExecutorManager *g) {
     CUDAGraphExecutor *graph = (CUDAGraphExecutor *)g->graphHandle;
 
     // init context and stream
-    // todo: init context and save stream
     CUDA_DRIVER_CALL(cuStreamCreate(&graph->cu_stream, CU_STREAM_DEFAULT));
+    TVMSetStream(graph->devices[0].device_type, graph->devices[0].device_id, graph->cu_stream);
 
     // begin capture
     CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_GLOBAL));

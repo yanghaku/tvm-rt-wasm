@@ -18,7 +18,6 @@ extern "C" {
 #if USE_CUDA // USE_CUDA = 1
 
 #include <cuda.h>
-#include <cuda_runtime.h>
 
 #define CUDA_DRIVER_CALL(x)                                                                                            \
     do {                                                                                                               \
@@ -28,13 +27,6 @@ extern "C" {
             cuGetErrorName(result, &msg);                                                                              \
             fprintf(stderr, "CUDA Error in %s %d : %s\n", __FILE__, __LINE__, msg);                                    \
         }                                                                                                              \
-    } while (0)
-
-#define CUDA_CALL(func)                                                                                                \
-    do {                                                                                                               \
-        cudaError_t e = (func);                                                                                        \
-        if (e != cudaSuccess && e != cudaErrorCudartUnloading)                                                         \
-            fprintf(stderr, "CUDA runtime Error in %s %d : %s\n", __FILE__, __LINE__, cudaGetErrorString(e));          \
     } while (0)
 
 #else

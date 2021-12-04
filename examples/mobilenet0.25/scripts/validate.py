@@ -32,7 +32,7 @@ y = output.reshape(1000)
 
 print(y.shape)
 for i in range(len(y)):
-    p = int(y[i] * 1000)
+    p = int(y[i] * 10000)
     if p != 0:
         print(i, p)
 

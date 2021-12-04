@@ -22,7 +22,10 @@ typedef struct CUDADeviceAPI {
     uint32_t num_device;
 
 #if USE_CUDA // USE_CUDA = 1
+    /*! \brief the cuda contexts for every devices */
     CUcontext *contexts;
+    /*! \brief the now work stream */
+    CUstream stream;
 #endif // USE_CUDA
 
 } CUDADeviceAPI;

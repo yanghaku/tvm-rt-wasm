@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
 
     gettimeofday(&t0, 0); // init start
 
-#if USE_CUDA
+#if EXAMPLE_USE_CUDA
     DLDevice cuda = {kDLCUDA, 0};
     RUN(GraphExecutorManagerFactory(graphExecutorCUDA, (const char *)graph_json, syslib, &cuda, 1, &graphManager));
 #else
@@ -82,9 +82,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "cannot open file %s\n", argv[1]);
         return -1;
     }
-    (void)fread(input_storage, 3 * 224 * 224, 4, fp);
+    fread(input_storage, 3 * 224 * 224, 4, fp);
     fclose(fp);
-
     input.data = input_storage;
     input.device = cpu;
     input.ndim = 4;
@@ -125,7 +124,7 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < OUTPUT_LEN; ++i) {
-        int s = (int)(output_storage[i] * 1000.0);
+        int s = (int)(output_storage[i] * 10000.0);
         if (s != 0) {
             fprintf(stderr, "%d: %d\n", i, s);
         }

@@ -114,7 +114,9 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
         (*lib_module)->num_imports = num_modules;
         // cache all env function
         for (uint32_t i = 0; i < num_modules; ++i) {
-            TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
+            if (modules[i]->module_funcs_map) {
+                TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
+            }
         }
     } else {
         for (uint32_t i = 0; i < num_modules; ++i) {
@@ -140,7 +142,9 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
         // lib_module will be the root in import tree
         *lib_module = modules[0];
         for (uint32_t i = 1; i < num_modules; ++i) {
-            TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
+            if (modules[i]->module_funcs_map) {
+                TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
+            }
         }
         TVMDeviceFreeDataSpace(cpu, modules);
         TVMDeviceFreeDataSpace(cpu, import_tree_row_ptr);
@@ -172,7 +176,7 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
     (*libraryModule)->Release = DefaultModuleReleaseFunc;
     (*libraryModule)->module_funcs_map = system_lib_symbol;
     TrieCreate(&(*libraryModule)->env_funcs_map);
-    sys_lib_module = NULL; // manage this Trie*
+    system_lib_symbol = NULL; // manage this Trie*
 
     // dev_blob
     const char *blob = NULL;

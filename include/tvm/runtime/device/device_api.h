@@ -90,6 +90,11 @@ typedef struct DeviceAPI DeviceAPI;
     void (*SetStream)(int dev_id, TVMStreamHandle stream);                                                             \
                                                                                                                        \
     /*!                                                                                                                \
+     * \brief Get the now work stream                                                                                  \
+     */                                                                                                                \
+    TVMStreamHandle (*GetStream)();                                                                                    \
+                                                                                                                       \
+    /*!                                                                                                                \
      * \brief Synchronize 2 streams of execution.                                                                      \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param event_src The source stream to synchronize.                                                              \
@@ -134,6 +139,12 @@ struct DeviceAPI {
  * @return 0 if successful
  */
 int DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api);
+
+/*!
+ * \brief destroy all device api instance
+ * \note it only be used at runtime destructor
+ */
+void DeviceReleaseAll();
 
 #ifdef __cplusplus
 } // extern "C"

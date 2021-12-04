@@ -6,13 +6,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <tvm/runtime/graph/graph_executor.h>
-#include <tvm/runtime/module/module.h>
-#include <tvm/runtime/utils/common.h>
-
-#if USE_CUDA // USE_CUDA = 1
 #include <tvm/runtime/graph/cuda_graph_executor.h>
-#endif // USE_CUDA
+#include <tvm/runtime/module/module.h>
 
 /*!
  * \brief Create a GraphExecutorManager Instance for given type name
@@ -42,10 +37,7 @@ TVM_DLL int GraphExecutorManagerFactory(GraphExecutorType type, const char *grap
     case graphExecutor:
         return GraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);
     case graphExecutorCUDA:
-
-#if USE_CUDA // USE_CUDA = 1
         return CUDAGraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);
-#endif
 
     default:
         SET_ERROR_RETURN(-1, "unsupported graph executor type");
