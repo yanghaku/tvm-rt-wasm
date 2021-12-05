@@ -31,8 +31,8 @@ static void *AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLD
 static void FreeDataSpace(int dev_id, void *ptr) { CUDA_DRIVER_CALL(cuMemFree((CUdeviceptr)ptr)); }
 
 static void CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
-    uint64_t bytes = DLTensor_GetDataBytes(from);
-    uint64_t byte_check = DLTensor_GetDataBytes(to);
+    uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
+    uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
     if (unlikely(bytes != byte_check)) {
         fprintf(stderr, "Error: data copy size is diff, from=%lld and to=%lld\n", bytes, byte_check);
         exit(-1);
@@ -101,7 +101,7 @@ static int Release(DeviceAPI *d) {
  * @param out the pointer to receive instance
  * @return 0 if successful
  */
-int CUDADeviceAPICreate(CUDADeviceAPI **out) {
+int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
 
 #if USE_CUDA // USE_CUDA = 1
 

@@ -21,11 +21,11 @@
  * \return 0 when no error is thrown, -1 when failure happens
  */
 TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
-    int status = TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
+    int status = TVM_RT_WASM_TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
     if (unlikely(status == TRIE_NOT_FOUND)) {
         status = TVMFuncGetGlobal(func_name, out);
         if (likely(status == TRIE_SUCCESS)) {
-            TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, *out);
+            TVM_RT_WASM_TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, *out);
         }
     }
     return status;
@@ -40,13 +40,9 @@ TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMF
  */
 TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
     if (unlikely(system_lib_symbol == NULL)) {
-        int status = TrieCreate(&system_lib_symbol);
-        if (unlikely(status)) {
-            fprintf(stderr, "%s:create a new trie node Error", __FUNCTION__);
-            return -1;
-        }
+        TVM_RT_WASM_TrieCreate(&system_lib_symbol);
     }
-    return TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
+    return TVM_RT_WASM_TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
 }
 
 /*!
@@ -66,7 +62,7 @@ TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
 TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, int dtype_code_hint,
                                        int dtype_bits_hint) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return NULL;
     }
@@ -86,7 +82,7 @@ TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t 
  */
 TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return -1;
     }

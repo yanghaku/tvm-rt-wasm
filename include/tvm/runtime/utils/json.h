@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_JSON_H
-#define TVM_RT_JSON_H
+#ifndef TVM_RT_WASM_JSON_H
+#define TVM_RT_WASM_JSON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,8 +14,7 @@ extern "C" {
 
 #include <ctype.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/device/cpu_memory.h>
 #include <tvm/runtime/utils/common.h>
 
 /*! \brief get next char from the str, and change pointer to next */
@@ -42,8 +41,6 @@ extern "C" {
 #define CheckEQ(expect, given)                                                                                         \
     do {                                                                                                               \
         if (unlikely((expect) != (given))) {                                                                           \
-            fprintf(stderr, "json parse error: expect char is '%c'(ascii=%d), but given '%c'(ascii=%d)\n", (expect),   \
-                    (expect), (given), (given));                                                                       \
             return -2;                                                                                                 \
         }                                                                                                              \
     } while (0)
@@ -106,23 +103,16 @@ typedef const char *JsonReader;
  * @param out_reader the pointer to receive out_reader
  * @return 0 if successful
  */
-INLINE int JsonReader_Create(const char *json_str, JsonReader **out_reader) {
-    DLDevice cpu = {kDLCPU, 0};
-    DLDataType no_type = {0, 0, 0};
-    int status = TVMDeviceAllocDataSpace(cpu, sizeof(JsonReader), 0, no_type, (void **)out_reader);
+INLINE void TVM_RT_WASM_JsonReader_Create(const char *json_str, JsonReader **out_reader) {
+    *out_reader = TVM_RT_WASM_HeapMemoryAlloc(sizeof(JsonReader));
     **out_reader = json_str;
-    return status;
 }
 
 /*!
  * \brief delete the instance of JsonReader
  * @param reader the instance pointer
- * @return 0 if successful
  */
-INLINE int JsonReader_Release(JsonReader *reader) {
-    DLDevice cpu = {kDLCPU, 0};
-    return TVMDeviceFreeDataSpace(cpu, reader);
-}
+INLINE void TVM_RT_WASM_JsonReader_Release(JsonReader *reader) { TVM_RT_WASM_HeapMemoryFree(reader); }
 
 /*!
  * \brief read a 32 bit unsigned int
@@ -131,7 +121,9 @@ INLINE int JsonReader_Release(JsonReader *reader) {
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-INLINE int JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_num) { str2unsigned(*reader, *out_num); }
+INLINE int TVM_RT_WASM_JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_num) {
+    str2unsigned(*reader, *out_num);
+}
 
 /*!
  * \brief read a 32 bit signed int
@@ -139,7 +131,7 @@ INLINE int JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_num) { str2u
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-INLINE int JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { str2signed(*reader, *out_num); }
+INLINE int TVM_RT_WASM_JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { str2signed(*reader, *out_num); }
 
 /*!
  * \brief read a 64 bit unsigned int
@@ -147,7 +139,9 @@ INLINE int JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { str2sig
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-INLINE int JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_num) { str2unsigned(*reader, *out_num); }
+INLINE int TVM_RT_WASM_JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_num) {
+    str2unsigned(*reader, *out_num);
+}
 
 /*!
  * \brief read a 64 bit signed int
@@ -155,7 +149,7 @@ INLINE int JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_num) { str2u
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-INLINE int JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { str2signed(*reader, *out_num); }
+INLINE int TVM_RT_WASM_JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { str2signed(*reader, *out_num); }
 
 /*!
  * \brief read string and save to out_str
@@ -164,7 +158,7 @@ INLINE int JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { str2sig
  * @param out_str_size the store buffer size
  * @return if successful return actual length ( > 0 ), -1: buffer_size tool short, <= -1: error code
  */
-INLINE int JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_str_size) {
+INLINE int TVM_RT_WASM_JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_str_size) {
     char ch;
     NextNonSpace(*reader, ch);
     CheckEQ(ch, '\"'); // check the start is '\"'
@@ -200,14 +194,12 @@ INLINE int JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_s
                 ch = '\b';
                 break;
             default:
-                fprintf(stderr, "Error: unsupported string escape %c(ascii=%d)", ch, ch);
                 return -2;
             }
         }
 
         int new_size = size + 1;
         if (unlikely(new_size == (int)out_str_size)) { // buf is two short
-            fprintf(stderr, "Error: string buf is too short! now buf size = %d\n", new_size);
             return -1;
         }
         out_str[size] = ch;
@@ -221,7 +213,7 @@ INLINE int JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_s
  * @param reader the instance of JsonReader
  * @return if successful return 1, 0: no array item, <0 : error code
  */
-INLINE int JsonReader_NextArrayItem(JsonReader *reader) {
+INLINE int TVM_RT_WASM_JsonReader_NextArrayItem(JsonReader *reader) {
     char ch;
     NextNonSpace(*reader, ch);
     if (likely(ch == '[' || ch == ',')) {
@@ -245,26 +237,7 @@ INLINE int JsonReader_NextArrayItem(JsonReader *reader) {
  * @return if successful return actual length of key ( >0 ), 0: no object to read, -1: buffer_size tool short, <= -2:
  * error
  */
-INLINE int JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size) {
-    char ch;
-    NextNonSpace(*reader, ch);
-    if (likely(ch == '{' || ch == ',')) {
-        PeekNextNonSpace(*reader, ch);
-        if (unlikely(ch == '}')) { // the end of object
-            NextChar(reader);      // read this '}'
-            return 0;
-        }
-        int status = JsonReader_ReadString(reader, out_key, out_key_size); // read key
-        if (likely(status > 0)) {                                          // read key success
-            NextNonSpace(*reader, ch);                                     // read the next ':'
-            CheckEQ(ch, ':');                                              // if not ':', return error code
-        }
-        return status;
-    } else if (ch == '}') {
-        return 0;
-    }
-    return -2;
-}
+int TVM_RT_WASM_JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size);
 
 /*!
  * \brief get the array length (it need to scan all the json string of array)
@@ -272,7 +245,7 @@ INLINE int JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t o
  * @param out_size the pointer to receive array length
  * @return 0 if successful
  */
-INLINE int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
+INLINE int TVM_RT_WASM_JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
     const char *ptr = *reader;
     int now_dep = 0;
     int now_size = 0;
@@ -338,4 +311,4 @@ INLINE int JsonReader_ArrayLength(JsonReader *reader, size_t *out_size) {
 } // extern "C"
 #endif
 
-#endif // TVM_RT_JSON_H
+#endif // TVM_RT_WASM_JSON_H

@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_CUDA_COMMON_H
-#define TVM_RT_CUDA_COMMON_H
+#ifndef TVM_RT_WASM_CUDA_COMMON_H
+#define TVM_RT_WASM_CUDA_COMMON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,11 +18,12 @@ extern "C" {
 #if USE_CUDA // USE_CUDA = 1
 
 #include <cuda.h>
+#include <tvm/runtime/utils/common.h>
 
 #define CUDA_DRIVER_CALL(x)                                                                                            \
     do {                                                                                                               \
-        CUresult result = x;                                                                                           \
-        if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) {                                            \
+        CUresult result = (x);                                                                                         \
+        if (unlikely(result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED)) {                                  \
             const char *msg;                                                                                           \
             cuGetErrorName(result, &msg);                                                                              \
             fprintf(stderr, "CUDA Error in %s %d : %s\n", __FILE__, __LINE__, msg);                                    \
@@ -43,4 +44,4 @@ extern "C" {
 } // extern "C"
 #endif
 
-#endif // TVM_RT_CUDA_COMMON_H
+#endif // TVM_RT_WASM_CUDA_COMMON_H

@@ -20,15 +20,6 @@ Trie *system_lib_symbol = NULL;
 /*! \brief the system library module is a single instance */
 static Module *sys_lib_module = NULL;
 
-/*!
- * \brief Import another module into this module.
- * \param other The module to be imported.
- *
- * \note Cyclic dependency is not allowed among modules,
- *  An error will be thrown when cyclic dependency is detected.
- */
-int ModuleImport(Module *self, Module *other) { return -1; }
-
 /*! \brief the simple release function for system_lib_module and dso_lib_module */
 static int DefaultModuleReleaseFunc(Module *self) {
     DLDevice cpu = {kDLCPU, 0};
@@ -39,10 +30,10 @@ static int DefaultModuleReleaseFunc(Module *self) {
         TVMDeviceFreeDataSpace(cpu, self->imports);
     }
     if (self->module_funcs_map) {
-        TrieRelease(self->module_funcs_map);
+        TVM_RT_WASM_TrieRelease(self->module_funcs_map);
     }
     if (self->env_funcs_map) {
-        TrieRelease(self->env_funcs_map);
+        TVM_RT_WASM_TrieRelease(self->env_funcs_map);
     }
     return TVMDeviceFreeDataSpace(cpu, self);
 }
@@ -99,7 +90,7 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
         } else {
             const char *key = blob;
             blob += mod_type_key_size;
-            status = ModuleFactory(key, blob, MODULE_FACTORY_RESOURCE_BINARY, &modules[num_modules]);
+            status = TVM_RT_WASM_ModuleFactory(key, blob, MODULE_FACTORY_RESOURCE_BINARY, &modules[num_modules]);
             if (unlikely(status <= 0)) { // ModuleFactory will return offset
                 return status;
             }
@@ -115,7 +106,7 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
         // cache all env function
         for (uint32_t i = 0; i < num_modules; ++i) {
             if (modules[i]->module_funcs_map) {
-                TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
+                TVM_RT_WASM_TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
             }
         }
     } else {
@@ -143,7 +134,7 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
         *lib_module = modules[0];
         for (uint32_t i = 1; i < num_modules; ++i) {
             if (modules[i]->module_funcs_map) {
-                TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
+                TVM_RT_WASM_TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
             }
         }
         TVMDeviceFreeDataSpace(cpu, modules);
@@ -174,12 +165,13 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
 
     (*libraryModule)->Release = DefaultModuleReleaseFunc;
     (*libraryModule)->module_funcs_map = system_lib_symbol;
-    TrieCreate(&(*libraryModule)->env_funcs_map);
+    TVM_RT_WASM_TrieCreate(&(*libraryModule)->env_funcs_map);
     system_lib_symbol = NULL; // manage this Trie*
 
     // dev_blob
     const char *blob = NULL;
-    int status = TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB, (void **)&blob);
+    int status =
+        TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB, (void **)&blob);
     if (status == TRIE_SUCCESS) {
         status = ModuleLoadBinaryBlob(blob, libraryModule);
         if (unlikely(status)) {
@@ -189,7 +181,8 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
 
     // module context
     void **module_context = NULL;
-    status = TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_MODULE_CTX, (void **)&module_context);
+    status = TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_MODULE_CTX,
+                                   (void **)&module_context);
     if (likely(status == TRIE_SUCCESS)) {
         *module_context = *libraryModule;
     }
@@ -217,7 +210,7 @@ static int DSOLibraryModuleCreate(const char *filename, Module **libraryModule) 
  * @param out the pointer to receive created instance
  * @return >=0 if successful   (if binary type, it should return the binary length it has read)
  */
-int ModuleFactory(const char *type, const char *resource, int resource_type, Module **out) {
+int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type, Module **out) {
     if (!memcmp(type, MODULE_SYSTEM_LIB, strlen(MODULE_SYSTEM_LIB))) {
         return SystemLibraryModuleCreate(out);
     }

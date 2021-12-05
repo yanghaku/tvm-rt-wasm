@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_CUDA_GRAPH_EXECUTOR_H
-#define TVM_RT_CUDA_GRAPH_EXECUTOR_H
+#ifndef TVM_RT_WASM_CUDA_GRAPH_EXECUTOR_H
+#define TVM_RT_WASM_CUDA_GRAPH_EXECUTOR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,8 +40,8 @@ typedef struct CUDAGraphExecutor {
  * \param g Pointer which receives a pointer to the newly-created instance.
  * \return 0 if successful.
  */
-int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                                    uint32_t num_dev, GraphExecutorManager **g);
+int TVM_RT_WASM_CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                        uint32_t num_dev, GraphExecutorManager **g);
 
 /*!
  * \brief Execute the graph.
@@ -49,7 +49,7 @@ int CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handl
  * \param executor The graph executor.
  * \return 0 if successful
  */
-int CUDAGraphExecutorRun(GraphExecutorManager *g);
+int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g);
 
 /*!
  * \brief Release memory associated with the GraphExecutorManager.
@@ -57,7 +57,7 @@ int CUDAGraphExecutorRun(GraphExecutorManager *g);
  * \param executor Pointer to graph executor.
  * \return 0 if successful
  */
-int CUDAGraphExecutorRelease(GraphExecutorManager **g);
+int TVM_RT_WASM_CUDAGraphExecutorRelease(GraphExecutorManager **g);
 
 /*!
  * \brief Clone a new instance of GraphExecutorManager.
@@ -65,10 +65,10 @@ int CUDAGraphExecutorRelease(GraphExecutorManager **g);
  * \param cloned Pointer which receive the new instance.
  * \return 0 if successful
  */
-int CUDAGraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned);
+int TVM_RT_WASM_CUDAGraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_CUDA_GRAPH_EXECUTOR_H
+#endif // TVM_RT_WASM_CUDA_GRAPH_EXECUTOR_H

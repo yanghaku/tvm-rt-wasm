@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_CUDA_DEVICE_API_H
-#define TVM_RT_CUDA_DEVICE_API_H
+#ifndef TVM_RT_WASM_CUDA_DEVICE_API_H
+#define TVM_RT_WASM_CUDA_DEVICE_API_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,10 +35,10 @@ typedef struct CUDADeviceAPI {
  * @param out the pointer to receive instance
  * @return 0 if successful
  */
-int CUDADeviceAPICreate(CUDADeviceAPI **out);
+int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_CUDA_DEVICE_API_H
+#endif // TVM_RT_WASM_CUDA_DEVICE_API_H

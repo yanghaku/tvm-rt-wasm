@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_GRAPH_EXECUTOR_H
-#define TVM_RT_GRAPH_EXECUTOR_H
+#ifndef TVM_RT_WASM_GRAPH_EXECUTOR_H
+#define TVM_RT_WASM_GRAPH_EXECUTOR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -164,8 +164,8 @@ typedef struct GraphExecutor {
  * \param g Pointer which receives a pointer to the newly-created instance.
  * \return 0 if successful.
  */
-int GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                        uint32_t num_dev, GraphExecutorManager **g);
+int TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                    uint32_t num_dev, GraphExecutorManager **g);
 
 /*!
  * \brief init a new GraphExecutor from graph.json
@@ -174,18 +174,18 @@ int GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, c
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
  * \param num_dev the number of devices
- * \param executor the instance.
+ * \param graph the instance.
  * \return 0 if successful.
  */
-int GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices, uint32_t num_dev,
-                      GraphExecutor *executor);
+int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                  uint32_t num_dev, GraphExecutor *graph);
 
 /*!
  * \brief Get total number of nodes.
  * \param g The instance of GraphExecutorManager.
  * \return Total number of nodes.
  */
-int GraphExecutorGetNumOfNodes(GraphExecutorManager *g);
+int TVM_RT_WASM_GraphExecutorGetNumOfNodes(GraphExecutorManager *g);
 
 /*!
  * \brief Get the name of node for given index.
@@ -194,7 +194,7 @@ int GraphExecutorGetNumOfNodes(GraphExecutorManager *g);
  * \param name the pointer to receive string pointer
  * \return 0 if successful
  */
-int GraphExecutorGetNodeName(GraphExecutorManager *g, uint32_t nid, const char **name);
+int TVM_RT_WASM_GraphExecutorGetNodeName(GraphExecutorManager *g, uint32_t nid, const char **name);
 
 /*!
  * \brief Get the input index given the name of input.
@@ -202,7 +202,7 @@ int GraphExecutorGetNodeName(GraphExecutorManager *g, uint32_t nid, const char *
  * \param name The name of the input.
  * \return The index of input.
  */
-int GraphExecutorGetInputIndex(GraphExecutorManager *g, const char *name);
+int TVM_RT_WASM_GraphExecutorGetInputIndex(GraphExecutorManager *g, const char *name);
 
 /*!
  * \brief Get the output index given the name of output.
@@ -210,21 +210,21 @@ int GraphExecutorGetInputIndex(GraphExecutorManager *g, const char *name);
  * \param name The name of the output.
  * \return The index of output.
  */
-int GraphExecutorGetOutputIndex(GraphExecutorManager *g, const char *name);
+int TVM_RT_WASM_GraphExecutorGetOutputIndex(GraphExecutorManager *g, const char *name);
 
 /*!
  * \brief get number of input tensors allocated.
  * \param g The instance of GraphExecutorManager.
  * \return integer number of tensors available to use.
  */
-int GraphExecutorGetNumInputs(GraphExecutorManager *g);
+int TVM_RT_WASM_GraphExecutorGetNumInputs(GraphExecutorManager *g);
 
 /*!
  * \brief get number of output tensors allocated.
  * \param g The instance of GraphExecutorManager.
  * \return integer number of output tensors allocated.
  */
-int GraphExecutorGetNumOutputs(GraphExecutorManager *g);
+int TVM_RT_WASM_GraphExecutorGetNumOutputs(GraphExecutorManager *g);
 
 /*!
  * \brief set input to the graph based on name.
@@ -234,7 +234,7 @@ int GraphExecutorGetNumOutputs(GraphExecutorManager *g);
  * \param data_in The input data.
  * \return 0 if successful
  */
-int GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, const DLTensor *data_in);
+int TVM_RT_WASM_GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, const DLTensor *data_in);
 
 /*!
  * \brief set input to the graph based on name.
@@ -244,7 +244,7 @@ int GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, const DLTenso
  * \param data_in The input data.
  * \return 0 if successful
  */
-int GraphExecutorSetInputByName(GraphExecutorManager *g, const char *name, const DLTensor *data_in);
+int TVM_RT_WASM_GraphExecutorSetInputByName(GraphExecutorManager *g, const char *name, const DLTensor *data_in);
 
 /*!
  * \brief Return NDArray for given output index.
@@ -254,7 +254,7 @@ int GraphExecutorSetInputByName(GraphExecutorManager *g, const char *name, const
  * \param out The DLTensor corresponding to given output node index.
  * \return The result of this function execution.
  */
-int GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, DLTensor *data_out);
+int TVM_RT_WASM_GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, DLTensor *data_out);
 
 /*!
  * \brief Load parameters from parameter blob.
@@ -264,7 +264,7 @@ int GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, DLTensor *da
  * \param param_size The parameter size.
  * \return The result of this function execution.
  */
-int GraphExecutorLoadParams(GraphExecutorManager *g, const char *param_blob, uint32_t param_size);
+int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *param_blob, uint32_t param_size);
 
 /*!
  * \brief Execute the graph.
@@ -272,7 +272,7 @@ int GraphExecutorLoadParams(GraphExecutorManager *g, const char *param_blob, uin
  * \param executor The graph executor.
  * \return 0 if successful
  */
-int GraphExecutorRun(GraphExecutorManager *g);
+int TVM_RT_WASM_GraphExecutorRun(GraphExecutorManager *g);
 
 /*!
  * \brief Release memory associated with the GraphExecutorManager.
@@ -280,7 +280,7 @@ int GraphExecutorRun(GraphExecutorManager *g);
  * \param executor Pointer to graph executor.
  * \return 0 if successful
  */
-int GraphExecutorRelease(GraphExecutorManager **g);
+int TVM_RT_WASM_GraphExecutorRelease(GraphExecutorManager **g);
 
 /*!
  * \brief Clone a new instance of GraphExecutorManager.
@@ -288,7 +288,7 @@ int GraphExecutorRelease(GraphExecutorManager **g);
  * \param cloned Pointer which receive the new instance.
  * \return 0 if successful
  */
-int GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned);
+int TVM_RT_WASM_GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned);
 
 /*--------------------------------some definition for graph executor function-----------------------------------------*/
 
@@ -309,4 +309,4 @@ int GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager **cloned);
 } // extern "C"
 #endif
 
-#endif // TVM_RT_GRAPH_EXECUTOR_H
+#endif // TVM_RT_WASM_GRAPH_EXECUTOR_H

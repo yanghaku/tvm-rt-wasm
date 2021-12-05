@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_COMMON_H
-#define TVM_RT_COMMON_H
+#ifndef TVM_RT_WASM_COMMON_H
+#define TVM_RT_WASM_COMMON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,7 +54,7 @@ extern char global_buf[];
 #ifdef __STDC_VERSION__
 
 #if __STDC_VERSION__ >= 199901L
-#define INLINE static inline
+#define INLINE inline
 #else
 #define INLINE static
 #endif
@@ -67,4 +67,4 @@ extern char global_buf[];
 } // extern "C"
 #endif
 
-#endif // TVM_RT_COMMON_H
+#endif // TVM_RT_WASM_COMMON_H

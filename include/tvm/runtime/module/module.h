@@ -4,8 +4,8 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#ifndef TVM_RT_MODULE_H
-#define TVM_RT_MODULE_H
+#ifndef TVM_RT_WASM_MODULE_H
+#define TVM_RT_WASM_MODULE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,7 +62,7 @@ typedef struct Module Module;
     /*! \brief the number of imports */                                                                                \
     uint32_t num_imports;                                                                                              \
     /*! \brief the depend modules array */                                                                             \
-    Module **imports;                                                                                                   \
+    Module **imports;                                                                                                  \
     /*! \brief the cached map <string, TVMFunctionHandle>, for "GetFuncFromEnv", imports + global function */          \
     Trie *env_funcs_map;                                                                                               \
     /*! \brief the module functions, map <string, TVMFunctionHandle> */                                                \
@@ -87,44 +87,7 @@ struct Module {
  */
 #define MODULE_FACTORY_RESOURCE_BINARY 0
 #define MODULE_FACTORY_RESOURCE_FILE 1
-int ModuleFactory(const char *type, const char *resource, int resource_type, Module **out);
-
-/*!
- * \brief Get a func from module.
- * \param self the module instance
- * \param name the name of the function.
- * \param query_imports Whether to query imported modules
- * \param func the pointer to receive result function handle
- * \return 0 if successful
- *
- * \note the same function: TVMModGetFunction
- * \sa c_runtime_api.h: TVMModGetFunction
- */
-static int ModuleGetFunction(Module *self, const char *name, int query_imports, TVMFunctionHandle *func) {
-    return TVMModGetFunction(self, name, query_imports, func);
-}
-
-/*!
- * \brief Get a function from current environment, the environment includes all the imports as well as Global functions.
- * \param name name of the function.
- * \param func the pointer to receive function handle
- * \return 0 if successful
- *
- * \note the same function: TVMBackendGetFuncFromEnv
- * \sa c_backend_api.h: TVMBackendGetFuncFromEnv
- */
-static int ModuleGetFuncFromEnv(Module *self, const char *name, TVMFunctionHandle *func) {
-    return TVMBackendGetFuncFromEnv(self, name, func);
-}
-
-/*!
- * \brief Import another module into this module.
- * \param other The module to be imported.
- *
- * \note Cyclic dependency is not allowed among modules,
- *  An error will be thrown when cyclic dependency is detected.
- */
-int ModuleImport(Module *self, Module *other);
+int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type, Module **out);
 
 /*! \brief the symbols for system library */
 extern Trie *system_lib_symbol;
@@ -140,4 +103,4 @@ extern Trie *system_lib_symbol;
 } // extern "C"
 #endif
 
-#endif // TVM_RT_MODULE_H
+#endif // TVM_RT_WASM_MODULE_H

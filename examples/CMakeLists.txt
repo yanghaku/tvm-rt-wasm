@@ -9,7 +9,7 @@ set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
 set(EXAMPLE_USE_CUDA ON)
 
 # tvm-rt-wasm installed path
-set(TVM_RT_ROOT D:/lib/tvm-rt/)
+set(TVM_RT_WASM_ROOT D:/lib/tvm-rt-wasm/)
 
 # set the ar path
 set(AR_EXEC llvm-ar)
@@ -27,8 +27,8 @@ add_link_options(-Wl,--allow-undefined)
 
 message("EXAMPLE_USE_CUDA = ${EXAMPLE_USE_CUDA}")
 
-include_directories(${TVM_RT_ROOT}/include)
-link_directories(${TVM_RT_ROOT}/lib)
+include_directories(${TVM_RT_WASM_ROOT}/include)
+link_directories(${TVM_RT_WASM_ROOT}/lib)
 
 if (${EXAMPLE_USE_CUDA})
     add_definitions(-DEXAMPLE_USE_CUDA=1)

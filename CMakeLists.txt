@@ -6,9 +6,10 @@ set(CUDAToolkit_ROOT D:/lib/cuda/)
 
 # wasi-sdk
 set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
-project(tvm-rt)
+project(tvm-rt-wasm)
 
 add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility=hidden -fno-rtti -flto=full)
+SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -std=c11)
 
 OPTION(USE_CUDA "USE CUDA" ON)
 message("lib USE_CUDA=${USE_CUDA}")

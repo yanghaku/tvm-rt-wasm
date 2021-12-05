@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_GRAPH_EXECUTOR_MANAGER_H
-#define TVM_RT_GRAPH_EXECUTOR_MANAGER_H
+#ifndef TVM_RT_WASM_GRAPH_EXECUTOR_MANAGER_H
+#define TVM_RT_WASM_GRAPH_EXECUTOR_MANAGER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -162,4 +162,4 @@ struct GraphExecutorManager {
 } // extern "C"
 #endif
 
-#endif // TVM_RT_GRAPH_EXECUTOR_MANAGER_H
+#endif // TVM_RT_WASM_GRAPH_EXECUTOR_MANAGER_H

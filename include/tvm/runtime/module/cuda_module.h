@@ -4,8 +4,8 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#ifndef TVM_RT_CUDA_MODULE_H
-#define TVM_RT_CUDA_MODULE_H
+#ifndef TVM_RT_WASM_CUDA_MODULE_H
+#define TVM_RT_WASM_CUDA_MODULE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,4 +66,4 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
 } // extern "C"
 #endif
 
-#endif // TVM_RT_CUDA_MODULE_H
+#endif // TVM_RT_WASM_CUDA_MODULE_H

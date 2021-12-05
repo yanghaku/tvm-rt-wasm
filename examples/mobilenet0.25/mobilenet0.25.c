@@ -125,12 +125,12 @@ int main(int argc, char **argv) {
         }
     }
 
-    for (int i = 0; i < OUTPUT_LEN; ++i) {
-        int s = (int)(output_storage[i] * 10000.0);
-        if (s != 0) {
-            fprintf(stderr, "%d: %d\n", i, s);
-        }
-    }
+//    for (int i = 0; i < OUTPUT_LEN; ++i) {
+//        int s = (int)(output_storage[i] * 10000.0);
+//        if (s != 0) {
+//            fprintf(stderr, "%d: %d\n", i, s);
+//        }
+//    }
     RUN(graphManager->Release(&graphManager));
 
     gettimeofday(&t5, 0);

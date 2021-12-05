@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_CPU_DEVICE_API_H
-#define TVM_RT_CPU_DEVICE_API_H
+#ifndef TVM_RT_WASM_CPU_DEVICE_API_H
+#define TVM_RT_WASM_CPU_DEVICE_API_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,10 +25,10 @@ typedef struct CPUDeviceAPI {
  * @param out the pointer to receive instance
  * @return 0 if successful
  */
-int CPUDeviceAPICreate(CPUDeviceAPI **out);
+int TVM_RT_WASM_CPUDeviceAPICreate(CPUDeviceAPI **out);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_CPU_DEVICE_API_H
+#endif // TVM_RT_WASM_CPU_DEVICE_API_H

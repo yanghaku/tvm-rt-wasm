@@ -52,7 +52,7 @@ static int cudaWrappedFunction(TVMValue *args, const int *type_codes, int num_ar
     module->kernel_arg_storages[func_id][num_kernel_arg] = NULL;
 
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(kDLCUDA, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -76,10 +76,10 @@ static int CUDAModuleReleaseFunc(Module *self) {
         TVMDeviceFreeDataSpace(cpu, c->imports);
     }
     if (c->env_funcs_map) {
-        TrieRelease(c->env_funcs_map);
+        TVM_RT_WASM_TrieRelease(c->env_funcs_map);
     }
     if (c->module_funcs_map) {
-        TrieRelease(c->module_funcs_map);
+        TVM_RT_WASM_TrieRelease(c->module_funcs_map);
     }
     for (uint32_t i = 0; i < c->num_functions; ++i) {
         TVMDeviceFreeDataSpace(cpu, c->func_arg_index_map[i]);
@@ -102,7 +102,7 @@ static void CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num_func) {
     TVMDeviceAllocDataSpace(cpu, sizeof(CUDAModule), 0, no_type, (void **)cudaModule);
     memset(*cudaModule, 0, sizeof(CUDAModule));
     (*cudaModule)->Release = CUDAModuleReleaseFunc;
-    TrieCreate(&(*cudaModule)->module_funcs_map);
+    TVM_RT_WASM_TrieCreate(&(*cudaModule)->module_funcs_map);
     TVMDeviceAllocDataSpace(cpu, sizeof(CUfunction) * num_func, 0, no_type, (void **)&(*cudaModule)->functions);
     TVMDeviceAllocDataSpace(cpu, sizeof(uint32_t) * num_func, 0, no_type, (void **)&(*cudaModule)->num_kernel_args);
     TVMDeviceAllocDataSpace(cpu, sizeof(uint32_t) * num_func, 0, no_type, (void **)&(*cudaModule)->num_func_arg_map);
@@ -154,7 +154,7 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
             blob[name_size] = 0; // the end of string must be '\0'
             // encode this function as TVMFunctionHandle and insert to map
             TVMFunctionHandle handle = TVM_FUNCTION_HANDLE_ENCODE(cudaWrappedFunction, fid);
-            TrieInsert((*cudaModule)->module_funcs_map, (const uint8_t *)blob, handle);
+            TVM_RT_WASM_TrieInsert((*cudaModule)->module_funcs_map, (const uint8_t *)blob, handle);
             blob += name_size; // name string
             *blob = byte;      // back this byte
 
@@ -210,7 +210,7 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
         blob[source_len] = 0;         // the end of string must be '\0'
         // init cu_module
         DeviceAPI *cuda_dev_api;
-        int status = DeviceAPIGet(kDLCUDA, &cuda_dev_api);
+        int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &cuda_dev_api);
         if (unlikely(status)) {
             return status;
         }

@@ -22,19 +22,19 @@ static DeviceAPI *g_device_api_instance[DEVICE_TYPE_SIZE] = {NULL};
  * @param out_device_api the pointer to receive the point
  * @return 0 if successful
  */
-int DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api) {
+int TVM_RT_WASM_DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api) {
     int status = 0;
     if (unlikely(g_device_api_instance[deviceType] == NULL)) { // need create
         switch (deviceType) {
         case kDLCPU:
-            status = CPUDeviceAPICreate((CPUDeviceAPI **)&g_device_api_instance[deviceType]);
+            status = TVM_RT_WASM_CPUDeviceAPICreate((CPUDeviceAPI **)&g_device_api_instance[deviceType]);
             if (unlikely(status)) {
                 return status;
             }
             break;
         case kDLCUDA:
         case kDLCUDAHost:
-            status = CUDADeviceAPICreate((CUDADeviceAPI **)&g_device_api_instance[deviceType]);
+            status = TVM_RT_WASM_CUDADeviceAPICreate((CUDADeviceAPI **)&g_device_api_instance[deviceType]);
             if (unlikely(status)) {
                 return status;
             }
@@ -59,7 +59,7 @@ int DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api) {
  * \brief destroy all device api instance
  * @return 0 if successful
  */
-void DeviceReleaseAll() {
+void TVM_RT_WASM_DeviceReleaseAll() {
     for (int i = DEVICE_TYPE_SIZE - 1; i >= 0; --i) { // cpu device need to be the last to free
         if (g_device_api_instance[i]) {
             g_device_api_instance[i]->Release(g_device_api_instance[i]);

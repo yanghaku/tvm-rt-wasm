@@ -34,8 +34,8 @@ static void *AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLD
 static void FreeDataSpace(int dev_id, void *ptr) { free(ptr); }
 
 static void CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
-    uint64_t size_from = DLTensor_GetDataBytes(from);
-    uint64_t size_to = DLTensor_GetDataBytes(to);
+    uint64_t size_from = TVM_RT_WASM_DLTensor_GetDataBytes(from);
+    uint64_t size_to = TVM_RT_WASM_DLTensor_GetDataBytes(to);
     if (unlikely(size_from != size_to)) {
         fprintf(stderr, "copy memory data byte size is not same: from(%llu) != to(%llu)", size_from, size_to);
         exit(-1);
@@ -73,7 +73,7 @@ static int Release(DeviceAPI *d) { return 0; }
  * @param out the pointer to receive instance
  * @return 0 if successful
  */
-int CPUDeviceAPICreate(CPUDeviceAPI **out) {
+int TVM_RT_WASM_CPUDeviceAPICreate(CPUDeviceAPI **out) {
     *out = &cpuDeviceApi;
 
     cpuDeviceApi.SetDevice = SetDevice;

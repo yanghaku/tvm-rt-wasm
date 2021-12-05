@@ -32,32 +32,6 @@ char global_buf[GLOBAL_BUF_SIZE];
 /*! \brief the global function storage, <string,TVMFunctionHandle> */
 static Trie *global_functions = NULL;
 
-/*! \brief this is a table for char to index (for all uint8_t )  for Trie */
-const unsigned char char2index[] = {
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 0,   255, 1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  255, 255, 255, 255, 255, 255, 255, 11,
-    12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,
-    34,  35,  36,  255, 255, 255, 255, 37,  255, 38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  49,  50,
-    51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
-
-const char index2char[] = {'.', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E',
-                           'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-                           'V', 'W', 'X', 'Y', 'Z', '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-                           'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
-
-/*! \brief Magic number for NDArray file */
-const uint64_t kTVMNDArrayMagic = 0xDD5E40F096B4A13F;
-
-/*! \brief Magic number for NDArray list file  */
-const uint64_t kTVMNDArrayListMagic = 0xF7E58D4F05049CB7;
-
 /**--------------------------------------public functions-------------------------------------------------------------*/
 
 /*!
@@ -89,7 +63,7 @@ TVM_DLL const char *TVMGetLastError(void) { return global_buf; }
  *  It can be reconstructed by TVMModImport.
  */
 TVM_DLL int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandle *out) {
-    return ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)&out);
+    return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)&out);
 }
 
 /*!
@@ -101,7 +75,8 @@ TVM_DLL int TVMModLoadFromFile(const char *file_name, const char *format, TVMMod
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
-    return ModuleImport((Module *)mod, (Module *)dep);
+    // todo: implement it
+    return -1;
 }
 
 /*!
@@ -114,13 +89,13 @@ TVM_DLL int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
  */
 TVM_DLL int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_imports, TVMFunctionHandle *out) {
     Module *m = (Module *)mod;
-    int status = TrieQuery(m->module_funcs_map, (const uint8_t *)func_name, out);
+    int status = TVM_RT_WASM_TrieQuery(m->module_funcs_map, (const uint8_t *)func_name, out);
     if (likely(status != TRIE_NOT_FOUND)) {
         return status;
     }
 
     if (query_imports) {
-        status = TrieQuery(m->env_funcs_map, (const uint8_t *)func_name, out);
+        status = TVM_RT_WASM_TrieQuery(m->env_funcs_map, (const uint8_t *)func_name, out);
     }
     return status;
 }
@@ -180,12 +155,12 @@ TVM_DLL int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_
  */
 TVM_DLL int TVMFuncRegisterGlobal(const char *name, TVMFunctionHandle f, int override) {
     if (override) {
-        return TrieInsert(global_functions, (const uint8_t *)name, f);
+        return TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)name, f);
     } else {
         void *res;
-        int status = TrieQuery(global_functions, (const uint8_t *)name, &res);
+        int status = TVM_RT_WASM_TrieQuery(global_functions, (const uint8_t *)name, &res);
         if (unlikely(status == TRIE_NOT_FOUND)) {
-            return TrieInsert(global_functions, (const uint8_t *)name, f);
+            return TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)name, f);
         }
         return status;
     }
@@ -201,7 +176,7 @@ TVM_DLL int TVMFuncRegisterGlobal(const char *name, TVMFunctionHandle f, int ove
  *  So TVMFuncFree is should not be called when it get deleted.
  */
 TVM_DLL int TVMFuncGetGlobal(const char *name, TVMFunctionHandle *out) {
-    return TrieQuery(global_functions, (const uint8_t *)name, out);
+    return TVM_RT_WASM_TrieQuery(global_functions, (const uint8_t *)name, out);
 }
 
 /*!
@@ -220,7 +195,9 @@ TVM_DLL int TVMFuncListGlobalNames(int *out_size, const char ***out_array) {
  * \note The implement here is to replace it with NULL
  * \param name The name of the function.
  */
-TVM_DLL int TVMFuncRemoveGlobal(const char *name) { return TrieInsert(global_functions, (const uint8_t *)name, NULL); }
+TVM_DLL int TVMFuncRemoveGlobal(const char *name) {
+    return TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)name, NULL);
+}
 
 /*!
  * \brief Create a new runtime stream.
@@ -231,7 +208,7 @@ TVM_DLL int TVMFuncRemoveGlobal(const char *name) { return TrieInsert(global_fun
  */
 TVM_DLL int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -248,7 +225,7 @@ TVM_DLL int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out
  */
 TVM_DLL int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -265,7 +242,7 @@ TVM_DLL int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream
  */
 TVM_DLL int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -282,7 +259,7 @@ TVM_DLL int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle)
  */
 TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle stream) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -300,7 +277,7 @@ TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle strea
  */
 TVM_DLL int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle src, TVMStreamHandle dst) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -320,7 +297,7 @@ TVM_DLL int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStream
 TVM_DLL int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint,
                                     void **out_data) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(dev.device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -341,7 +318,7 @@ TVM_DLL int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignmen
 TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64_t *shape, DLDataType dtype,
                                              const char *mem_scope, void **out_data) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(dev.device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -357,7 +334,7 @@ TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64
  */
 TVM_DLL int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
     DeviceAPI *deviceApi;
-    int status = DeviceAPIGet(dev.device_type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -389,7 +366,7 @@ TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandl
                          from->device.device_type, to->device.device_type);
     }
 
-    int status = DeviceAPIGet(type, &deviceApi);
+    int status = TVM_RT_WASM_DeviceAPIGet(type, &deviceApi);
     if (unlikely(status)) {
         return status;
     }
@@ -397,10 +374,9 @@ TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandl
     return status;
 }
 
-int TVMSetDevice(TVMValue *args, int *type_codes, int num_args, TVMValue *ret_val, int *ret_type_code,
-                 void *resource_handle) {
+int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *_rt, void *_h) {
     DeviceAPI *api;
-    DeviceAPIGet(args->v_device.device_type, &api);
+    TVM_RT_WASM_DeviceAPIGet(args->v_device.device_type, &api);
     api->SetDevice(args->v_device.device_id);
     return 0;
 }
@@ -411,8 +387,9 @@ static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor
     CUDA_DRIVER_CALL(cuInit(0));
 #endif
 
-    TrieCreate(&global_functions);
-    if (unlikely(TrieInsert(global_functions, (const uint8_t *)"__tvm_set_device", TVMSetDevice)) != TRIE_SUCCESS) {
+    TVM_RT_WASM_TrieCreate(&global_functions);
+    if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION,
+                                        TVM_RT_WASM_SetDevice)) != TRIE_SUCCESS) {
         fprintf(stderr, "register global function fail!\n");
         exit(-1);
     }
@@ -421,22 +398,22 @@ static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor
 static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor() {
     // release global functions
     if (global_functions) {
-        TrieRelease(global_functions);
+        TVM_RT_WASM_TrieRelease(global_functions);
     }
 
     // if sys_lib_symbols, release it
     if (system_lib_symbol) {
-        TrieRelease(system_lib_symbol);
+        TVM_RT_WASM_TrieRelease(system_lib_symbol);
     }
 
     // if sys_lib_modules, release it
     Module *sys_lib;
-    if (ModuleFactory(MODULE_SYSTEM_LIB, 0, 0, &sys_lib) == 0) {
+    if (TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, 0, 0, &sys_lib) == 0) {
         sys_lib->Release(sys_lib);
     }
 
     // release the devices instance
-    DeviceReleaseAll();
+    TVM_RT_WASM_DeviceReleaseAll();
 }
 
 /**-------------------------The following API will not be implemented in this project---------------------------------*/

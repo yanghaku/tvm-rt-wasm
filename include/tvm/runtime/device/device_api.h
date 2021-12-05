@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_DEVICE_API_H
-#define TVM_RT_DEVICE_API_H
+#ifndef TVM_RT_WASM_DEVICE_API_H
+#define TVM_RT_WASM_DEVICE_API_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -138,16 +138,16 @@ struct DeviceAPI {
  * @param out_device_api the pointer to receive the point
  * @return 0 if successful
  */
-int DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api);
+int TVM_RT_WASM_DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api);
 
 /*!
  * \brief destroy all device api instance
  * \note it only be used at runtime destructor
  */
-void DeviceReleaseAll();
+void TVM_RT_WASM_DeviceReleaseAll();
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_DEVICE_API_H
+#endif // TVM_RT_WASM_DEVICE_API_H

@@ -27,17 +27,29 @@ TVM_DLL int GraphExecutorManagerFactory(GraphExecutorType type, const char *grap
 
     // if module_handle is NULL, we use the systemLib
     if (unlikely(module_handle == NULL)) {
-        int status = ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
+        int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
         if (unlikely(status)) {
             return status;
         }
     }
+    if (unlikely(graph_json == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: graph json cannot be NULL");
+    }
+    if (unlikely(g == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: graph executor manager pointer cannot be NULL");
+    }
+    if (unlikely(devices == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: devices cannot be NULL");
+    }
+    if (unlikely(num_dev == 0)) {
+        SET_ERROR_RETURN(-1, "invalid argument: the number of devices cannot be zero, at least 1");
+    }
 
     switch (type) {
     case graphExecutor:
-        return GraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);
+        return TVM_RT_WASM_GraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);
     case graphExecutorCUDA:
-        return CUDAGraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);
+        return TVM_RT_WASM_CUDAGraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);
 
     default:
         SET_ERROR_RETURN(-1, "unsupported graph executor type");
