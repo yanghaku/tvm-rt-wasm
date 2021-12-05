@@ -88,6 +88,7 @@ INLINE int TrieInsertAll(Trie *dst, Trie *src) {
         if (src->son[i]) {
             if (dst->son[i] == NULL) {
                 TVMDeviceAllocDataSpace(cpu, sizeof(Trie), 0, no_type, (void **)&dst->son[i]);
+                memset(dst->son[i], 0, sizeof(Trie));
             }
             TrieInsertAll(dst->son[i], src->son[i]);
         }

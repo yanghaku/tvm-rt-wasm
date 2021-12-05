@@ -47,9 +47,9 @@ static int cudaWrappedFunction(TVMValue *args, const int *type_codes, int num_ar
     }
 
     for (uint32_t i = 0; i < num_kernel_arg; ++i) {
-        module->kernel_arg_storages[i] = &args[i].v_handle;
+        module->kernel_arg_storages[func_id][i] = &args[i].v_handle;
     }
-    module->kernel_arg_storages[num_kernel_arg] = NULL;
+    module->kernel_arg_storages[func_id][num_kernel_arg] = NULL;
 
     DeviceAPI *deviceApi;
     int status = DeviceAPIGet(kDLCUDA, &deviceApi);
@@ -85,12 +85,12 @@ static int CUDAModuleReleaseFunc(Module *self) {
         TVMDeviceFreeDataSpace(cpu, c->func_arg_index_map[i]);
         TVMDeviceFreeDataSpace(cpu, c->kernel_arg_storages[i]);
     }
+    TVMDeviceFreeDataSpace(cpu, c->func_arg_index_map);
     TVMDeviceFreeDataSpace(cpu, c->use_dyn_mem);
     TVMDeviceFreeDataSpace(cpu, c->functions);
     TVMDeviceFreeDataSpace(cpu, c->kernel_arg_storages);
     TVMDeviceFreeDataSpace(cpu, c->num_kernel_args);
     TVMDeviceFreeDataSpace(cpu, c->num_func_arg_map);
-    TVMDeviceFreeDataSpace(cpu, c->use_dyn_mem);
     CUDA_DRIVER_CALL(cuModuleUnload(c->cu_module));
     // free self
     return TVMDeviceFreeDataSpace(cpu, c);
@@ -99,8 +99,8 @@ static int CUDAModuleReleaseFunc(Module *self) {
 static void CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num_func) {
     DLDevice cpu = {kDLCPU, 0};
     DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(cudaModule), 0, no_type, (void **)cudaModule);
-    memset(*cudaModule, 0, sizeof(cudaModule));
+    TVMDeviceAllocDataSpace(cpu, sizeof(CUDAModule), 0, no_type, (void **)cudaModule);
+    memset(*cudaModule, 0, sizeof(CUDAModule));
     (*cudaModule)->Release = CUDAModuleReleaseFunc;
     TrieCreate(&(*cudaModule)->module_funcs_map);
     TVMDeviceAllocDataSpace(cpu, sizeof(CUfunction) * num_func, 0, no_type, (void **)&(*cudaModule)->functions);
@@ -179,7 +179,7 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
                                     (void **)&(*cudaModule)->func_arg_index_map[fid]);
             for (uint32_t i = 0; i < mp_size; ++i) {
                 name_size = (uint32_t) * (uint64_t *)blob;
-                blob += sizeof(name_size); // name_size
+                blob += sizeof(uint64_t); // name_size
 
                 if (name_size == 24 && memcmp(blob, "tir.use_dyn_shared_memory", name_size) == 0) {
                     if (unlikely(i + 1 != mp_size)) {
@@ -242,7 +242,7 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
             names += sizeof(uint64_t); // num_func_arg_map
             for (uint32_t i = 0; i < mp_size; ++i) {
                 name_size = (uint32_t) * (uint64_t *)names;
-                names += sizeof(name_size) + name_size; // name_size + name string
+                names += sizeof(uint64_t) + name_size; // name_size + name string
             }
         }
 

@@ -82,9 +82,10 @@ int CUDAGraphExecutorRun(GraphExecutorManager *g) {
     // end capture
     CUgraph cu_graph;
     CUDA_DRIVER_CALL(cuStreamEndCapture(graph->cu_stream, &cu_graph));
-    size_t numNodes = 0;
-    CUDA_DRIVER_CALL(cuGraphGetNodes(cu_graph, NULL, &numNodes));
-    fprintf(stderr, "Num of nodes in the cuda graph created using stream capture API = %zu\n", numNodes);
+
+    //    size_t numNodes = 0;
+    //    CUDA_DRIVER_CALL(cuGraphGetNodes(cu_graph, NULL, &numNodes));
+    //    fprintf(stderr, "Num of nodes in the cuda graph created using stream capture API = %zu\n", numNodes);
 
     // instantiate cuda graph executor
     CUDA_DRIVER_CALL(cuGraphInstantiate(&graph->cu_graph_exec, cu_graph, NULL, NULL, 0));

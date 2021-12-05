@@ -164,7 +164,6 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
         return 0;
     }
     if (unlikely(system_lib_symbol == NULL)) {
-        fprintf(stderr, "system library symbol is empty!\n");
         SET_ERROR_RETURN(-1, "no symbol in system library!");
     }
 
@@ -219,16 +218,16 @@ static int DSOLibraryModuleCreate(const char *filename, Module **libraryModule) 
  * @return >=0 if successful   (if binary type, it should return the binary length it has read)
  */
 int ModuleFactory(const char *type, const char *resource, int resource_type, Module **out) {
-    if (!strcmp(type, MODULE_SYSTEM_LIB)) {
+    if (!memcmp(type, MODULE_SYSTEM_LIB, strlen(MODULE_SYSTEM_LIB))) {
         return SystemLibraryModuleCreate(out);
     }
-    if (!strcmp(type, "so") || !strcmp(type, "dll") || !strcmp(type, "dylib")) {
+    if (!memcmp(type, "so", 2) || !memcmp(type, "dll", 3) || !memcmp(type, "dylib", 5)) {
         if (unlikely(resource_type != MODULE_FACTORY_RESOURCE_FILE)) {
             SET_ERROR_RETURN(-1, "the dso library can only be load from file");
         }
         return DSOLibraryModuleCreate(resource, out);
     }
-    if (!strcmp(type, "cuda")) {
+    if (!memcmp(type, "cuda", 4)) {
         return CUDAModuleCreate(resource, resource_type, (CUDAModule **)out);
     }
     fprintf(stderr, "unsupported module type %s\n", type);

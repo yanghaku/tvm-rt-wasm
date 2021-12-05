@@ -34,7 +34,7 @@ extern char global_buf[];
 #else
 #define DBG(fmt, ...)                                                                                                  \
     do {                                                                                                               \
-        fprintf(stderr, "%d" fmt, __LINE__, ##__VA_ARGS__);                                                            \
+        fprintf(stderr, "function[%s]-line[%d]: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);                         \
     } while (0)
 
 #define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
@@ -46,7 +46,7 @@ extern char global_buf[];
 
 #define SET_ERROR(fmt, ...)                                                                                            \
     do {                                                                                                               \
-        sprintf(global_buf, "function[%s] " fmt, __FUNCTION__, ##__VA_ARGS__);                                         \
+        sprintf(global_buf, fmt, ##__VA_ARGS__);                                                                       \
     } while (0)
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))

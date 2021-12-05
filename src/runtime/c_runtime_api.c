@@ -431,8 +431,9 @@ static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor()
 
     // if sys_lib_modules, release it
     Module *sys_lib;
-    ModuleFactory(MODULE_SYSTEM_LIB, 0, 0, &sys_lib);
-    sys_lib->Release(sys_lib);
+    if (ModuleFactory(MODULE_SYSTEM_LIB, 0, 0, &sys_lib) == 0) {
+        sys_lib->Release(sys_lib);
+    }
 
     // release the devices instance
     DeviceReleaseAll();

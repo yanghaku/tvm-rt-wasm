@@ -64,7 +64,7 @@ def build_module(opts):
             func, target=target, params=params
         )
 
-    factory.get_lib().save(os.path.join(opts.out_dir, "graph.o"))
+    factory.get_lib().export_library(os.path.join(opts.out_dir, "graph.tar"))
 
     json_str = "graph.json"
     params_str = "graph.params"

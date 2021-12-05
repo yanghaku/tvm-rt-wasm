@@ -11,6 +11,9 @@ set(EXAMPLE_USE_CUDA ON)
 # tvm-rt-wasm installed path
 set(TVM_RT_ROOT D:/lib/tvm-rt/)
 
+# set the ar path
+set(AR_EXEC llvm-ar)
+
 #-----------------------------------------------------------------------------------------------------------------------
 
 # wasi-sdk
@@ -37,8 +40,18 @@ endif ()
 find_package(Python3 COMPONENTS Interpreter)
 
 # mobilenet0.25
-execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/scripts/mobilenet0.25.py --target ${PY_TARGET} -o ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/lib/)
-file(GLOB mobilenet0.25_LIB_C mobilenet0.25/lib/*.c)
-file(GLOB mobilenet0.25_LIB_OBJ mobilenet0.25/lib/*.o)
-add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25_LIB_C} ${mobilenet0.25_LIB_OBJ})
+set(mobilenet0.25_lib_dir ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/lib)
+set(mobilenet0.25.tvm_gen ${mobilenet0.25_lib_dir}/graph.json.c ${mobilenet0.25_lib_dir}/graph.params.c)
+set(mobilenet0.25.tvm_script ${mobilenet0.25_lib_dir}/../scripts/mobilenet0.25.py)
+add_custom_command(
+        OUTPUT ${mobilenet0.25.tvm_gen}
+        COMMAND python ${mobilenet0.25.tvm_script} --target ${PY_TARGET} -o ${mobilenet0.25_lib_dir}
+        COMMAND tar -xf ${mobilenet0.25_lib_dir}/graph.tar -C ${mobilenet0.25_lib_dir}
+        COMMAND ${AR_EXEC} -r ${mobilenet0.25_lib_dir}/libgraph.a ${mobilenet0.25_lib_dir}/*.o
+        DEPENDS ${mobilenet0.25.tvm_script}
+        VERBATIM
+)
+add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25.tvm_gen})
 target_link_libraries(mobilenet0.25.wasm tvm-rt)
+target_link_directories(mobilenet0.25.wasm PRIVATE ${mobilenet0.25_lib_dir})
+target_link_libraries(mobilenet0.25.wasm graph)

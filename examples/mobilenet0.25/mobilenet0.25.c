@@ -41,9 +41,11 @@ extern const unsigned int graph_params_len;
         }                                                                                                              \
     } while (0)
 
-extern void *__tvm_module_cxt;
+extern void *__tvm_module_ctx;
+extern void *__tvm_dev_mblob;
 int main(int argc, char **argv) {
-    fprintf(stderr, "module ctx = %p\n", &__tvm_module_cxt);
+    fprintf(stderr, "module ctx = %p\n", &__tvm_module_ctx);
+    fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE_NAME__);
         return -1;
