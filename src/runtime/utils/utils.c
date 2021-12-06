@@ -81,6 +81,12 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
     }
     *blob += sizeof(byte_size); // byte_size
 
+    if (tensor->device.device_type == kDLCPU || tensor->device.device_type == kDLCUDAHost) {
+        memcpy(tensor->data, *blob, byte_size);
+        *blob += byte_size;
+        return 0;
+    }
+
     DLDevice cpu = {kDLCPU, 0};
     DLTensor src_tensor = {
         .ndim = tensor->ndim,

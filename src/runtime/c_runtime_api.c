@@ -9,8 +9,8 @@
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/device/device_api.h>
 #include <tvm/runtime/module/module.h>
-#include <tvm/runtime/utils/common.h>
 #include <tvm/runtime/utils/cuda_common.h>
+#include <tvm/runtime/utils/tensor_helper.h>
 
 /**
  * in this implement:
@@ -207,6 +207,10 @@ TVM_DLL int TVMFuncRemoveGlobal(const char *name) {
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out) {
+    if (device_type == kDLCPU) {
+        *out = NULL;
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
@@ -224,6 +228,9 @@ TVM_DLL int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream) {
+    if (device_type == kDLCPU) {
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
@@ -241,6 +248,9 @@ TVM_DLL int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle) {
+    if (device_type == kDLCPU) {
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
@@ -258,6 +268,9 @@ TVM_DLL int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle)
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle stream) {
+    if (device_type == kDLCPU) {
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
@@ -276,6 +289,9 @@ TVM_DLL int TVMSynchronize(int device_type, int device_id, TVMStreamHandle strea
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle src, TVMStreamHandle dst) {
+    if (device_type == kDLCPU) {
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
@@ -296,6 +312,10 @@ TVM_DLL int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStream
  */
 TVM_DLL int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint,
                                     void **out_data) {
+    if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
+        *out_data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &deviceApi);
     if (unlikely(status)) {
@@ -317,13 +337,7 @@ TVM_DLL int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignmen
  */
 TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64_t *shape, DLDataType dtype,
                                              const char *mem_scope, void **out_data) {
-    DeviceAPI *deviceApi;
-    int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &deviceApi);
-    if (unlikely(status)) {
-        return status;
-    }
-    *out_data = deviceApi->AllocDataSpaceScope(dev.device_id, ndim, shape, dtype, mem_scope);
-    return status;
+    SET_ERROR_RETURN(-1, "unsupported yet");
 }
 
 /*!
@@ -333,6 +347,10 @@ TVM_DLL int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64
  * \return 0 when success, nonzero when failure happens
  */
 TVM_DLL int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
+    if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
+        TVM_RT_WASM_HeapMemoryFree(ptr);
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &deviceApi);
     if (unlikely(status)) {
@@ -366,6 +384,12 @@ TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandl
                          from->device.device_type, to->device.device_type);
     }
 
+    if (type == kDLCPU) {
+        uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
+        memcpy(to->data, from->data, bytes);
+        return 0;
+    }
+
     int status = TVM_RT_WASM_DeviceAPIGet(type, &deviceApi);
     if (unlikely(status)) {
         return status;
@@ -375,6 +399,9 @@ TVM_DLL int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandl
 }
 
 int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *_rt, void *_h) {
+    if (args->v_device.device_type == kDLCPU) {
+        return 0;
+    }
     DeviceAPI *api;
     TVM_RT_WASM_DeviceAPIGet(args->v_device.device_type, &api);
     api->SetDevice(args->v_device.device_id);

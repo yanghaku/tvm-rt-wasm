@@ -10,46 +10,74 @@
 
 static CUDAModule *g_module = NULL;
 
+struct CUDAFunctionInfo {
+    /*! \brief the cuda functions in cuda module */
+    CUfunction cu_function;
+    /*! \brief the argument storage for function */
+    void **kernel_arg_storages;
+    /*!
+     * \brief the rest arguments map to thread params information
+     *
+     * -1: NULL; [0,3): grid_dim[] (blockIdx. ; [3,6): block_dim[] (ThreadIdx.
+     *
+     */
+    uint32_t *func_arg_index_map;
+    /*! \brief whether use dynamic shared memory */
+    uint32_t use_dyn_mem;
+    /*! \brief the number of arguments of function kernel */
+    uint32_t num_kernel_args;
+    /*!
+     * \brief the number of the rest arguments map for every function
+     *
+     * \note for every wrapped function:
+     *  num_func_args[func_id] + num_func_arg_map[func_id] + (use_dyn_mem==1) = num_args
+     *
+     *  \sa cudaWrappedFunction in cuda_module.c
+     */
+    uint32_t num_func_arg_map;
+    /*! \brief the number of functions */
+};
+
 static int cudaWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
                                int *ret_type_codes, void *resource_handle) {
     int func_id = (int)*((uintptr_t *)resource_handle);
     size_t block_dim[] = {1, 1, 1};
     size_t grid_dim[] = {1, 1, 1};
     size_t dyn_shared_mem_size = 0;
-    CUDAModule *module = g_module;
+    CUDAFunctionInfo *info = g_module->functions + func_id;
 
-    uint32_t num_kernel_arg = module->num_kernel_args[func_id];
-    if (module->use_dyn_mem[func_id]) {
-        if (unlikely(num_kernel_arg + module->num_func_arg_map[func_id] + 1 != (uint32_t)num_args)) {
+    uint32_t num_kernel_arg = info->num_kernel_args;
+    if (info->use_dyn_mem) {
+        if (unlikely(num_kernel_arg + info->num_func_arg_map + 1 != (uint32_t)num_args)) {
             SET_ERROR_RETURN(-1, "params number error, expect %d, but given %d\n",
-                             num_kernel_arg + module->num_func_arg_map[func_id] + 1, num_args);
+                             num_kernel_arg + info->num_func_arg_map + 1, num_args);
         }
         if (unlikely(*(type_codes + num_args - 1) != kTVMArgInt)) {
             SET_ERROR_RETURN(-1, "params type error: expect int type to use dynamic shared memory");
         }
         dyn_shared_mem_size = (size_t)args[num_args - 1].v_int64;
     } else {
-        if (unlikely(num_kernel_arg + module->num_func_arg_map[func_id] != (uint32_t)num_args)) {
+        if (unlikely(num_kernel_arg + info->num_func_arg_map != (uint32_t)num_args)) {
             SET_ERROR_RETURN(-1, "params number error, expect %d, but given %d\n",
-                             num_kernel_arg + module->num_func_arg_map[func_id], num_args);
+                             num_kernel_arg + info->num_func_arg_map, num_args);
         }
     }
 
-    for (uint32_t i = 0; i < module->num_func_arg_map[func_id]; ++i) {
+    for (uint32_t i = 0; i < info->num_func_arg_map; ++i) {
         if (unlikely(*(type_codes + i + num_kernel_arg) != kTVMArgInt)) {
             SET_ERROR_RETURN(-1, "params type error, expect int type");
         }
-        if (module->func_arg_index_map[func_id][i] >= 3) {
-            block_dim[module->func_arg_index_map[func_id][i] - 3] = args[num_kernel_arg + i].v_int64;
+        if (info->func_arg_index_map[i] >= 3) {
+            block_dim[info->func_arg_index_map[i] - 3] = args[num_kernel_arg + i].v_int64;
         } else {
-            grid_dim[module->func_arg_index_map[func_id][i]] = args[num_kernel_arg + i].v_int64;
+            grid_dim[info->func_arg_index_map[i]] = args[num_kernel_arg + i].v_int64;
         }
     }
 
     for (uint32_t i = 0; i < num_kernel_arg; ++i) {
-        module->kernel_arg_storages[func_id][i] = &args[i].v_handle;
+        info->kernel_arg_storages[i] = &args[i].v_handle;
     }
-    module->kernel_arg_storages[func_id][num_kernel_arg] = NULL;
+    info->kernel_arg_storages[num_kernel_arg] = NULL;
 
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
@@ -58,22 +86,21 @@ static int cudaWrappedFunction(TVMValue *args, const int *type_codes, int num_ar
     }
 
     CUstream stream = (CUstream)deviceApi->GetStream();
-    CUDA_DRIVER_CALL(cuLaunchKernel(module->functions[func_id], grid_dim[0], grid_dim[1], grid_dim[2], block_dim[0],
-                                    block_dim[1], block_dim[2], dyn_shared_mem_size, stream,
-                                    module->kernel_arg_storages[func_id], NULL));
+    CUDA_DRIVER_CALL(cuLaunchKernel(info->cu_function, grid_dim[0], grid_dim[1], grid_dim[2], block_dim[0],
+                                    block_dim[1], block_dim[2], dyn_shared_mem_size, stream, info->kernel_arg_storages,
+                                    NULL));
 
     return status;
 }
 
 static int CUDAModuleReleaseFunc(Module *self) {
-    DLDevice cpu = {kDLCPU, 0};
     CUDAModule *c = (CUDAModule *)self;
 
     if (c->imports) {
         for (uint32_t i = 0; i < c->num_imports; ++i) {
             c->imports[i]->Release(c->imports[i]);
         }
-        TVMDeviceFreeDataSpace(cpu, c->imports);
+        TVM_RT_WASM_HeapMemoryFree(c->imports);
     }
     if (c->env_funcs_map) {
         TVM_RT_WASM_TrieRelease(c->env_funcs_map);
@@ -82,33 +109,23 @@ static int CUDAModuleReleaseFunc(Module *self) {
         TVM_RT_WASM_TrieRelease(c->module_funcs_map);
     }
     for (uint32_t i = 0; i < c->num_functions; ++i) {
-        TVMDeviceFreeDataSpace(cpu, c->func_arg_index_map[i]);
-        TVMDeviceFreeDataSpace(cpu, c->kernel_arg_storages[i]);
+        TVM_RT_WASM_HeapMemoryFree(c->functions[i].func_arg_index_map);
+        TVM_RT_WASM_HeapMemoryFree(c->functions[i].kernel_arg_storages);
     }
-    TVMDeviceFreeDataSpace(cpu, c->func_arg_index_map);
-    TVMDeviceFreeDataSpace(cpu, c->use_dyn_mem);
-    TVMDeviceFreeDataSpace(cpu, c->functions);
-    TVMDeviceFreeDataSpace(cpu, c->kernel_arg_storages);
-    TVMDeviceFreeDataSpace(cpu, c->num_kernel_args);
-    TVMDeviceFreeDataSpace(cpu, c->num_func_arg_map);
+    TVM_RT_WASM_HeapMemoryFree(c->functions);
+
     CUDA_DRIVER_CALL(cuModuleUnload(c->cu_module));
     // free self
-    return TVMDeviceFreeDataSpace(cpu, c);
+    TVM_RT_WASM_HeapMemoryFree(c);
+    return 0;
 }
 
 static void CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num_func) {
-    DLDevice cpu = {kDLCPU, 0};
-    DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(CUDAModule), 0, no_type, (void **)cudaModule);
+    *cudaModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAModule));
     memset(*cudaModule, 0, sizeof(CUDAModule));
     (*cudaModule)->Release = CUDAModuleReleaseFunc;
-    TVM_RT_WASM_TrieCreate(&(*cudaModule)->module_funcs_map);
-    TVMDeviceAllocDataSpace(cpu, sizeof(CUfunction) * num_func, 0, no_type, (void **)&(*cudaModule)->functions);
-    TVMDeviceAllocDataSpace(cpu, sizeof(uint32_t) * num_func, 0, no_type, (void **)&(*cudaModule)->num_kernel_args);
-    TVMDeviceAllocDataSpace(cpu, sizeof(uint32_t) * num_func, 0, no_type, (void **)&(*cudaModule)->num_func_arg_map);
-    TVMDeviceAllocDataSpace(cpu, sizeof(uint8_t) * num_func, 0, no_type, (void **)&(*cudaModule)->use_dyn_mem);
-    TVMDeviceAllocDataSpace(cpu, sizeof(void **) * num_func, 0, no_type, (void **)&(*cudaModule)->kernel_arg_storages);
-    TVMDeviceAllocDataSpace(cpu, sizeof(char *) * num_func, 0, no_type, (void **)&(*cudaModule)->func_arg_index_map);
+    TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
+    (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);
     (*cudaModule)->num_functions = num_func;
 }
 
@@ -119,11 +136,8 @@ static void CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num_func) {
  * @param cudaModule the out handle
  * @return >=0 if successful   (if binary type, it should return the binary length it has read)
  */
-int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaModule) {
+int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaModule) {
 #if USE_CUDA // USE_CUDA = 1
-
-    DLDevice cpu = {kDLCPU, 0};
-    DLDataType no_type = {0, 0, 0};
 
     if (resource_type == MODULE_FACTORY_RESOURCE_FILE) {
         SET_ERROR_RETURN(-1, "creating from file is unsupported yet");
@@ -144,8 +158,9 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
         blob += sizeof(uint64_t); // func_map_size
         // allocate memory for this
         CUDAModuleAllocate(cudaModule, func_map_size);
-        char *names = blob; // for init cu_functions from cu_module
+        char *names = blob; // for init functions from cu_module
         for (uint32_t fid = 0; fid < func_map_size; ++fid) {
+            CUDAFunctionInfo *info = (*cudaModule)->functions + fid;
             // key: name
             uint32_t name_size = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t); // name_size
@@ -163,20 +178,18 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
             blob += sizeof(uint64_t) + name_size; // name_size + name string
 
             uint32_t num_kernel_arg = (uint32_t) * (uint64_t *)blob;
-            (*cudaModule)->num_kernel_args[fid] = num_kernel_arg;
-            TVMDeviceAllocDataSpace(cpu, sizeof(void **) * num_kernel_arg, 0, no_type,
-                                    (void **)&(*cudaModule)->kernel_arg_storages[fid]);
+            info->num_kernel_args = num_kernel_arg;
+            info->kernel_arg_storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * num_kernel_arg);
 
-            blob += sizeof(uint64_t);                                         // num_func_args
-            blob += (*cudaModule)->num_kernel_args[fid] * sizeof(DLDataType); // arg types
+            blob += sizeof(uint64_t);                           // num_func_args
+            blob += info->num_kernel_args * sizeof(DLDataType); // arg types
 
             uint32_t mp_size = (uint32_t) * (uint64_t *)blob;
-            (*cudaModule)->num_func_arg_map[fid] = mp_size;
+            info->num_func_arg_map = mp_size;
             blob += sizeof(uint64_t); // num_func_arg_map
 
             // allocate memory for arg_index_map
-            TVMDeviceAllocDataSpace(cpu, sizeof(uint8_t) * mp_size, 0, no_type,
-                                    (void **)&(*cudaModule)->func_arg_index_map[fid]);
+            info->func_arg_index_map = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * mp_size);
             for (uint32_t i = 0; i < mp_size; ++i) {
                 name_size = (uint32_t) * (uint64_t *)blob;
                 blob += sizeof(uint64_t); // name_size
@@ -187,12 +200,12 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
                         fprintf(stderr, "%s", msg);
                         SET_ERROR_RETURN(-1, "%s", msg);
                     }
-                    --(*cudaModule)->num_func_arg_map[fid];
-                    (*cudaModule)->use_dyn_mem[fid] = 1;
+                    --info->num_func_arg_map;
+                    info->use_dyn_mem = 1;
                 } else if (name_size == 10 && memcmp(blob, "blockIdx.", 9) == 0) {
-                    (*cudaModule)->func_arg_index_map[fid][i] = (uint8_t)(blob[9] - 'x');
+                    info->func_arg_index_map[i] = (uint8_t)(blob[9] - 'x');
                 } else if (name_size == 11 && memcmp(blob, "threadIdx.", 10) == 0) {
-                    (*cudaModule)->func_arg_index_map[fid][i] = (uint8_t)(blob[10] - 'x' + 3);
+                    info->func_arg_index_map[i] = (uint8_t)(blob[10] - 'x' + 3);
                 } else {
                     blob[name_size] = '\0';
                     SET_ERROR_RETURN(-1, "unknown params Tags: %s\n", blob);
@@ -227,16 +240,17 @@ int CUDAModuleCreate(const char *resource, int resource_type, CUDAModule **cudaM
             byte = names[name_size];   // backup the last byte
             names[name_size] = 0;      // the end of string must be '\0'
 
-            CUDA_DRIVER_CALL(cuModuleGetFunction((*cudaModule)->functions + fid, (*cudaModule)->cu_module, names));
+            CUDA_DRIVER_CALL(
+                cuModuleGetFunction(&(*cudaModule)->functions[fid].cu_function, (*cudaModule)->cu_module, names));
 
             names += name_size; // name string
             *names = byte;      // restore this byte
 
             // functionInfo.name
             name_size = (uint32_t) * (uint64_t *)names;
-            names += sizeof(uint64_t) + name_size;                             // name_size + name string
-            names += sizeof(uint64_t);                                         // num_func_args
-            names += (*cudaModule)->num_kernel_args[fid] * sizeof(DLDataType); // arg types
+            names += sizeof(uint64_t) + name_size;                                       // name_size + name string
+            names += sizeof(uint64_t);                                                   // num_func_args
+            names += (*cudaModule)->functions[fid].num_kernel_args * sizeof(DLDataType); // arg types
 
             uint32_t mp_size = (uint32_t) * (uint64_t *)names;
             names += sizeof(uint64_t); // num_func_arg_map

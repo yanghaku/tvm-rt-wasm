@@ -46,13 +46,13 @@ int TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle modu
 
 /*! \brief function for GraphExecutor_Load */
 #define GRAPH_JSON_KEY_SIZE 32
-static int GraphExecutor_SetupStorage(GraphExecutor *);
-static int GraphExecutor_SetupOpExecs(GraphExecutor *);
-static int JsonReader_ReadGraphNodesArray(JsonReader *, GraphExecutor *);
-static int JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *, GraphExecutor *);
-static int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *, GraphExecutor *);
-static int JsonReader_ReadGraphAttrObject(JsonReader *, GraphExecutor *);
-static int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *, GraphExecutor *);
+static int TVM_RT_WASM_GraphExecutor_SetupStorage(GraphExecutor *);
+static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(GraphExecutor *);
+static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *, GraphExecutor *);
+static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *, GraphExecutor *);
+static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *, GraphExecutor *);
+static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *, GraphExecutor *);
+static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *, GraphExecutor *);
 
 /*!
  * \brief init a new GraphExecutor from graph.json
@@ -76,31 +76,31 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     int bitmask = 0;
     while (TVM_RT_WASM_JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
         if (!strcmp(key, "nodes")) {
-            status = JsonReader_ReadGraphNodesArray(reader, graph);
+            status = TVM_RT_WASM_JsonReader_ReadGraphNodesArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
             bitmask |= 1;
         } else if (!strcmp(key, "arg_nodes")) {
-            status = JsonReader_ReadGraphInputNodeIndicesArray(reader, graph);
+            status = TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
             bitmask |= 2;
         } else if (!strcmp(key, "heads")) {
-            status = JsonReader_ReadGraphOutputNodeEntryArray(reader, graph);
+            status = TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
             bitmask |= 4;
         } else if (!strcmp(key, "attrs")) {
-            status = JsonReader_ReadGraphAttrObject(reader, graph);
+            status = TVM_RT_WASM_JsonReader_ReadGraphAttrObject(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
             bitmask |= 8;
         } else if (!strcmp(key, "node_row_ptr")) {
-            status = JsonReader_ReadGraphNodeRowPtrArray(reader, graph);
+            status = TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(reader, graph);
             if (unlikely(status)) {
                 return status;
             }
@@ -123,12 +123,7 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     memcpy(graph->devices, devices, sizeof(DLDevice) * num_dev);
     graph->num_device = num_dev;
     graph->module_handle = module_handle;
-    graph->num_data_entry = graph->node_row_ptr[graph->num_node_row_ptr - 1];
 
-    if (unlikely(graph->num_data_entry != graph->graph_attr.num_entry)) {
-        SET_ERROR_RETURN(-1, "must be equal: num_data_entry(%d) and graph_attr_num_entry(%d)", graph->num_data_entry,
-                         graph->graph_attr.num_entry);
-    }
     if (unlikely(graph->num_data_entry == 0)) {
         SET_ERROR_RETURN(-1, "the number of graph data_entry cannot be 0, at least 1");
     }
@@ -152,12 +147,12 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     }
 
     // init storage
-    status = GraphExecutor_SetupStorage(graph);
+    status = TVM_RT_WASM_GraphExecutor_SetupStorage(graph);
     if (unlikely(status)) {
         return status;
     }
     // init operators
-    return GraphExecutor_SetupOpExecs(graph);
+    return TVM_RT_WASM_GraphExecutor_SetupOpExecs(graph);
 }
 
 /*!
@@ -265,7 +260,7 @@ int TVM_RT_WASM_GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, c
                          graph->num_inputs_nodes, index);
     }
     uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
-    return TVMDeviceCopyDataFromTo((DLTensor *)data_in, graph->data_entry + eid, NULL);
+    return TVMDeviceCopyDataFromTo((DLTensor *)data_in, &graph->data_entry[eid].dl_tensor, NULL);
 }
 
 /*!
@@ -302,7 +297,7 @@ int TVM_RT_WASM_GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, 
     }
 
     uint32_t eid = DATA_ENTRY_ID(graph, graph->outputs_nodes[index].node_id, graph->outputs_nodes[index].index);
-    return TVMDeviceCopyDataFromTo(graph->data_entry + eid, data_out, NULL);
+    return TVMDeviceCopyDataFromTo(&graph->data_entry[eid].dl_tensor, data_out, NULL);
 }
 
 /*!
@@ -371,7 +366,7 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
                              graph->num_data_entry);
         }
 
-        int status = TVM_RT_WASM_DLTensor_LoadDataFromBinary(graph->data_entry + eid, &blob);
+        int status = TVM_RT_WASM_DLTensor_LoadDataFromBinary(&graph->data_entry[eid].dl_tensor, &blob);
         if (unlikely(status)) {
             return status;
         }
@@ -436,15 +431,9 @@ int TVM_RT_WASM_GraphExecutorRelease(GraphExecutorManager **g) {
     TVM_RT_WASM_HeapMemoryFree(graph->nodes);
 
     // free node operators
-    for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
-        if (graph->nodeOps[nid].arg_values) {
-            TVM_RT_WASM_HeapMemoryFree(graph->nodeOps[nid].arg_values);
-        }
-        if (graph->nodeOps[nid].arg_type_codes) {
-            TVM_RT_WASM_HeapMemoryFree(graph->nodeOps[nid].arg_type_codes);
-        }
-    }
     TVM_RT_WASM_HeapMemoryFree(graph->nodeOps);
+    TVM_RT_WASM_HeapMemoryFree(graph->node_op_arg_type_storage);
+    TVM_RT_WASM_HeapMemoryFree(graph->node_op_arg_value_storage);
 
     // free inputs nodes
     if (graph->inputs_nodes) {
@@ -456,23 +445,18 @@ int TVM_RT_WASM_GraphExecutorRelease(GraphExecutorManager **g) {
         TVM_RT_WASM_HeapMemoryFree(graph->outputs_nodes);
     }
 
-    // free node_row_ptr
-    if (graph->node_row_ptr) {
-        TVM_RT_WASM_HeapMemoryFree(graph->node_row_ptr);
-    }
-
     // free data entry + storage + storage_is_linked_param
     for (uint32_t eid = 0; eid < graph->num_data_entry; ++eid) {
-        uint32_t sid = graph->graph_attr.storage_id[eid];
-        if (!graph->storage_is_linked_param[sid]) {
-            TVMDeviceFreeDataSpace(graph->data_entry->device, graph->storages[sid]);
-            graph->storage_is_linked_param[sid] = 1;
+        uint32_t sid = graph->data_entry[eid].storage_id;
+        if (!graph->storages[sid].is_linked_param) {
+            TVMDeviceFreeDataSpace(graph->data_entry[eid].dl_tensor.device, graph->storages[sid].storage);
+            graph->storages[sid].is_linked_param = 1;
         }
+        TVM_RT_WASM_HeapMemoryFree(graph->data_entry[eid].dl_tensor.shape);
     }
     if (graph->num_data_entry) {
         TVM_RT_WASM_HeapMemoryFree(graph->data_entry);
         TVM_RT_WASM_HeapMemoryFree(graph->storages);
-        TVM_RT_WASM_HeapMemoryFree(graph->storage_is_linked_param);
     }
 
     // free input map and output map
@@ -482,20 +466,6 @@ int TVM_RT_WASM_GraphExecutorRelease(GraphExecutorManager **g) {
     if (graph->outputs_map) {
         TVM_RT_WASM_TrieRelease(graph->outputs_map);
     }
-
-    // free graph attributes
-    if (graph->graph_attr.storage_id) {
-        TVM_RT_WASM_HeapMemoryFree(graph->graph_attr.storage_id);
-    }
-    if (graph->graph_attr.device_type) {
-        TVM_RT_WASM_HeapMemoryFree(graph->graph_attr.device_type);
-    }
-    TVM_RT_WASM_HeapMemoryFree(graph->graph_attr.ndim);
-    TVM_RT_WASM_HeapMemoryFree(graph->graph_attr.data_type);
-    for (uint32_t i = 0; i < graph->graph_attr.num_entry; ++i) {
-        TVM_RT_WASM_HeapMemoryFree(graph->graph_attr.shape[i]);
-    }
-    TVM_RT_WASM_HeapMemoryFree(graph->graph_attr.shape);
 
     // devices
     if (graph->devices) {
@@ -562,74 +532,66 @@ int TVM_RT_WASM_GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager
     new_g->outputs_nodes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeEntry) * new_g->num_outputs);
     memcpy(new_g->outputs_nodes, old_g->outputs_nodes, sizeof(uint32_t) * new_g->num_outputs);
 
-    // node_row_ptr
-    new_g->node_row_ptr = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * new_g->num_node_row_ptr);
-    memcpy(new_g->node_row_ptr, old_g->node_row_ptr, sizeof(uint32_t) * new_g->num_node_row_ptr);
-
-    // graph attributes
-    new_g->graph_attr.storage_id = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * new_g->num_data_entry);
-    memcpy(new_g->graph_attr.storage_id, old_g->graph_attr.storage_id, sizeof(uint32_t) * new_g->num_data_entry);
-    new_g->graph_attr.ndim = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * new_g->num_data_entry);
-    memcpy(new_g->graph_attr.ndim, old_g->graph_attr.ndim, sizeof(uint32_t) * new_g->num_data_entry);
-    new_g->graph_attr.data_type = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLDataType) * new_g->num_data_entry);
-    memcpy(new_g->graph_attr.data_type, old_g->graph_attr.data_type, sizeof(DLDataType) * new_g->num_data_entry);
-    if (old_g->graph_attr.device_type) {
-        new_g->graph_attr.device_type = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * new_g->num_data_entry);
-        memcpy(new_g->graph_attr.device_type, old_g->graph_attr.device_type, sizeof(uint32_t) * new_g->num_data_entry);
-    }
-    new_g->graph_attr.shape = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t *) * old_g->num_data_entry);
-    for (uint32_t i = 0; i < new_g->num_data_entry; ++i) {
-        new_g->graph_attr.shape[i] = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * new_g->graph_attr.ndim[i]);
-        memcpy(new_g->graph_attr.shape[i], old_g->graph_attr.shape[i], sizeof(uint64_t) * new_g->graph_attr.ndim[i]);
-    }
-
     // input and output map
     TVM_RT_WASM_TrieClone(old_g->inputs_map, &new_g->inputs_map);
     TVM_RT_WASM_TrieClone(old_g->outputs_map, &new_g->outputs_map);
 
     // data entry and is linked param
-    new_g->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLTensor) * new_g->num_data_entry);
-    memcpy(new_g->data_entry, old_g->data_entry, sizeof(DLTensor) * new_g->num_data_entry);
-    new_g->storage_is_linked_param = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint8_t) * new_g->num_storage);
-    memcpy(new_g->storage_is_linked_param, old_g->storage_is_linked_param, sizeof(uint8_t) * new_g->num_storage);
-    new_g->storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void *) * new_g->num_storage);
-    memset(new_g->storages, 0, sizeof(void *) * new_g->num_storage);
+    new_g->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * new_g->num_data_entry);
+    memcpy(new_g->data_entry, old_g->data_entry, sizeof(DataEntry) * new_g->num_data_entry);
+    uint32_t num_storage = 0;
+    for (uint32_t i = 0; i < new_g->num_data_entry; ++i) {
+        num_storage = MAX(new_g->data_entry[i].storage_id, num_storage);
+    }
+    ++num_storage;
+    new_g->storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(StorageEntry) * num_storage);
+    memset(new_g->storages, 0, sizeof(StorageEntry) * num_storage);
 
     // setup storage !!!
     uint32_t *tmp_storage_size;
-    tmp_storage_size = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * new_g->num_storage);
-    memset(tmp_storage_size, 0, sizeof(uint32_t) * new_g->num_storage);
+    tmp_storage_size = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(uint32_t) * num_storage);
+    memset(tmp_storage_size, 0, sizeof(uint32_t) * num_storage);
     for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
-        uint32_t sid = new_g->graph_attr.storage_id[eid];
-        if (new_g->storage_is_linked_param[sid]) {
+        uint32_t sid = new_g->data_entry[eid].storage_id;
+        if (new_g->storages[sid].is_linked_param) {
             new_g->storages[sid] = old_g->storages[sid];
             continue;
         }
-        uint32_t size = (uint32_t)TVM_RT_WASM_DLTensor_GetDataBytes(new_g->data_entry + eid);
+        uint32_t size = (uint32_t)TVM_RT_WASM_DLTensor_GetDataBytes(&new_g->data_entry[eid].dl_tensor);
         tmp_storage_size[sid] = MAX(tmp_storage_size[sid], size);
     }
     DLDataType no_type = {0, 0, 0};
     for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
-        uint32_t sid = new_g->graph_attr.storage_id[eid];
+        uint32_t sid = new_g->data_entry[eid].storage_id;
         if (new_g->storages == NULL) {
-            TVMDeviceAllocDataSpace(new_g->data_entry[eid].device, tmp_storage_size[sid], 0, no_type,
+            TVMDeviceAllocDataSpace(new_g->data_entry[eid].dl_tensor.device, tmp_storage_size[sid], 0, no_type,
                                     (void **)(new_g->storages + sid));
-            TVMDeviceCopyDataFromTo(old_g->data_entry, new_g->data_entry + eid, NULL);
+            TVMDeviceCopyDataFromTo(&old_g->data_entry[eid].dl_tensor, &new_g->data_entry[eid].dl_tensor, NULL);
         } else {
-            new_g->data_entry[eid].data = new_g->storages[sid];
+            new_g->data_entry[eid].dl_tensor.data = new_g->storages[sid].storage;
         }
     }
-    TVM_RT_WASM_HeapMemoryFree(tmp_storage_size);
+    TVM_RT_WASM_WorkplaceMemoryFree(tmp_storage_size);
 
     // node ops
     new_g->nodeOps = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeOp) * new_g->num_nodes);
+    memcpy(new_g->nodeOps, old_g->nodeOps, sizeof(GraphExecutorNodeOp) * new_g->num_nodes);
+    uint32_t num_op = 0;
+    for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
+        num_op += new_g->nodeOps->num_args;
+    }
+    new_g->node_op_arg_value_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * num_op);
+    new_g->node_op_arg_type_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int) * num_op);
     // setup operators !!!
-    memcpy(new_g->nodeOps, old_g->nodes, sizeof(GraphExecutorNodeOp) * new_g->num_nodes);
+    TVMValue *alloc_value = new_g->node_op_arg_value_storage;
+    int *alloc_type = new_g->node_op_arg_type_storage;
     for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
         GraphExecutorNode *node = new_g->nodes + nid;
         GraphExecutorNodeOp *nodeOp = new_g->nodeOps + nid;
-        nodeOp->arg_values = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * nodeOp->num_args);
-        nodeOp->arg_type_codes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * nodeOp->num_args);
+        nodeOp->arg_values = alloc_value;
+        nodeOp->arg_type_codes = alloc_type;
+        alloc_type += nodeOp->num_args;
+        alloc_value += nodeOp->num_args;
         for (uint32_t i = 0; i < node->num_inputs; ++i) {
             int eid = DATA_ENTRY_ID(new_g, node->inputs[i].node_id, node->inputs[i].index);
             nodeOp->arg_values[i].v_handle = &new_g->data_entry[eid];
@@ -652,70 +614,64 @@ int TVM_RT_WASM_GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int GraphExecutor_SetupStorage(GraphExecutor *graph) {
+static int TVM_RT_WASM_GraphExecutor_SetupStorage(GraphExecutor *graph) {
     DLDataType no_type = {0, 0, 0};
     size_t *storage_size;
     DLDevice *storage_device;
 
     // get the number of storage:  max(sid) + 1
-    graph->num_storage = 0;
+    uint32_t num_storage = 0;
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-        graph->num_storage = MAX(graph->num_storage, graph->graph_attr.storage_id[i]);
+        num_storage = MAX(num_storage, graph->data_entry[i].storage_id);
     }
-    ++graph->num_storage;
-    graph->storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void *) * graph->num_storage);
-    memset(graph->storages, 0, sizeof(void *) * graph->num_storage);
+    ++num_storage;
+    graph->storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(StorageEntry) * num_storage);
+    memset(graph->storages, 0, sizeof(StorageEntry) * num_storage);
 
     // get the data size for every storage
-    storage_size = TVM_RT_WASM_HeapMemoryAlloc(sizeof(size_t) * graph->num_storage);
-    memset(storage_size, 0, sizeof(size_t) * graph->num_storage);
+    storage_size = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(size_t) * num_storage);
+    memset(storage_size, 0, sizeof(size_t) * num_storage);
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-        size_t now_size = TVM_RT_WASM_DLTensor_GetDataSize(graph->graph_attr.shape[i], (int)graph->graph_attr.ndim[i]);
-        now_size = ((graph->graph_attr.data_type[i].bits * graph->graph_attr.data_type[i].lanes + 7U) / 8U) * now_size;
+        size_t now_size = TVM_RT_WASM_DLTensor_GetDataSize(graph->data_entry[i].dl_tensor.shape,
+                                                           (int)graph->data_entry[i].dl_tensor.ndim);
+        now_size =
+            ((graph->data_entry[i].dl_tensor.dtype.bits * graph->data_entry[i].dl_tensor.dtype.lanes + 7U) / 8U) *
+            now_size;
         if (unlikely(now_size == 0)) {
             SET_ERROR_RETURN(-1, "shape cannot contains 0 in the %d shape", i);
         }
-        uint32_t sid = graph->graph_attr.storage_id[i];
+        uint32_t sid = graph->data_entry[i].storage_id;
         storage_size[sid] = MAX(storage_size[sid], now_size);
     }
 
     // get the device for every storage
-    storage_device = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLDevice) * graph->num_storage);
-    if (graph->graph_attr.device_type == NULL) {
-        // default device
-        for (uint32_t i = 0; i < graph->num_storage; ++i) {
+    storage_device = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(DLDevice) * num_storage);
+    memset(storage_device, 0xFF, sizeof(DLDevice) * num_storage);
+    for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
+        uint32_t sid = graph->data_entry[i].storage_id;
+        if ((int)storage_device[sid].device_type == -1) {
+            storage_device[sid].device_type = graph->data_entry[i].dl_tensor.device.device_type;
+        } else {
+            if (unlikely(storage_device[sid].device_type != graph->data_entry[i].dl_tensor.device.device_type)) {
+                SET_ERROR_RETURN(-1, "The same storage requires the same device_type, but given %d and %d",
+                                 storage_device[sid].device_type, graph->data_entry[i].dl_tensor.device.device_type);
+            }
+        }
+    }
+    for (uint32_t i = 0; i < num_storage; ++i) {
+        // find the fit device
+        for (uint32_t x = 0; x < graph->num_device; ++x) {
+            if (graph->devices[x].device_type == storage_device[i].device_type) {
+                storage_device[i].device_id = graph->devices[x].device_id;
+                break;
+            }
+        }
+        if (unlikely(storage_device[i].device_id == -1)) {
             storage_device[i] = graph->devices[0];
-        }
-    } else {
-        memset(storage_device, 0xFF, sizeof(DLDevice) * graph->num_storage);
-        for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-            uint32_t sid = graph->graph_attr.storage_id[i];
-            if ((int)storage_device[sid].device_type == -1) {
-                storage_device[sid].device_type = graph->graph_attr.device_type[i];
-            } else {
-                if (unlikely(storage_device[sid].device_type != graph->graph_attr.device_type[i])) {
-                    SET_ERROR_RETURN(-1, "The same storage requires the same device_type, but given %d and %d",
-                                     storage_device[sid].device_type, graph->graph_attr.device_type[i]);
-                }
-            }
-        }
-        for (uint32_t i = 0; i < graph->num_storage; ++i) {
-            // find the fit device
-            for (uint32_t x = 0; x < graph->num_device; ++x) {
-                if (graph->devices[x].device_type == storage_device[i].device_type) {
-                    storage_device[i].device_id = graph->devices[x].device_id;
-                    break;
-                }
-            }
-            if (unlikely(storage_device[i].device_id == -1)) {
-                storage_device[i] = graph->devices[0];
-            }
         }
     }
 
     // find linked param
-    graph->storage_is_linked_param = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint8_t) * graph->num_storage);
-    memset(graph->storage_is_linked_param, 0, sizeof(uint8_t) * graph->num_storage);
     static const char *lookup_linked_param_func_name = "_lookup_linked_param";
     TVMFunctionHandle func;
     int status = TVMModGetFunction(graph->module_handle, lookup_linked_param_func_name, 1, &func);
@@ -723,38 +679,30 @@ static int GraphExecutor_SetupStorage(GraphExecutor *graph) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
         arg_type = kTVMArgInt;
-        for (uint32_t i = 0; i < graph->num_storage; ++i) {
+        for (uint32_t i = 0; i < num_storage; ++i) {
             arg_val.v_int64 = i;
             status = TVMFuncCall(func, &arg_val, &arg_type, 1, &ret_val, &ret_type);
             if (likely(status == 0 && ret_val.v_handle != NULL)) {
-                graph->storage_is_linked_param[i] = 1;
-                graph->storages[i] = ret_val.v_handle;
+                graph->storages[i].is_linked_param = 1;
+                graph->storages[i].storage = ret_val.v_handle;
             }
         }
     }
 
     // alloc memory for storage
-    for (uint32_t i = 0; i < graph->num_storage; ++i) {
-        if (graph->storage_is_linked_param[i] == 0) {
-            TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type, &(graph->storages[i]));
+    for (uint32_t i = 0; i < num_storage; ++i) {
+        if (graph->storages[i].is_linked_param == 0) {
+            TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type, &(graph->storages[i].storage));
         }
     }
 
     // set up the data_entry
-    graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLTensor) * graph->num_data_entry);
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-        graph->data_entry[i].data = graph->storages[graph->graph_attr.storage_id[i]];
-
-        graph->data_entry[i].ndim = (int)graph->graph_attr.ndim[i];
-        graph->data_entry[i].shape = (int64_t *)graph->graph_attr.shape[i];
-        graph->data_entry[i].dtype = graph->graph_attr.data_type[i];
-        graph->data_entry[i].device = storage_device[graph->graph_attr.storage_id[i]];
-        graph->data_entry[i].strides = NULL;
-        graph->data_entry[i].byte_offset = 0;
+        graph->data_entry[i].dl_tensor.data = graph->storages[graph->data_entry[i].storage_id].storage;
     }
 
-    TVM_RT_WASM_HeapMemoryFree(storage_device);
-    TVM_RT_WASM_HeapMemoryFree(storage_size);
+    TVM_RT_WASM_WorkplaceMemoryFree(storage_device);
+    TVM_RT_WASM_WorkplaceMemoryFree(storage_size);
     return 0;
 }
 
@@ -763,19 +711,30 @@ static int GraphExecutor_SetupStorage(GraphExecutor *graph) {
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
+static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
     // init memory
     graph->nodeOps = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeOp) * graph->num_nodes);
     memset(graph->nodeOps, 0, sizeof(GraphExecutorNodeOp) * graph->num_nodes);
+
+    uint32_t num_op_storage = 0;
+    for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
+        graph->nodeOps[nid].num_args = (int)(graph->nodes[nid].num_inputs + graph->nodes[nid].num_outputs);
+        num_op_storage += graph->nodeOps[nid].num_args;
+    }
+    graph->node_op_arg_type_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int) * num_op_storage);
+    graph->node_op_arg_value_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * num_op_storage);
+    TVMValue *alloc_value = graph->node_op_arg_value_storage;
+    int *alloc_type = graph->node_op_arg_type_storage;
 
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
         GraphExecutorNode *node = graph->nodes + nid;
         if (strcmp(node->op_type, "tvm_op") == 0) {
             GraphExecutorNodeOp *nodeOp = graph->nodeOps + nid;
-            nodeOp->num_args = (int)(node->num_inputs + node->num_outputs);
+            nodeOp->arg_values = alloc_value;
+            nodeOp->arg_type_codes = alloc_type;
+            alloc_value += nodeOp->num_args;
+            alloc_type += nodeOp->num_args;
 
-            nodeOp->arg_values = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * nodeOp->num_args);
-            nodeOp->arg_type_codes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * nodeOp->num_args);
             for (uint32_t i = 0; i < node->num_inputs; ++i) {
                 int eid = DATA_ENTRY_ID(graph, node->inputs[i].node_id, node->inputs[i].index);
                 nodeOp->arg_values[i].v_handle = &graph->data_entry[eid];
@@ -836,7 +795,7 @@ static int GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *graph) {
     size_t node_size = 0;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &node_size);
     if (unlikely(status)) {
@@ -847,8 +806,14 @@ static int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *gra
         JSON_ERROR("the number of Node must at least 1");
     }
 
-    graph->nodes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNode) * node_size);
-    memset(graph->nodes, 0, sizeof(GraphExecutorNode) * node_size);
+    if (graph->nodes) {
+        if (unlikely(graph->num_nodes != node_size)) {
+            SET_ERROR_RETURN(-1, "the number of nodes is inconsistent");
+        }
+    } else {
+        graph->nodes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNode) * node_size);
+        memset(graph->nodes, 0, sizeof(GraphExecutorNode) * node_size);
+    }
 
     for (uint32_t nid = 0; nid < node_size; ++nid) {
         ARRAY_CHECK_NEXT_EXISTS(reader, "nodes array len expect %zu, parse fail", node_size);
@@ -963,7 +928,7 @@ static int JsonReader_ReadGraphNodesArray(JsonReader *reader, GraphExecutor *gra
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader, GraphExecutor *graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader, GraphExecutor *graph) {
     size_t input_size;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &input_size);
     if (unlikely(status)) {
@@ -996,7 +961,7 @@ static int JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader, GraphEx
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExecutor *graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExecutor *graph) {
     size_t entry_size;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &entry_size);
     if (unlikely(status)) {
@@ -1050,8 +1015,7 @@ static int JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, GraphExe
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
-    GraphAttr *graphAttr = &graph->graph_attr;
+static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *graph) {
     int status = 0;
     size_t storage_id_size;
     size_t device_type_size;
@@ -1077,8 +1041,15 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
             if (unlikely(status)) {
                 JSON_ERROR("parse GraphAttr data_type array length fail");
             }
-            graphAttr->data_type = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLDataType) * data_type_size);
-            memset(graphAttr->data_type, 0, sizeof(DLDataType) * data_type_size);
+            if (graph->data_entry == NULL) {
+                graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * data_type_size);
+                memset(graph->data_entry, 0, sizeof(DataEntry) * data_type_size);
+                graph->num_data_entry = data_type_size;
+            } else {
+                if (unlikely(data_type_size != graph->num_data_entry)) {
+                    SET_ERROR_RETURN(-1, "parse GraphAttr: num_data_entry inconsistent");
+                }
+            }
 
             for (size_t i = 0; i < data_type_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, "parse GraphAttr data_type array element fail");
@@ -1087,7 +1058,7 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
                 if (unlikely(str_len <= 0)) {
                     JSON_ERROR("parse GraphAttr data_type array element fail");
                 }
-                status = TVM_RT_WASM_DLDataType_ParseFromString(global_buf, graphAttr->data_type + i);
+                status = TVM_RT_WASM_DLDataType_ParseFromString(global_buf, &graph->data_entry[i].dl_tensor.dtype);
                 if (unlikely(status)) {
                     return status;
                 }
@@ -1113,13 +1084,20 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
             if (unlikely(status)) {
                 JSON_ERROR("parse GraphAttr storage_id array length fail");
             }
-            graphAttr->storage_id = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * storage_id_size);
-            memset(graphAttr->storage_id, 0, sizeof(uint32_t) * storage_id_size);
+            if (graph->data_entry == NULL) {
+                graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * storage_id_size);
+                memset(graph->data_entry, 0, sizeof(DataEntry) * storage_id_size);
+                graph->num_data_entry = storage_id_size;
+            } else {
+                if (unlikely(storage_id_size != graph->num_data_entry)) {
+                    SET_ERROR_RETURN(-1, "parse GraphAttr: num_data_entry inconsistent");
+                }
+            }
 
             for (size_t i = 0; i < storage_id_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, "parse GraphAttr storage_id array element fail");
 
-                status = TVM_RT_WASM_JsonReader_Read_uint32(reader, graphAttr->storage_id + i);
+                status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &graph->data_entry[i].storage_id);
                 if (unlikely(status)) {
                     JSON_ERROR("parse GraphAttr storage_id array element fail");
                 }
@@ -1144,13 +1122,20 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
             if (unlikely(status)) {
                 JSON_ERROR("parse GraphAttr device_index array length fail");
             }
-            graphAttr->device_type = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * device_type_size);
-            memset(graphAttr->device_type, 0, sizeof(uint32_t) * device_type_size);
+            if (graph->data_entry == NULL) {
+                graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * device_type_size);
+                memset(graph->data_entry, 0, sizeof(DataEntry) * device_type_size);
+                graph->num_data_entry = device_type_size;
+            } else {
+                if (unlikely(device_type_size != graph->num_data_entry)) {
+                    SET_ERROR_RETURN(-1, "parse GraphAttr: num_data_entry inconsistent");
+                }
+            }
 
             for (size_t i = 0; i < device_type_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, "parse GraphAttr dev_type array element fail");
 
-                status = TVM_RT_WASM_JsonReader_Read_uint32(reader, graphAttr->device_type + i);
+                status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &graph->data_entry[i].dl_tensor.device.device_type);
                 if (unlikely(status)) {
                     JSON_ERROR("parse GraphAttr dev_type array element fail");
                 }
@@ -1175,10 +1160,15 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
             if (unlikely(status)) {
                 JSON_ERROR("parse GraphAttr shape array length fail");
             }
-            graphAttr->shape = TVM_RT_WASM_HeapMemoryAlloc(shape_size * sizeof(uint64_t *));
-            memset(graphAttr->shape, 0, sizeof(uint64_t *) * shape_size);
-            graphAttr->ndim = TVM_RT_WASM_HeapMemoryAlloc(shape_size * sizeof(uint32_t));
-            memset(graphAttr->ndim, 0, sizeof(uint32_t) * shape_size);
+            if (graph->data_entry == NULL) {
+                graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * shape_size);
+                memset(graph->data_entry, 0, sizeof(DataEntry) * shape_size);
+                graph->num_data_entry = shape_size;
+            } else {
+                if (unlikely(shape_size != graph->num_data_entry)) {
+                    SET_ERROR_RETURN(-1, "parse GraphAttr: num_data_entry inconsistent");
+                }
+            }
 
             for (size_t i = 0; i < shape_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, "parse GraphAttr shape array length fail");
@@ -1188,13 +1178,13 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
                 if (unlikely(status)) {
                     JSON_ERROR("parse GraphAttr shape.dim element fail");
                 }
-                graphAttr->shape[i] = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * ndim);
-                memset(graphAttr->shape[i], 0, sizeof(uint64_t) * ndim);
-                graphAttr->ndim[i] = ndim;
+                graph->data_entry[i].dl_tensor.shape = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int64_t) * ndim);
+                memset(graph->data_entry[i].dl_tensor.shape, 0, sizeof(int64_t) * ndim);
+                graph->data_entry[i].dl_tensor.ndim = (int)ndim;
 
                 for (size_t dim = 0; dim < ndim; ++dim) {
                     ARRAY_CHECK_NEXT_EXISTS(reader, "parse GraphAttr shape.dim element fail");
-                    status = TVM_RT_WASM_JsonReader_Read_uint64(reader, graphAttr->shape[i] + dim);
+                    status = TVM_RT_WASM_JsonReader_Read_int64(reader, graph->data_entry[i].dl_tensor.shape + dim);
                     if (unlikely(status)) {
                         JSON_ERROR("parse GraphAttr shape.dim (uint64_t) fail");
                     }
@@ -1208,12 +1198,11 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
             JSON_ERROR("unsupported key (%s) for graphAttr", key);
         }
     }
-
-    if (unlikely(storage_id_size != data_type_size || storage_id_size != shape_size)) {
-        JSON_ERROR("invalid size, not the same: storage_id_size=%zu,data_type_size=%zu,shape_size=%zu", storage_id_size,
-                   data_type_size, shape_size);
+    if (device_type_size == 0) {
+        for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
+            graph->data_entry[i].dl_tensor.device = graph->devices[0];
+        }
     }
-    graphAttr->num_entry = data_type_size;
 
     return status;
 }
@@ -1224,7 +1213,7 @@ static int JsonReader_ReadGraphAttrObject(JsonReader *reader, GraphExecutor *gra
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor *graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor *graph) {
     size_t ptr_size;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &ptr_size);
     if (unlikely(status)) {
@@ -1234,17 +1223,31 @@ static int JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, GraphExecutor
         JSON_ERROR("the number of node_row_ptr must at least 1");
     }
 
-    graph->node_row_ptr = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * ptr_size);
-    memset(graph->node_row_ptr, 0, sizeof(uint32_t) * ptr_size);
-    graph->num_node_row_ptr = ptr_size;
+    --ptr_size;
+
+    if (graph->nodes) {
+        if (unlikely(graph->num_nodes != ptr_size)) {
+            SET_ERROR_RETURN(-1, "the number of nodes and the number of node_row_ptrs are inconsistent");
+        }
+    } else {
+        graph->nodes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNode) * ptr_size);
+        memset(graph->nodes, 0, sizeof(GraphExecutorNode) * ptr_size);
+    }
 
     for (size_t ptr_count = 0; ptr_count < ptr_size; ++ptr_count) {
         ARRAY_CHECK_NEXT_EXISTS(reader, "parse node_row_ptr array element fail");
 
-        status = TVM_RT_WASM_JsonReader_Read_uint32(reader, graph->node_row_ptr + ptr_count);
+        status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &graph->nodes[ptr_count].row_ptr);
         if (unlikely(status)) {
             JSON_ERROR("parse uint32 Error for node_row_ptr");
         }
+    }
+
+    ARRAY_CHECK_NEXT_EXISTS(reader, "parse node_row_ptr array element fail");
+    uint32_t tmp; // tmp == graph.num_data_entry
+    status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &tmp);
+    if (unlikely(status)) {
+        JSON_ERROR("parse uint32 Error for node_row_ptr");
     }
 
     ARRAY_CHECK_NEXT_NON_EXISTS(reader, "node_row_ptr len expect %zu", ptr_size);

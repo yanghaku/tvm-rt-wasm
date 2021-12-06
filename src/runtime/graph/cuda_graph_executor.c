@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tvm/runtime/device/cpu_memory.h>
+#include <tvm/runtime/device/device_api.h>
 #include <tvm/runtime/graph/cuda_graph_executor.h>
 #include <tvm/runtime/module/module.h>
 
@@ -65,7 +66,12 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
 
     // init context and stream
     CUDA_DRIVER_CALL(cuStreamCreate(&graph->cu_stream, CU_STREAM_DEFAULT));
-    TVMSetStream(graph->devices[0].device_type, graph->devices[0].device_id, graph->cu_stream);
+    DeviceAPI *deviceApi;
+    int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
+    if (unlikely(status)) {
+        return status;
+    }
+    deviceApi->SetStream(graph->devices[0].device_id, graph->cu_stream);
 
     // begin capture
     CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_GLOBAL));

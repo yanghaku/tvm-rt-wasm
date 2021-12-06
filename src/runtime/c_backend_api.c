@@ -61,6 +61,9 @@ TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
  */
 TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, int dtype_code_hint,
                                        int dtype_bits_hint) {
+    if (device_type == kDLCPU || device_type == kDLCUDAHost) {
+        return TVM_RT_WASM_WorkplaceMemoryAlloc(nbytes);
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {
@@ -81,6 +84,10 @@ TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t 
  * \sa TVMBackendAllocWorkspace
  */
 TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
+    if (device_type == kDLCPU || device_type == kDLCUDAHost) {
+        TVM_RT_WASM_WorkplaceMemoryFree(ptr);
+        return 0;
+    }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
     if (unlikely(status)) {

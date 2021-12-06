@@ -12,6 +12,12 @@
 extern "C" {
 #endif
 
+#include <sys/time.h>
+
+#define DURING_PRINT(t1, t0, msg)                                                                                      \
+    fprintf(stderr, "%s: %lf ms\n", msg,                                                                               \
+            (double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.f);
+
 #if defined(__GNUC__) || defined(__clang__)
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
@@ -54,7 +60,7 @@ extern char global_buf[];
 #ifdef __STDC_VERSION__
 
 #if __STDC_VERSION__ >= 199901L
-#define INLINE inline
+#define INLINE static inline
 #else
 #define INLINE static
 #endif

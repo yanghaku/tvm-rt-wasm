@@ -6,10 +6,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <tvm/runtime/c_runtime_api.h>
+#include <tvm/runtime/device/cpu_memory.h>
 #include <tvm/runtime/module/cuda_module.h>
-#include <tvm/runtime/module/module.h>
-#include <tvm/runtime/utils/common.h>
 
 /*!
  * \brief the symbols for system library
@@ -21,13 +19,12 @@ Trie *system_lib_symbol = NULL;
 static Module *sys_lib_module = NULL;
 
 /*! \brief the simple release function for system_lib_module and dso_lib_module */
-static int DefaultModuleReleaseFunc(Module *self) {
-    DLDevice cpu = {kDLCPU, 0};
+static int TVM_RT_WASM_DefaultModuleReleaseFunc(Module *self) {
     if (self->imports) {
         for (uint32_t i = 0; i < self->num_imports; ++i) {
             self->imports[i]->Release(self->imports[i]);
         }
-        TVMDeviceFreeDataSpace(cpu, self->imports);
+        TVM_RT_WASM_HeapMemoryFree(self->imports);
     }
     if (self->module_funcs_map) {
         TVM_RT_WASM_TrieRelease(self->module_funcs_map);
@@ -35,7 +32,8 @@ static int DefaultModuleReleaseFunc(Module *self) {
     if (self->env_funcs_map) {
         TVM_RT_WASM_TrieRelease(self->env_funcs_map);
     }
-    return TVMDeviceFreeDataSpace(cpu, self);
+    TVM_RT_WASM_HeapMemoryFree(self);
+    return 0;
 }
 
 /*!
@@ -44,18 +42,14 @@ static int DefaultModuleReleaseFunc(Module *self) {
  * @param lib_module the root module handle
  * @return 0 if successful
  */
-static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
-    DLDevice cpu = {kDLCPU, 0};
-    DLDataType dataType = {0, 0, 0};
-
+static int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
     //    uint64_t blob_size = *(uint64_t *)blob;
     blob += sizeof(uint64_t);
 
     uint32_t key_num = (uint32_t) * (uint64_t *)blob;
     blob += sizeof(uint64_t);
 
-    Module **modules = NULL;
-    TVMDeviceAllocDataSpace(cpu, sizeof(Module *) * key_num, 0, dataType, (void **)&modules);
+    Module **modules = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module *) * key_num);
     uint64_t *import_tree_row_ptr = NULL;
     uint64_t *import_tree_child_indices = NULL;
     uint32_t num_modules = 0;
@@ -75,15 +69,13 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
 
             num_import_tree_row_ptr = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t);
-            TVMDeviceAllocDataSpace(cpu, sizeof(uint64_t) * num_import_tree_row_ptr, 0, dataType,
-                                    (void **)&import_tree_row_ptr);
+            import_tree_row_ptr = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * num_import_tree_row_ptr);
             memcpy(import_tree_row_ptr, blob, sizeof(uint64_t) * num_import_tree_row_ptr);
             blob += sizeof(uint64_t) * num_import_tree_row_ptr;
 
             num_import_tree_child_indices = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t);
-            TVMDeviceAllocDataSpace(cpu, sizeof(uint64_t) * num_import_tree_child_indices, 0, dataType,
-                                    (void **)&import_tree_child_indices);
+            import_tree_child_indices = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * num_import_tree_child_indices);
             memcpy(import_tree_child_indices, blob, sizeof(uint64_t) * num_import_tree_child_indices);
             blob += sizeof(uint64_t) * num_import_tree_child_indices;
 
@@ -120,8 +112,7 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
             if (modules[i]->num_imports == 0) {
                 continue;
             }
-            TVMDeviceAllocDataSpace(cpu, sizeof(Module *) * modules[i]->num_imports, 0, dataType,
-                                    (void **)&modules[i]->imports);
+            modules[i]->imports = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module *) * modules[i]->num_imports);
 
             for (uint32_t j = import_tree_row_ptr[i], x = 0; j < import_tree_row_ptr[i + 1]; ++j, x++) {
                 if (unlikely(j >= num_import_tree_child_indices)) {
@@ -137,9 +128,9 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
                 TVM_RT_WASM_TrieInsertAll((*lib_module)->env_funcs_map, modules[i]->module_funcs_map);
             }
         }
-        TVMDeviceFreeDataSpace(cpu, modules);
-        TVMDeviceFreeDataSpace(cpu, import_tree_row_ptr);
-        TVMDeviceFreeDataSpace(cpu, import_tree_child_indices);
+        TVM_RT_WASM_HeapMemoryFree(modules);
+        TVM_RT_WASM_HeapMemoryFree(import_tree_row_ptr);
+        TVM_RT_WASM_HeapMemoryFree(import_tree_child_indices);
     }
     return 0;
 }
@@ -149,7 +140,7 @@ static int ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
  * @param libraryModule the out handle
  * @return 0 if successful
  */
-static int SystemLibraryModuleCreate(Module **libraryModule) {
+static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     if (likely(sys_lib_module != NULL)) { // if the instance exists, return
         *libraryModule = sys_lib_module;
         return 0;
@@ -158,12 +149,10 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
         SET_ERROR_RETURN(-1, "no symbol in system library!");
     }
 
-    DLDevice cpu = {kDLCPU, 0};
-    DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(Module), 0, no_type, (void **)libraryModule);
+    *libraryModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module));
     memset(*libraryModule, 0, sizeof(Module));
 
-    (*libraryModule)->Release = DefaultModuleReleaseFunc;
+    (*libraryModule)->Release = TVM_RT_WASM_DefaultModuleReleaseFunc;
     (*libraryModule)->module_funcs_map = system_lib_symbol;
     TVM_RT_WASM_TrieCreate(&(*libraryModule)->env_funcs_map);
     system_lib_symbol = NULL; // manage this Trie*
@@ -173,7 +162,7 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
     int status =
         TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB, (void **)&blob);
     if (status == TRIE_SUCCESS) {
-        status = ModuleLoadBinaryBlob(blob, libraryModule);
+        status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
         if (unlikely(status)) {
             return status;
         }
@@ -197,7 +186,7 @@ static int SystemLibraryModuleCreate(Module **libraryModule) {
  * @param libraryModule the out handle
  * @return 0 if successful
  */
-static int DSOLibraryModuleCreate(const char *filename, Module **libraryModule) {
+static int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **libraryModule) {
     // todo: implement it
     SET_ERROR_RETURN(-1, "now it's unimplemented yet");
 }
@@ -212,16 +201,16 @@ static int DSOLibraryModuleCreate(const char *filename, Module **libraryModule) 
  */
 int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type, Module **out) {
     if (!memcmp(type, MODULE_SYSTEM_LIB, strlen(MODULE_SYSTEM_LIB))) {
-        return SystemLibraryModuleCreate(out);
+        return TVM_RT_WASM_SystemLibraryModuleCreate(out);
     }
     if (!memcmp(type, "so", 2) || !memcmp(type, "dll", 3) || !memcmp(type, "dylib", 5)) {
         if (unlikely(resource_type != MODULE_FACTORY_RESOURCE_FILE)) {
             SET_ERROR_RETURN(-1, "the dso library can only be load from file");
         }
-        return DSOLibraryModuleCreate(resource, out);
+        return TVM_RT_WASM_DSOLibraryModuleCreate(resource, out);
     }
     if (!memcmp(type, "cuda", 4)) {
-        return CUDAModuleCreate(resource, resource_type, (CUDAModule **)out);
+        return TVM_RT_WASM_CUDAModuleCreate(resource, resource_type, (CUDAModule **)out);
     }
     fprintf(stderr, "unsupported module type %s\n", type);
     SET_ERROR_RETURN(-1, "unsupported module type %s\n", type);

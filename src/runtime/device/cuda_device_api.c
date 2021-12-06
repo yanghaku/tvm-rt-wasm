@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tvm/runtime/device/cpu_memory.h>
 #include <tvm/runtime/device/cuda_device_api.h>
 #include <tvm/runtime/utils/tensor_helper.h>
 
@@ -15,22 +16,25 @@
 /*! \brief the cuda Device API will be a single static instance */
 static CUDADeviceAPI cudaDeviceApi;
 
-static void SetDevice(int dev_id) { CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id])); }
+static void TVM_RT_WASM_CUDA_SetDevice(int dev_id) {
+    CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
+}
 
-static void *AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
+static void *TVM_RT_WASM_CUDA_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
     void *res = NULL;
     CUDA_DRIVER_CALL(cuMemAlloc((CUdeviceptr *)&res, nbytes));
     return res;
 }
 
-static void *AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype, const char *mem_scope) {
+static void *TVM_RT_WASM_CUDA_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype,
+                                                  const char *mem_scope) {
     fprintf(stderr, "%s is not supported yet\n", __FUNCTION__);
     exit(-1);
 }
 
-static void FreeDataSpace(int dev_id, void *ptr) { CUDA_DRIVER_CALL(cuMemFree((CUdeviceptr)ptr)); }
+static void TVM_RT_WASM_CUDA_FreeDataSpace(int dev_id, void *ptr) { CUDA_DRIVER_CALL(cuMemFree((CUdeviceptr)ptr)); }
 
-static void CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
+static void TVM_RT_WASM_CUDA_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
     uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
     uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
     if (unlikely(bytes != byte_check)) {
@@ -58,40 +62,45 @@ static void CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream)
     }
 }
 
-static TVMStreamHandle CreateStream(int dev_id) {
+static TVMStreamHandle TVM_RT_WASM_CUDA_CreateStream(int dev_id) {
     CUstream out;
     CUDA_DRIVER_CALL(cuStreamCreate(&out, CU_STREAM_DEFAULT));
     return out;
 }
 
-static void FreeStream(int dev_id, TVMStreamHandle stream) { CUDA_DRIVER_CALL(cuStreamDestroy(stream)); }
+static void TVM_RT_WASM_CUDA_FreeStream(int dev_id, TVMStreamHandle stream) {
+    CUDA_DRIVER_CALL(cuStreamDestroy(stream));
+}
 
-static void StreamSync(int dev_id, TVMStreamHandle stream) { CUDA_DRIVER_CALL(cuStreamSynchronize(stream)); }
+static void TVM_RT_WASM_CUDA_StreamSync(int dev_id, TVMStreamHandle stream) {
+    CUDA_DRIVER_CALL(cuStreamSynchronize(stream));
+}
 
-static void SetStream(int dev_id, TVMStreamHandle stream) { cudaDeviceApi.stream = stream; }
+static void TVM_RT_WASM_CUDA_SetStream(int dev_id, TVMStreamHandle stream) { cudaDeviceApi.stream = stream; }
 
-static TVMStreamHandle GetStream() { return cudaDeviceApi.stream; }
+static TVMStreamHandle TVM_RT_WASM_CUDA_GetStream() { return cudaDeviceApi.stream; }
 
-static void SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {}
+static void TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {}
 
-static void *AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
+static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
     void *res = NULL;
-    CUDA_DRIVER_CALL(cuMemAllocAsync((CUdeviceptr *)&res, nbytes, cudaDeviceApi.stream));
+    CUDA_DRIVER_CALL(
+        cuMemAllocFromPoolAsync((CUdeviceptr *)&res, nbytes, cudaDeviceApi.mem_pool, cudaDeviceApi.stream));
     return res;
 }
 
-static void FreeWorkspace(int dev_id, void *ptr) {
+static void TVM_RT_WASM_CUDA_FreeWorkspace(int dev_id, void *ptr) {
     CUDA_DRIVER_CALL(cuMemFreeAsync((CUdeviceptr)ptr, cudaDeviceApi.stream));
 }
 
-static int Release(DeviceAPI *d) {
+static int TVM_RT_WASM_CUDA_Release(DeviceAPI *d) {
     if (d != (DeviceAPI *)&cudaDeviceApi)
         return -1;
     for (uint32_t i = 0; i < cudaDeviceApi.num_device; ++i) {
         CUDA_DRIVER_CALL(cuCtxDestroy(cudaDeviceApi.contexts[i]));
     }
-    DLDevice cpu = {kDLCPU, 0};
-    return TVMDeviceFreeDataSpace(cpu, cudaDeviceApi.contexts);
+    TVM_RT_WASM_HeapMemoryFree(cudaDeviceApi.contexts);
+    return 0;
 }
 
 #endif
@@ -107,28 +116,28 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
 
     *out = &cudaDeviceApi;
 
-    cudaDeviceApi.SetDevice = SetDevice;
-    cudaDeviceApi.AllocDataSpace = AllocDataSpace;
-    cudaDeviceApi.AllocDataSpaceScope = AllocDataSpaceScope;
-    cudaDeviceApi.FreeDataSpace = FreeDataSpace;
-    cudaDeviceApi.CopyDataFromTo = CopyDataFromTo;
-    cudaDeviceApi.CreateStream = CreateStream;
-    cudaDeviceApi.FreeStream = FreeStream;
-    cudaDeviceApi.StreamSync = StreamSync;
-    cudaDeviceApi.SetStream = SetStream;
-    cudaDeviceApi.GetStream = GetStream;
-    cudaDeviceApi.SyncStreamFromTo = SyncStreamFromTo;
-    cudaDeviceApi.AllocWorkspace = AllocWorkspace;
-    cudaDeviceApi.FreeWorkspace = FreeWorkspace;
-    cudaDeviceApi.Release = Release;
+    cudaDeviceApi.SetDevice = TVM_RT_WASM_CUDA_SetDevice;
+    cudaDeviceApi.AllocDataSpace = TVM_RT_WASM_CUDA_AllocDataSpace;
+    cudaDeviceApi.AllocDataSpaceScope = TVM_RT_WASM_CUDA_AllocDataSpaceScope;
+    cudaDeviceApi.FreeDataSpace = TVM_RT_WASM_CUDA_FreeDataSpace;
+    cudaDeviceApi.CopyDataFromTo = TVM_RT_WASM_CUDA_CopyDataFromTo;
+    cudaDeviceApi.CreateStream = TVM_RT_WASM_CUDA_CreateStream;
+    cudaDeviceApi.FreeStream = TVM_RT_WASM_CUDA_FreeStream;
+    cudaDeviceApi.StreamSync = TVM_RT_WASM_CUDA_StreamSync;
+    cudaDeviceApi.SetStream = TVM_RT_WASM_CUDA_SetStream;
+    cudaDeviceApi.GetStream = TVM_RT_WASM_CUDA_GetStream;
+    cudaDeviceApi.SyncStreamFromTo = TVM_RT_WASM_CUDA_SyncStreamFromTo;
+    cudaDeviceApi.AllocWorkspace = TVM_RT_WASM_CUDA_AllocWorkspace;
+    cudaDeviceApi.FreeWorkspace = TVM_RT_WASM_CUDA_FreeWorkspace;
+    cudaDeviceApi.Release = TVM_RT_WASM_CUDA_Release;
 
     int num_device = 0;
     CUDA_DRIVER_CALL(cuDeviceGetCount(&num_device));
     cudaDeviceApi.num_device = num_device;
 
-    DLDevice cpu = {kDLCPU, 0};
-    DLDataType no_type = {0, 0, 0};
-    TVMDeviceAllocDataSpace(cpu, sizeof(CUstream) * num_device, 0, no_type, (void **)&cudaDeviceApi.contexts);
+    CUDA_DRIVER_CALL(cuDeviceGetDefaultMemPool(&cudaDeviceApi.mem_pool, 0));
+
+    cudaDeviceApi.contexts = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUstream) * num_device);
     for (int i = 0; i < num_device; ++i) {
         cuCtxCreate(cudaDeviceApi.contexts + i, 0, i);
     }

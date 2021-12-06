@@ -6,9 +6,7 @@
 
 #include <stdio.h>
 #include <tvm/runtime/c_runtime_api.h>
-#include <tvm/runtime/device/cpu_device_api.h>
 #include <tvm/runtime/device/cuda_device_api.h>
-#include <tvm/runtime/module/module.h>
 
 /*!
  * \brief the device api for every device type
@@ -27,11 +25,7 @@ int TVM_RT_WASM_DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api
     if (unlikely(g_device_api_instance[deviceType] == NULL)) { // need create
         switch (deviceType) {
         case kDLCPU:
-            status = TVM_RT_WASM_CPUDeviceAPICreate((CPUDeviceAPI **)&g_device_api_instance[deviceType]);
-            if (unlikely(status)) {
-                return status;
-            }
-            break;
+            SET_ERROR_RETURN(-1,"cpu device is not used in this project");
         case kDLCUDA:
         case kDLCUDAHost:
             status = TVM_RT_WASM_CUDADeviceAPICreate((CUDADeviceAPI **)&g_device_api_instance[deviceType]);
@@ -60,7 +54,7 @@ int TVM_RT_WASM_DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api
  * @return 0 if successful
  */
 void TVM_RT_WASM_DeviceReleaseAll() {
-    for (int i = DEVICE_TYPE_SIZE - 1; i >= 0; --i) { // cpu device need to be the last to free
+    for (int i = DEVICE_TYPE_SIZE - 1; i >= 0; --i) {
         if (g_device_api_instance[i]) {
             g_device_api_instance[i]->Release(g_device_api_instance[i]);
             g_device_api_instance[i] = NULL;

@@ -63,6 +63,8 @@ typedef struct GraphExecutorNode {
     uint32_t num_outputs;
     /*! \brief flatten_data in attr_for node */
     uint32_t flatten_data;
+    /*! \brief node_row_ptr (to quickly get data entry id) */
+    uint32_t row_ptr;
 
     /*! \brief the operator type for node */
     const char *op_type;
@@ -92,21 +94,17 @@ typedef struct GraphExecutorNodeOp {
     TVMFunctionHandle exec;
 } GraphExecutorNodeOp;
 
-/*! \brief the attributes of graph */
-typedef struct GraphAttr {
-    /*! \brief the number of dataEntry, for validate */
-    uint32_t num_entry;
-    /*! \brief storage id for every dataEntry */
-    uint32_t *storage_id;
-    /*! \brief device type for every dataEntry */
-    uint32_t *device_type;
-    /*! \brief shape for every dataEntry */
-    uint64_t **shape;
-    /*! \brief ndim for every shape */
-    uint32_t *ndim;
-    /*! \brief DLTensor type for every dataEntry */
-    DLDataType *data_type;
-} GraphAttr;
+/*! \brief the data entry */
+typedef struct DataEntry {
+    DLTensor dl_tensor;
+    uint32_t storage_id;
+} DataEntry;
+
+/*! \brief the data storage pool entry */
+typedef struct StorageEntry {
+    void *storage;
+    int is_linked_param;
+} StorageEntry;
 
 #define GRAPH_BASE_MEMBER                                                                                              \
     /*! \brief the number of nodes */                                                                                  \
@@ -115,12 +113,8 @@ typedef struct GraphAttr {
     uint32_t num_inputs_nodes;                                                                                         \
     /*! \brief the number of outputs node entry */                                                                     \
     uint32_t num_outputs;                                                                                              \
-    /*! \brief the number of node_row_ptr */                                                                           \
-    uint32_t num_node_row_ptr;                                                                                         \
     /*! \brief the number of data entry */                                                                             \
     uint32_t num_data_entry;                                                                                           \
-    /*! \brief the number of storage */                                                                                \
-    uint32_t num_storage;                                                                                              \
     /*! \brief the number of device */                                                                                 \
     uint32_t num_device;                                                                                               \
     /*! \brief Node array */                                                                                           \
@@ -131,24 +125,22 @@ typedef struct GraphAttr {
     uint32_t *inputs_nodes;                                                                                            \
     /*! \brief outputs node entry array */                                                                             \
     GraphExecutorNodeEntry *outputs_nodes;                                                                             \
-    /*! \brief node_row_ptr array (to quickly get data entry id) */                                                    \
-    uint32_t *node_row_ptr;                                                                                            \
     /*! \brief data_entry array */                                                                                     \
-    DLTensor *data_entry;                                                                                              \
+    DataEntry *data_entry;                                                                                             \
     /*! \brief storage array */                                                                                        \
-    void **storages;                                                                                                   \
+    StorageEntry *storages;                                                                                            \
     /*! \brief device array */                                                                                         \
     DLDevice *devices;                                                                                                 \
-    /*! \brief bool flag for storage */                                                                                \
-    uint8_t *storage_is_linked_param;                                                                                  \
     /*! \brief module handle */                                                                                        \
     TVMModuleHandle module_handle;                                                                                     \
     /*! \brief map outputs name to output indices */                                                                   \
     Trie *outputs_map;                                                                                                 \
     /*! \brief map inputs name to inputs indices */                                                                    \
     Trie *inputs_map;                                                                                                  \
-    /*! \brief graph attributes */                                                                                     \
-    GraphAttr graph_attr;
+    /*! \brief the node operator argument value storage pool */                                                        \
+    TVMValue *node_op_arg_value_storage;                                                                               \
+    /*! \brief the node operator argument type storage pool */                                                         \
+    int *node_op_arg_type_storage;
 
 typedef struct GraphExecutor {
     GRAPH_BASE_MEMBER
@@ -303,7 +295,7 @@ int TVM_RT_WASM_GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager
     } while (0)
 
 /*! \brief GetEntryId for GraphExecutorManager */
-#define DATA_ENTRY_ID(graph, nid, index) ((graph)->node_row_ptr[(nid)] + (index))
+#define DATA_ENTRY_ID(graph, nid, index) ((graph)->nodes[(nid)].row_ptr + (index))
 
 #ifdef __cplusplus
 } // extern "C"

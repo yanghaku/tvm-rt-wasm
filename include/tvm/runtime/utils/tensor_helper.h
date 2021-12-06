@@ -73,8 +73,8 @@ INLINE int TVM_RT_WASM_DLDataType_ParseFromString(const char *str, DLDataType *o
  * @param ndim the number of dim
  * @return result
  */
-INLINE uint64_t TVM_RT_WASM_DLTensor_GetDataSize(const uint64_t *shape, int ndim) {
-    uint64_t size = 1;
+INLINE int64_t TVM_RT_WASM_DLTensor_GetDataSize(const int64_t *shape, int ndim) {
+    int64_t size = 1;
     for (int i = 0; i < ndim; ++i) {
         size *= shape[i];
     }
