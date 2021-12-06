@@ -131,6 +131,8 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
     cudaDeviceApi.FreeWorkspace = TVM_RT_WASM_CUDA_FreeWorkspace;
     cudaDeviceApi.Release = TVM_RT_WASM_CUDA_Release;
 
+    CUDA_DRIVER_CALL(cuInit(0));
+
     int num_device = 0;
     CUDA_DRIVER_CALL(cuDeviceGetCount(&num_device));
     cudaDeviceApi.num_device = num_device;

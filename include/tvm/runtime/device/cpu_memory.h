@@ -17,7 +17,10 @@ extern "C" {
 #include <tvm/runtime/utils/common.h>
 
 extern char g_memory[];
-extern char *now;
+extern uintptr_t now;
+
+#define alignment_up(a, size) (((a) + (size)-1) & (~((size)-1)))
+#define ALIGNMENT_SIZE 8
 
 /*!
  * \brief malloc the heap memory
@@ -25,8 +28,8 @@ extern char *now;
  * @return the pointer
  */
 INLINE void *TVM_RT_WASM_HeapMemoryAlloc(size_t bytes) {
-    char *ans = now;
-    now += bytes;
+    void *ans = (void *)now;
+    now = alignment_up(now + bytes, ALIGNMENT_SIZE);
     return ans;
 }
 
@@ -42,8 +45,8 @@ INLINE void TVM_RT_WASM_HeapMemoryFree(void *ptr) {}
  * @return the pointer
  */
 INLINE void *TVM_RT_WASM_WorkplaceMemoryAlloc(size_t bytes) {
-    char *ans = now;
-    now += bytes;
+    void *ans = (void *)now;
+    now = alignment_up(now + bytes, ALIGNMENT_SIZE);
     return ans;
 }
 

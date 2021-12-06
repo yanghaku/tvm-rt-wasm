@@ -17,7 +17,6 @@
  * under the License.
  */
 
-#include <assert.h>
 #include <dlpack/dlpack.h>
 #include <float.h>
 #include <stdio.h>
@@ -42,10 +41,15 @@ extern const unsigned int graph_params_len;
     } while (0)
 
 extern void *__tvm_module_ctx;
+#if EXAMPLE_USE_CUDA
 extern void *__tvm_dev_mblob;
+#endif
+
 int main(int argc, char **argv) {
     fprintf(stderr, "module ctx = %p\n", &__tvm_module_ctx);
-//    fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
+#if EXAMPLE_USE_CUDA
+    fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
+#endif
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE_NAME__);
         return -1;
@@ -125,12 +129,12 @@ int main(int argc, char **argv) {
         }
     }
 
-//    for (int i = 0; i < OUTPUT_LEN; ++i) {
-//        int s = (int)(output_storage[i] * 10000.0);
-//        if (s != 0) {
-//            fprintf(stderr, "%d: %d\n", i, s);
-//        }
-//    }
+    //    for (int i = 0; i < OUTPUT_LEN; ++i) {
+    //        int s = (int)(output_storage[i] * 10000.0);
+    //        if (s != 0) {
+    //            fprintf(stderr, "%d: %d\n", i, s);
+    //        }
+    //    }
     RUN(graphManager->Release(&graphManager));
 
     gettimeofday(&t5, 0);

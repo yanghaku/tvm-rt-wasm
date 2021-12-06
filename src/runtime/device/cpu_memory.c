@@ -7,4 +7,4 @@
 #include <tvm/runtime/device/cpu_memory.h>
 
 char g_memory[20000000];
-char *now = g_memory;
+uintptr_t now = (uintptr_t)g_memory;

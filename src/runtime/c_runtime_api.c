@@ -409,11 +409,6 @@ int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *
 }
 
 static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor() {
-
-#if USE_CUDA // USE_CUDA = 1
-    CUDA_DRIVER_CALL(cuInit(0));
-#endif
-
     TVM_RT_WASM_TrieCreate(&global_functions);
     if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION,
                                         TVM_RT_WASM_SetDevice)) != TRIE_SUCCESS) {

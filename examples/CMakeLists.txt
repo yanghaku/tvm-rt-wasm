@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.19)
 set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
 
 # if use cuda
-set(EXAMPLE_USE_CUDA OFF)
+set(EXAMPLE_USE_CUDA ON)
 
 # tvm-rt-wasm installed path
 set(TVM_RT_WASM_ROOT D:/lib/tvm-rt-wasm/)

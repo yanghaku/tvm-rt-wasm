@@ -32,14 +32,14 @@ struct CUDAFunctionInfo {
      * \note for every wrapped function:
      *  num_func_args[func_id] + num_func_arg_map[func_id] + (use_dyn_mem==1) = num_args
      *
-     *  \sa cudaWrappedFunction in cuda_module.c
+     *  \sa TVM_RT_WASM_CUDAWrappedFunction in cuda_module.c
      */
     uint32_t num_func_arg_map;
     /*! \brief the number of functions */
 };
 
-static int cudaWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
-                               int *ret_type_codes, void *resource_handle) {
+static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
+                                           int *ret_type_codes, void *resource_handle) {
     int func_id = (int)*((uintptr_t *)resource_handle);
     size_t block_dim[] = {1, 1, 1};
     size_t grid_dim[] = {1, 1, 1};
@@ -93,7 +93,7 @@ static int cudaWrappedFunction(TVMValue *args, const int *type_codes, int num_ar
     return status;
 }
 
-static int CUDAModuleReleaseFunc(Module *self) {
+static int TVM_RT_WASM_CUDAModuleReleaseFunc(Module *self) {
     CUDAModule *c = (CUDAModule *)self;
 
     if (c->imports) {
@@ -120,10 +120,10 @@ static int CUDAModuleReleaseFunc(Module *self) {
     return 0;
 }
 
-static void CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num_func) {
+static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num_func) {
     *cudaModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAModule));
     memset(*cudaModule, 0, sizeof(CUDAModule));
-    (*cudaModule)->Release = CUDAModuleReleaseFunc;
+    (*cudaModule)->Release = TVM_RT_WASM_CUDAModuleReleaseFunc;
     TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
     (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);
     (*cudaModule)->num_functions = num_func;
@@ -157,7 +157,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         uint32_t func_map_size = (uint32_t) * (uint64_t *)blob;
         blob += sizeof(uint64_t); // func_map_size
         // allocate memory for this
-        CUDAModuleAllocate(cudaModule, func_map_size);
+        TVM_RT_WASM_CUDAModuleAllocate(cudaModule, func_map_size);
         char *names = blob; // for init functions from cu_module
         for (uint32_t fid = 0; fid < func_map_size; ++fid) {
             CUDAFunctionInfo *info = (*cudaModule)->functions + fid;
@@ -168,7 +168,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
             char byte = blob[name_size];
             blob[name_size] = 0; // the end of string must be '\0'
             // encode this function as TVMFunctionHandle and insert to map
-            TVMFunctionHandle handle = TVM_FUNCTION_HANDLE_ENCODE(cudaWrappedFunction, fid);
+            TVMFunctionHandle handle = TVM_FUNCTION_HANDLE_ENCODE(TVM_RT_WASM_CUDAWrappedFunction, fid);
             TVM_RT_WASM_TrieInsert((*cudaModule)->module_funcs_map, (const uint8_t *)blob, handle);
             blob += name_size; // name string
             *blob = byte;      // back this byte
@@ -179,7 +179,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
 
             uint32_t num_kernel_arg = (uint32_t) * (uint64_t *)blob;
             info->num_kernel_args = num_kernel_arg;
-            info->kernel_arg_storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * num_kernel_arg);
+            info->kernel_arg_storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * (num_kernel_arg + 1));
 
             blob += sizeof(uint64_t);                           // num_func_args
             blob += info->num_kernel_args * sizeof(DLDataType); // arg types
