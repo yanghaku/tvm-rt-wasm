@@ -16,9 +16,8 @@ int TVM_RT_WASM_JsonReader_NextObjectItem(JsonReader *reader, char *out_key, siz
     NextNonSpace(*reader, ch);
     if (likely(ch == '{' || ch == ',')) {
         PeekNextNonSpace(*reader, ch);
-        if (unlikely(ch == '}')) { // the end of object
-            NextChar(reader);      // read this '}'
-            return 0;
+        if (unlikely(ch == '}')) {           // the end of object
+            return NextChar(*reader) != '}'; // read this '}'
         }
         int status = TVM_RT_WASM_JsonReader_ReadString(reader, out_key, out_key_size); // read key
         if (likely(status > 0)) {                                                      // read key success
@@ -143,11 +142,11 @@ int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
     return 0;
 }
 
-void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char, void *, void *), void *source_handle) {
+void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char, void **, void *), void *source_handle) {
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {
         if (trie->son[i]) {
             if (trie->son[i]->data) {
-                visit(index2char[i], trie->son[i]->data, source_handle);
+                visit(index2char[i], &trie->son[i]->data, source_handle);
             }
             TVM_RT_WASM_TrieVisit(trie->son[i], visit, source_handle);
         }

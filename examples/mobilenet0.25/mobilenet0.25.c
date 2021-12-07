@@ -1,26 +1,28 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
+#ifdef _MSC_VER
+
+#include <Windows.h>
+
+#define SET_TIME(t0)                                                                                                   \
+    long long(t0);                                                                                                     \
+    GetSystemTimePreciseAsFileTime(&(t0));
+
+#define GET_DURING(t1, t0) (((double)((t1) - (t0))) / 10000.0)
+
+#else
+
+#include <sys/time.h>
+
+#define SET_TIME(t0)                                                                                                   \
+    struct timeval(t0);                                                                                                \
+    gettimeofday(&(t0), NULL);
+
+#define GET_DURING(t1, t0) ((double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.0)
+
+#endif
 
 #include <dlpack/dlpack.h>
 #include <float.h>
 #include <stdio.h>
-#include <sys/time.h>
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/graph_executor_manager.h>
 
@@ -64,12 +66,11 @@ int main(int argc, char **argv) {
     DLDataType float32 = {kDLFloat, 32, 1};
     DLTensor input, output;
 
-    struct timeval t0, t1, t2, t3, t4, t5;
     GraphExecutorManager *graphManager;
     TVMModuleHandle syslib = NULL;
     int status;
 
-    gettimeofday(&t0, 0); // init start
+    SET_TIME(t0) // init start
 
 #if EXAMPLE_USE_CUDA
     DLDevice cuda = {kDLCUDA, 0};
@@ -80,7 +81,7 @@ int main(int argc, char **argv) {
 
     RUN(graphManager->LoadParams(graphManager, (const char *)graph_params, graph_params_len));
 
-    gettimeofday(&t1, 0); // load graph end, set input start
+    SET_TIME(t1) // load graph end, set input start
 
     // load input from file
     FILE *fp = fopen(argv[1], "rb");
@@ -101,11 +102,11 @@ int main(int argc, char **argv) {
 
     RUN(graphManager->SetInputByName(graphManager, "data", &input));
 
-    gettimeofday(&t2, 0); // set input end, run graph start
+    SET_TIME(t2) // set input end, run graph start
 
     RUN(graphManager->Run(graphManager));
 
-    gettimeofday(&t3, 0); // run end, get output start
+    SET_TIME(t3) // run end, get output start
 
     output.data = output_storage;
     output.device = cpu;
@@ -118,7 +119,7 @@ int main(int argc, char **argv) {
 
     RUN(graphManager->GetOutput(graphManager, 0, &output));
 
-    gettimeofday(&t4, 0); // get output end, destroy start
+    SET_TIME(t4) // get output end, destroy start
 
     float max_iter = -FLT_MAX;
     int32_t max_index = -1;
@@ -137,16 +138,12 @@ int main(int argc, char **argv) {
     //    }
     RUN(graphManager->Release(&graphManager));
 
-    gettimeofday(&t5, 0);
+    SET_TIME(t5)
 
     printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
     printf("timing: %.2f ms (create), %.2f ms (set_input), %.2f ms (run), "
            "%.2f ms (get_output), %.2f ms (destroy)\n",
-           (double)(t1.tv_sec - t0.tv_sec) * 1000 + (double)(t1.tv_usec - t0.tv_usec) / 1000.f,
-           (double)(t2.tv_sec - t1.tv_sec) * 1000 + (double)(t2.tv_usec - t1.tv_usec) / 1000.f,
-           (double)(t3.tv_sec - t2.tv_sec) * 1000 + (double)(t3.tv_usec - t2.tv_usec) / 1000.f,
-           (double)(t4.tv_sec - t3.tv_sec) * 1000 + (double)(t4.tv_usec - t3.tv_usec) / 1000.f,
-           (double)(t5.tv_sec - t4.tv_sec) * 1000 + (double)(t5.tv_usec - t4.tv_usec) / 1000.f);
+           GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2), GET_DURING(t4, t3), GET_DURING(t5, t4));
 
     return 0;
 }

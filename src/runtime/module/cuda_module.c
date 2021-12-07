@@ -8,7 +8,7 @@
 #include <tvm/runtime/device/device_api.h>
 #include <tvm/runtime/module/cuda_module.h>
 
-static CUDAModule *g_module = NULL;
+#if USE_CUDA // USE_CUDA = 1
 
 struct CUDAFunctionInfo {
     /*! \brief the cuda functions in cuda module */
@@ -40,11 +40,12 @@ struct CUDAFunctionInfo {
 
 static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
                                            int *ret_type_codes, void *resource_handle) {
-    int func_id = (int)*((uintptr_t *)resource_handle);
+    PackedFunction *pf = (PackedFunction *)resource_handle;
+    int func_id = (int)pf->reserved;
     size_t block_dim[] = {1, 1, 1};
     size_t grid_dim[] = {1, 1, 1};
     size_t dyn_shared_mem_size = 0;
-    CUDAFunctionInfo *info = g_module->functions + func_id;
+    CUDAFunctionInfo *info = ((CUDAModule *)pf->module)->functions + func_id;
 
     uint32_t num_kernel_arg = info->num_kernel_args;
     if (info->use_dyn_mem) {
@@ -113,6 +114,7 @@ static int TVM_RT_WASM_CUDAModuleReleaseFunc(Module *self) {
         TVM_RT_WASM_HeapMemoryFree(c->functions[i].kernel_arg_storages);
     }
     TVM_RT_WASM_HeapMemoryFree(c->functions);
+    TVM_RT_WASM_HeapMemoryFree(c->packed_functions);
 
     CUDA_DRIVER_CALL(cuModuleUnload(c->cu_module));
     // free self
@@ -125,9 +127,17 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num
     memset(*cudaModule, 0, sizeof(CUDAModule));
     (*cudaModule)->Release = TVM_RT_WASM_CUDAModuleReleaseFunc;
     TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
+    (*cudaModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);
     (*cudaModule)->num_functions = num_func;
+    for (uint32_t fid = 0; fid < num_func; ++fid) {
+        (*cudaModule)->packed_functions[fid].module = (*cudaModule);
+        (*cudaModule)->packed_functions[fid].exec = TVM_RT_WASM_CUDAWrappedFunction;
+        (*cudaModule)->packed_functions[fid].reserved = fid;
+    }
 }
+
+#endif // USE_CUDA
 
 /*!
  * \brief create a cuda module instance from file or binary
@@ -165,13 +175,9 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
             uint32_t name_size = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t); // name_size
 
-            char byte = blob[name_size];
-            blob[name_size] = 0; // the end of string must be '\0'
-            // encode this function as TVMFunctionHandle and insert to map
-            TVMFunctionHandle handle = TVM_FUNCTION_HANDLE_ENCODE(TVM_RT_WASM_CUDAWrappedFunction, fid);
-            TVM_RT_WASM_TrieInsert((*cudaModule)->module_funcs_map, (const uint8_t *)blob, handle);
+            TVM_RT_WASM_TrieInsertWithLen((*cudaModule)->module_funcs_map, (const uint8_t *)blob, name_size,
+                                          (*cudaModule)->packed_functions + fid);
             blob += name_size; // name string
-            *blob = byte;      // back this byte
 
             // value: FunctionInfo{name, arg_types, launch_params_tags}
             name_size = (uint32_t) * (uint64_t *)blob;
@@ -219,8 +225,6 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         uint32_t source_len = (uint32_t) * (uint64_t *)blob;
         blob += sizeof(uint64_t); // source_len
 
-        char byte = blob[source_len]; // backup the byte
-        blob[source_len] = 0;         // the end of string must be '\0'
         // init cu_module
         DeviceAPI *cuda_dev_api;
         int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &cuda_dev_api);
@@ -230,21 +234,17 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         cuda_dev_api->SetDevice(0);
         CUDA_DRIVER_CALL(cuModuleLoadData(&(*cudaModule)->cu_module, blob));
         blob += source_len;
-        *blob = byte; // restore it
 
         // load cu_functions
         for (uint32_t fid = 0; fid < func_map_size; ++fid) {
             // key: name
             uint32_t name_size = (uint32_t) * (uint64_t *)names;
             names += sizeof(uint64_t); // name_size
-            byte = names[name_size];   // backup the last byte
-            names[name_size] = 0;      // the end of string must be '\0'
 
             CUDA_DRIVER_CALL(
                 cuModuleGetFunction(&(*cudaModule)->functions[fid].cu_function, (*cudaModule)->cu_module, names));
 
             names += name_size; // name string
-            *names = byte;      // restore this byte
 
             // functionInfo.name
             name_size = (uint32_t) * (uint64_t *)names;
@@ -260,7 +260,6 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
             }
         }
 
-        g_module = *cudaModule;
         return blob - resource;
     } else {
         SET_ERROR_RETURN(-1, "unknown resource type %d\n", resource_type);

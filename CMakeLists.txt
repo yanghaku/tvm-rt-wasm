@@ -3,26 +3,38 @@ cmake_minimum_required(VERSION 3.19)
 # the dependence prefix
 set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
 set(CUDAToolkit_ROOT D:/lib/cuda/)
+OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
+OPTION(USE_CUDA "USE CUDA" ON)
+
 
 # wasi-sdk
-set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
-project(tvm-rt-wasm)
+message("USE WASI-SDK = ${USE_WASI_SDK}")
+if (${USE_WASI_SDK})
+    message("WASI-SDK path=${WASI_SDK_PREFIX}")
+    set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
+endif ()
 
-add_compile_options(-fno-exceptions -O3 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility=hidden -fno-rtti -flto=full)
-SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -std=c11)
-
-OPTION(USE_CUDA "USE CUDA" ON)
-message("lib USE_CUDA=${USE_CUDA}")
+message("USE_CUDA = ${USE_CUDA}")
 if (${USE_CUDA})
+    message("CUDAToolkit path = ${CUDAToolkit_ROOT}")
     add_definitions(-DUSE_CUDA=1)
-    add_link_options(-Wl,--allow-undefined)
     include_directories(${CUDAToolkit_ROOT}/include)
+    if (${USE_WASI_SDK})
+        add_link_options(-Wl,--allow-undefined)
+    endif ()
 else ()
     add_definitions(-DUSE_CUDA=0)
 endif ()
 
+#-----------------------------------------------------------------------------------------------------------------------
+project(tvm-rt-wasm)
+
+add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args -Wno-error=format= -Wno-error=unused-function -fvisibility=hidden -flto=full)
+SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -std=c11)
+
 include_directories(include)
 include_directories(3rdparty/dlpack/include)
+add_definitions(-DTVM_EXPORTS)
 
 set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/runtime/*.c)

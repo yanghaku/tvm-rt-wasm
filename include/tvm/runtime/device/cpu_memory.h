@@ -20,7 +20,7 @@ extern char g_memory[];
 extern uintptr_t now;
 
 #define alignment_up(a, size) (((a) + (size)-1) & (~((size)-1)))
-#define ALIGNMENT_SIZE 8
+#define ALIGNMENT_SIZE 16
 
 /*!
  * \brief malloc the heap memory

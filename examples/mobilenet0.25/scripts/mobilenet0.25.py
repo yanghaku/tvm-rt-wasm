@@ -30,8 +30,8 @@ def data2c(in_file, out_file, var_name):
     with open(in_file, "rb") as in_f:
         x = bytes(in_f.read())
 
-    out_str = 'const unsigned int ' + len_name + '=' + str(len(x)) + ';\n'
-    out_str += 'const unsigned char ' + var_name + '[]={'
+    out_str = 'unsigned int ' + len_name + '=' + str(len(x)) + ';\n'
+    out_str += 'unsigned char ' + var_name + '[]={'
     for i in x:
         out_str += hex(i) + ","
     out_str += "};"
@@ -53,11 +53,14 @@ def build_module(opts):
         func.params, relay.nn.softmax(func.body), None, func.type_params, func.attrs
     )
 
-    host = "llvm -mtriple=wasm32-unknown-wasm --system-lib"
+    host = "llvm --system-lib"
+    if opts.runtime == 'wasm':
+        host += ' -mtriple=wasm32-unknown-wasm'
     if opts.target == "cpu":
         target = Target(host)
     else:
         target = Target("cuda -device=1050ti", host=host)
+    print("build lib target = '", target, "'; runtime = '", host, "'")
 
     with tvm.transform.PassContext(opt_level=3, config={"tir.disable_vectorize": True}):
         factory = relay.build(
@@ -107,6 +110,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--out-dir", default="./lib")
     parser.add_argument("--target", default="cpu", help="target device")
+    parser.add_argument("--runtime", default="wasm", help="native or wasm")
     opt = parser.parse_args()
 
     build_module(opt)

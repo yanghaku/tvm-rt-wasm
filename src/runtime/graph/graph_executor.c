@@ -129,7 +129,7 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     }
 
     TVM_RT_WASM_TrieCreate(&graph->inputs_map);
-    for (uint32_t i = 0; i < graph->num_inputs_nodes; ++i) {
+    for (uintptr_t i = 0; i < graph->num_inputs_nodes; ++i) {
         uint32_t nid = graph->inputs_nodes[i];
         status = TVM_RT_WASM_TrieInsert(graph->inputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
         if (status) {
@@ -138,7 +138,7 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     }
 
     TVM_RT_WASM_TrieCreate(&graph->outputs_map);
-    for (uint32_t i = 0; i < graph->num_outputs; ++i) {
+    for (uintptr_t i = 0; i < graph->num_outputs; ++i) {
         uint32_t nid = graph->outputs_nodes[i].node_id;
         status = TVM_RT_WASM_TrieInsert(graph->outputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
         if (status) {
@@ -175,7 +175,7 @@ int TVM_RT_WASM_GraphExecutorGetNumOfNodes(GraphExecutorManager *g) {
 int TVM_RT_WASM_GraphExecutorGetNodeName(GraphExecutorManager *g, uint32_t nid, const char **name) {
     CHECK_GraphExecutorManager(g);
     GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
-    if (unlikely(nid < 0 || nid > graph->num_nodes)) {
+    if (unlikely(nid > graph->num_nodes)) {
         SET_ERROR_RETURN(-1, "invalid argument: nid, expect it in range [0,%d), but given %d", graph->num_nodes, nid);
     }
     if (unlikely(name == NULL)) {
@@ -197,7 +197,7 @@ int TVM_RT_WASM_GraphExecutorGetInputIndex(GraphExecutorManager *g, const char *
     if (unlikely(name == NULL)) {
         SET_ERROR_RETURN(-1, "invalid argument: name, must not be NULL");
     }
-    int index = -1;
+    intptr_t index = -1;
     if (unlikely(TVM_RT_WASM_TrieQuery(graph->inputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
         SET_ERROR_RETURN(-1, "name(%s)is not FOUND in input nodes", name);
     }
@@ -216,7 +216,7 @@ int TVM_RT_WASM_GraphExecutorGetOutputIndex(GraphExecutorManager *g, const char 
     if (unlikely(name == NULL)) {
         SET_ERROR_RETURN(-1, "invalid argument: name, must not be NULL");
     }
-    int index = -1;
+    intptr_t index = -1;
     if (unlikely(TVM_RT_WASM_TrieQuery(graph->outputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
         SET_ERROR_RETURN(-1, "name(%s)is not FOUND in output nodes", name);
     }
@@ -351,14 +351,11 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
         uint32_t str_len = (uint32_t) * (uint64_t *)name;
         name += sizeof(uint64_t);
 
-        int index = -1;
-        char byte = name[str_len]; // the string should end with '\0'
-        name[str_len] = 0;
-        if (unlikely(TVM_RT_WASM_TrieQuery(graph->inputs_map, (const uint8_t *)name, (void **)&index) ==
+        intptr_t index = -1;
+        if (unlikely(TVM_RT_WASM_TrieQueryWithLen(graph->inputs_map, (const uint8_t *)name, str_len, (void **)&index) ==
                      TRIE_NOT_FOUND)) {
             SET_ERROR_RETURN(-1, "invalid param blob: param node name(%s) not found", name);
         }
-        name[str_len] = byte; // restore it
 
         uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
         if (unlikely(eid >= graph->num_data_entry)) {
@@ -389,12 +386,10 @@ int TVM_RT_WASM_GraphExecutorRun(GraphExecutorManager *g) {
     GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
-        TVMBackendPackedCFunc func = graph->nodeOps[i].exec;
-        if (func) { // call function handle
-            TVMBackendPackedCFunc exec = TVM_FUNCTION_HANDLE_DECODE_EXEC(func);
-            uintptr_t source = TVM_FUNCTION_HANDLE_DECODE_RESOURCE(func);
-            exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes, graph->nodeOps[i].num_args,
-                 &graph->nodeOps[i].return_value, &graph->nodeOps[i].return_type_code, &source);
+        PackedFunction *pf = graph->nodeOps[i].exec;
+        if (pf) { // call function handle
+            pf->exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes, graph->nodeOps[i].num_args,
+                     &graph->nodeOps[i].return_value, &graph->nodeOps[i].return_type_code, pf);
         }
     }
     return 0;
@@ -737,12 +732,12 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
 
             for (uint32_t i = 0; i < node->num_inputs; ++i) {
                 int eid = DATA_ENTRY_ID(graph, node->inputs[i].node_id, node->inputs[i].index);
-                nodeOp->arg_values[i].v_handle = &graph->data_entry[eid];
+                nodeOp->arg_values[i].v_handle = &graph->data_entry[eid].dl_tensor;
                 nodeOp->arg_type_codes[i] = kTVMDLTensorHandle;
             }
             for (uint32_t i = 0; i < node->num_outputs; ++i) {
                 int eid = DATA_ENTRY_ID(graph, nid, i);
-                nodeOp->arg_values[node->num_inputs + i].v_handle = &graph->data_entry[eid];
+                nodeOp->arg_values[node->num_inputs + i].v_handle = &graph->data_entry[eid].dl_tensor;
                 nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
             }
 

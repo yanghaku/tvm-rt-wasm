@@ -15,37 +15,18 @@ extern "C" {
 #include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/utils/trie.h>
 
-/*! \brief for TVMFunctionHandle encode and decoce */
-/**
- *  In WebAssembly, every function pointer will be stored in indirect call table.
- *  We assume that the indirect call table size will not larger than 3/4 of pointer size
- *
- *  in wasm32: TVMFunctionHandle = (void*) = 32bit,  32bit = resource(high 16bit) + TVMBackendPackedCFunc (low 16bit)
- *  in wasm64: TVMFunctionHandle = (void*) = 64bit,  64bit = resource(high 32bit) + TVMBackendPackedCFunc (low 32bit)
- *
- */
+typedef struct Module Module;
 
-#ifndef __SIZEOF_POINTER__
-#if UINTPTR_MAX == UUINT32_MAX
-#define __SIZEOF_POINTER__ 4
-#elif UINTPTR_MAX == UINT64_MAX
-#define __SIZEOF_POINTER__ 8
-#else
-#error "can not get the size of pointer"
-#endif
-#endif
-
-#define ENCODE_SHIFT_BITS ((__SIZEOF_POINTER__) << 2)
-#define ENCODE_AND_VALUES ((((uintptr_t)1) << (ENCODE_SHIFT_BITS)) - 1)
-#define TVM_FUNCTION_HANDLE_ENCODE(backend_func, resource)                                                             \
-    ((TVMFunctionHandle)(((uintptr_t)(backend_func)) | (((uintptr_t)(resource)) << ENCODE_SHIFT_BITS)))
-#define TVM_FUNCTION_HANDLE_DECODE_EXEC(func_handle)                                                                   \
-    ((TVMBackendPackedCFunc)(((uintptr_t)(func_handle)) & (ENCODE_AND_VALUES)))
-#define TVM_FUNCTION_HANDLE_DECODE_RESOURCE(func_handle) (((uintptr_t)(func_handle)) >> ENCODE_SHIFT_BITS)
+typedef struct PackedFunction {
+    /*! \brief this function in which module */
+    Module *module;
+    /*! \brief the function pointer to execute */
+    TVMBackendPackedCFunc exec;
+    /*! \brief other information, such as function index in module */
+    uint64_t reserved;
+} PackedFunction;
 
 /*!---------------------------------for the Definition of Module struct-----------------------------------------------*/
-
-typedef struct Module Module;
 
 /*! \brief the base interface in module */
 #define MODULE_BASE_INTERFACE                                                                                          \
@@ -63,10 +44,12 @@ typedef struct Module Module;
     uint32_t num_imports;                                                                                              \
     /*! \brief the depend modules array */                                                                             \
     Module **imports;                                                                                                  \
-    /*! \brief the cached map <string, TVMFunctionHandle>, for "GetFuncFromEnv", imports + global function */          \
+    /*! \brief the cached map <string, PackedFunction*>, for "GetFuncFromEnv", imports + global function */            \
     Trie *env_funcs_map;                                                                                               \
-    /*! \brief the module functions, map <string, TVMFunctionHandle> */                                                \
+    /*! \brief the module functions, map <string, PackedFunction*> */                                                  \
     Trie *module_funcs_map;                                                                                            \
+    /*! \brief the packed function storage */                                                                          \
+    PackedFunction *packed_functions;                                                                                  \
     /*! \brief the base interfaces */                                                                                  \
     MODULE_BASE_INTERFACE
 
@@ -88,9 +71,6 @@ struct Module {
 #define MODULE_FACTORY_RESOURCE_BINARY 0
 #define MODULE_FACTORY_RESOURCE_FILE 1
 int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type, Module **out);
-
-/*! \brief the symbols for system library */
-extern Trie *system_lib_symbol;
 
 #define MODULE_SYSTEM_LIB "SystemLibrary"
 

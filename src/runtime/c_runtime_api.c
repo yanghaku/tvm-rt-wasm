@@ -16,10 +16,7 @@
  * in this implement:
  *  TVMModuleHandle = Module*
  *
- *  TVMFunctionHandle = (void*)
- *  the void* will use 64bit or 32 bit
- *  In WebAssembly, every function pointer will be indirect call and it will be stored in indirect call table.
- *  We assume that the indirect call table size will not larger than half of point size.
+ *  TVMFunctionHandle = PackedFunction*
  *
  *  \sa module.h
  */
@@ -29,7 +26,7 @@
 /*! \brief the global buffer storage */
 char global_buf[GLOBAL_BUF_SIZE];
 
-/*! \brief the global function storage, <string,TVMFunctionHandle> */
+/*! \brief the global function storage, <string,PackedFunction*> */
 static Trie *global_functions = NULL;
 
 /**--------------------------------------public functions-------------------------------------------------------------*/
@@ -139,9 +136,8 @@ TVM_DLL int TVMFuncFree(TVMFunctionHandle func) { return 0; }
  */
 TVM_DLL int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_codes, int num_args, TVMValue *ret_val,
                         int *ret_type_code) {
-    TVMBackendPackedCFunc exec = TVM_FUNCTION_HANDLE_DECODE_EXEC(func);
-    uintptr_t source = TVM_FUNCTION_HANDLE_DECODE_RESOURCE(func);
-    return exec(arg_values, type_codes, num_args, ret_val, ret_type_code, &source);
+    PackedFunction *pf = (PackedFunction *)func;
+    return pf->exec(arg_values, type_codes, num_args, ret_val, ret_type_code, func);
 }
 
 /*!
@@ -409,9 +405,10 @@ int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *
 }
 
 static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor() {
+    static PackedFunction pf[1] = {{.exec = TVM_RT_WASM_SetDevice, .module = NULL, .reserved = 0}};
+
     TVM_RT_WASM_TrieCreate(&global_functions);
-    if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION,
-                                        TVM_RT_WASM_SetDevice)) != TRIE_SUCCESS) {
+    if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION, pf)) != 0) {
         fprintf(stderr, "register global function fail!\n");
         exit(-1);
     }
@@ -421,11 +418,6 @@ static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor()
     // release global functions
     if (global_functions) {
         TVM_RT_WASM_TrieRelease(global_functions);
-    }
-
-    // if sys_lib_symbols, release it
-    if (system_lib_symbol) {
-        TVM_RT_WASM_TrieRelease(system_lib_symbol);
     }
 
     // if sys_lib_modules, release it

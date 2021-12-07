@@ -77,12 +77,10 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
     CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_GLOBAL));
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
-        TVMBackendPackedCFunc func = graph->nodeOps[i].exec;
-        if (func) { // call function handle
-            TVMBackendPackedCFunc exec = TVM_FUNCTION_HANDLE_DECODE_EXEC(func);
-            uintptr_t source = TVM_FUNCTION_HANDLE_DECODE_RESOURCE(func);
-            exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes, graph->nodeOps[i].num_args,
-                 &graph->nodeOps[i].return_value, &graph->nodeOps[i].return_type_code, &source);
+        PackedFunction *pf = graph->nodeOps[i].exec;
+        if (pf) { // call function handle
+            pf->exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes, graph->nodeOps[i].num_args,
+                     &graph->nodeOps[i].return_value, &graph->nodeOps[i].return_type_code, pf);
         }
     }
 

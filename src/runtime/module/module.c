@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/device/cpu_memory.h>
 #include <tvm/runtime/module/cuda_module.h>
 
@@ -13,7 +14,29 @@
  * \brief the symbols for system library
  * \note this Trie will be managed by sys_lib_module instance after init
  */
-Trie *system_lib_symbol = NULL;
+static Trie *system_lib_symbol = NULL;
+static uint32_t num_sys_lib_symbol = 0;
+
+static __attribute__((destructor)) tvm_runtime_for_webassembly_destructor_for_sys_symbol() {
+    if (system_lib_symbol) {
+        TVM_RT_WASM_TrieRelease(system_lib_symbol);
+    }
+}
+
+/*!
+ * \brief Backend function to register system-wide library symbol.
+ *
+ * \param name The name of the symbol
+ * \param ptr The symbol address.
+ * \return 0 when no error is thrown, -1 when failure happens
+ */
+TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
+    if (unlikely(system_lib_symbol == NULL)) {
+        TVM_RT_WASM_TrieCreate(&system_lib_symbol);
+    }
+    ++num_sys_lib_symbol;
+    return TVM_RT_WASM_TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
+}
 
 /*! \brief the system library module is a single instance */
 static Module *sys_lib_module = NULL;
@@ -135,6 +158,16 @@ static int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_modul
     return 0;
 }
 
+static void visit_symbol_change_to_func(char c, void **data_ptr, void *source_handle) {
+    static int now_functions = 0;
+    PackedFunction *pf = (PackedFunction *)source_handle;
+    if (*data_ptr != NULL) {
+        pf[now_functions].exec = *data_ptr;
+        *data_ptr = pf + now_functions;
+        ++now_functions;
+    }
+}
+
 /*!
  * \brief create a system library module (this will be a single instance)
  * @param libraryModule the out handle
@@ -155,7 +188,6 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     (*libraryModule)->Release = TVM_RT_WASM_DefaultModuleReleaseFunc;
     (*libraryModule)->module_funcs_map = system_lib_symbol;
     TVM_RT_WASM_TrieCreate(&(*libraryModule)->env_funcs_map);
-    system_lib_symbol = NULL; // manage this Trie*
 
     // dev_blob
     const char *blob = NULL;
@@ -175,6 +207,12 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     if (likely(status == TRIE_SUCCESS)) {
         *module_context = *libraryModule;
     }
+
+    /** init packed function */
+    (*libraryModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_sys_lib_symbol);
+    memset((*libraryModule)->packed_functions, 0, sizeof(PackedFunction) * num_sys_lib_symbol);
+    TVM_RT_WASM_TrieVisit(system_lib_symbol, visit_symbol_change_to_func, (*libraryModule)->packed_functions);
+    system_lib_symbol = NULL; // manage this Trie*
 
     sys_lib_module = *libraryModule;
     return status;

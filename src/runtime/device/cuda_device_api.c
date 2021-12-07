@@ -131,7 +131,9 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
     cudaDeviceApi.FreeWorkspace = TVM_RT_WASM_CUDA_FreeWorkspace;
     cudaDeviceApi.Release = TVM_RT_WASM_CUDA_Release;
 
+    SET_TIME(t0)
     CUDA_DRIVER_CALL(cuInit(0));
+    SET_TIME(t1)
 
     int num_device = 0;
     CUDA_DRIVER_CALL(cuDeviceGetCount(&num_device));
@@ -139,12 +141,16 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
 
     CUDA_DRIVER_CALL(cuDeviceGetDefaultMemPool(&cudaDeviceApi.mem_pool, 0));
 
+    SET_TIME(t2)
     cudaDeviceApi.contexts = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUstream) * num_device);
     for (int i = 0; i < num_device; ++i) {
         cuCtxCreate(cudaDeviceApi.contexts + i, 0, i);
     }
+    SET_TIME(t3)
     cudaDeviceApi.stream = NULL;
 
+    DURING_PRINT(t1, t0, "cuInit time");
+    DURING_PRINT(t3, t2, "CUcontext create time");
     return 0;
 
 #else

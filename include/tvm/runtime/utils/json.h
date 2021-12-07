@@ -218,9 +218,8 @@ INLINE int TVM_RT_WASM_JsonReader_NextArrayItem(JsonReader *reader) {
     NextNonSpace(*reader, ch);
     if (likely(ch == '[' || ch == ',')) {
         PeekNextNonSpace(*reader, ch);
-        if (unlikely(ch == ']')) { // the end of array
-            NextChar(*reader);     // read this ']'
-            return 0;
+        if (unlikely(ch == ']')) {           // the end of array
+            return NextChar(*reader) != ']'; // read this ']'
         }
         return 1;
     } else if (ch == ']') {

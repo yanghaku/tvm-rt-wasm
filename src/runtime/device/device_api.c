@@ -25,7 +25,7 @@ int TVM_RT_WASM_DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api
     if (unlikely(g_device_api_instance[deviceType] == NULL)) { // need create
         switch (deviceType) {
         case kDLCPU:
-            SET_ERROR_RETURN(-1,"cpu device is not used in this project");
+            SET_ERROR_RETURN(-1, "cpu device is not used in this project");
         case kDLCUDA:
         case kDLCUDAHost:
             status = TVM_RT_WASM_CUDADeviceAPICreate((CUDADeviceAPI **)&g_device_api_instance[deviceType]);

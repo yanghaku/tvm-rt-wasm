@@ -14,11 +14,11 @@ extern "C" {
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <tvm/runtime/utils/common.h>
 
 #if USE_CUDA // USE_CUDA = 1
 
 #include <cuda.h>
-#include <tvm/runtime/utils/common.h>
 
 #define CUDA_DRIVER_CALL(x)                                                                                            \
     do {                                                                                                               \

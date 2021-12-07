@@ -4,11 +4,9 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <stdio.h>
 #include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/device/device_api.h>
 #include <tvm/runtime/module/module.h>
-#include <tvm/runtime/utils/common.h>
 
 /*!
  * \brief Backend function for modules to get function
@@ -29,20 +27,6 @@ TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMF
         }
     }
     return status;
-}
-
-/*!
- * \brief Backend function to register system-wide library symbol.
- *
- * \param name The name of the symbol
- * \param ptr The symbol address.
- * \return 0 when no error is thrown, -1 when failure happens
- */
-TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
-    if (unlikely(system_lib_symbol == NULL)) {
-        TVM_RT_WASM_TrieCreate(&system_lib_symbol);
-    }
-    return TVM_RT_WASM_TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
 }
 
 /*!

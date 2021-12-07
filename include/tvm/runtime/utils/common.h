@@ -12,11 +12,32 @@
 extern "C" {
 #endif
 
+#ifdef _MSC_VER
+
+#include <Windows.h>
+
+#define SET_TIME(t0)                                                                                                   \
+    long long(t0);                                                                                                     \
+    GetSystemTimePreciseAsFileTime(&(t0));
+
+#define GET_DURING(t1, t0) (((double)((t1) - (t0))) / 10000.0)
+
+#else
+
 #include <sys/time.h>
 
+#define SET_TIME(t0)                                                                                                   \
+    struct timeval(t0);                                                                                                \
+    gettimeofday(&(t0), NULL);
+
+#define GET_DURING(t1, t0) ((double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.0)
+
+#endif
+
 #define DURING_PRINT(t1, t0, msg)                                                                                      \
-    fprintf(stderr, "%s: %lf ms\n", msg,                                                                               \
-            (double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.f);
+    do {                                                                                                               \
+        fprintf(stderr, "%s: %lf ms\n", msg, GET_DURING(t1, t0));                                                      \
+    } while (0)
 
 #if defined(__GNUC__) || defined(__clang__)
 #define likely(x) __builtin_expect(!!(x), 1)
