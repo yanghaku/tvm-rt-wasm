@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.19)
 
 # the dependence prefix
-set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
-set(CUDAToolkit_ROOT D:/lib/cuda/)
+if(NOT DEFINED WASI_SDK_PREFIX)
+    set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
+endif()
+if(NOT DEFINED CUDAToolkit_ROOT)
+    set(CUDAToolkit_ROOT D:/lib/cuda/)
+endif()
 OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
 OPTION(USE_CUDA "USE CUDA" ON)
 
@@ -29,7 +33,7 @@ endif ()
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm)
 
-add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args -Wno-error=format= -Wno-error=unused-function -fvisibility=hidden -flto=full)
+add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args -Wno-error=format= -Wno-error=unused-function -fvisibility=hidden)
 SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -std=c11)
 
 include_directories(include)

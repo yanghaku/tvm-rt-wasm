@@ -7,7 +7,7 @@ requirements:
 1. cmake and ninja
 2. tvm python package (http://210.28.132.171/yangbo/tvm-src)
 3. wasi-sdk
-4. cuda toolkit
+4. cuda toolkit (cuda version >= 11.2)
 
 The wasi-sdk and cuda-toolkit path, you can modify in the CmakeLists.txt or use command line.
 
@@ -19,6 +19,12 @@ the option ```USE_CUDA``` is default ON, so you just use cmake to
 mkdir -p build
 cd build
 cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release [ -DWASI_SDK_PREFIX=/wasi-sdk/path -DCUDAToolkit_ROOT=/cuda/path ]
+```
+
+the example for full options is that:
+
+```shell
+cmake -DCMAKE_BUILD_TYPE=Release -G "Ninja" .. -DUSE_CUDA=ON -DEXAMPLE_USE_CUDA=ON -DUSE_WASI_SDK=OFF -DWASI_SDK_PREFIX=/opt/wasi-sdk -DCUDAToolkit_ROOT=/usr/local/cuda
 ```
 
 build the static library:

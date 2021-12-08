@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
 #endif
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE_NAME__);
+        fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE__);
         return -1;
     }
 

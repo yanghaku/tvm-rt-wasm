@@ -29,6 +29,9 @@ if (${USE_WASI_SDK})
     set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
     set(PY_RUNTIME wasm)
 else ()
+    link_directories(${CUDAToolkit_ROOT}/lib64)
+    link_directories(${CUDAToolkit_ROOT}/lib64/stubs)
+    link_libraries(cuda)
     set(PY_RUNTIME native)
 endif ()
 
@@ -37,14 +40,12 @@ message("examples USE_CUDA = ${EXAMPLE_USE_CUDA}")
 if (${EXAMPLE_USE_CUDA})
     message("examples CUDAToolkit path = ${CUDAToolkit_ROOT}")
     add_definitions(-DEXAMPLE_USE_CUDA=1)
-    if (NOT ${USE_WASI_SDK})
-        link_directories(${CUDAToolkit_ROOT}/lib64)
-        link_libraries(cuda)
-    else ()
+    if (${USE_WASI_SDK})
         add_link_options(-Wl,--allow-undefined)
     endif ()
     SET(PY_TARGET cuda)
-else ()
+else () 
+	link_libraries(m)
     SET(PY_TARGET cpu)
 endif ()
 
@@ -53,13 +54,13 @@ project(tvm-rt-wasm-examples)
 
 add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -flto=full)
 
-include_directories(${TVM_RT_WASM_ROOT}/include)
-link_directories(${TVM_RT_WASM_ROOT}/lib)
+#include_directories(${TVM_RT_WASM_ROOT}/include)
+#link_directories(${TVM_RT_WASM_ROOT}/lib)
 
 find_package(Python3 COMPONENTS Interpreter)
 
 # mobilenet0.25
-set(mobilenet0.25_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet0.25/)
+set(mobilenet0.25_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet0.25)
 set(mobilenet0.25.tvm_gen ${mobilenet0.25_lib_dir}/graph.json.c ${mobilenet0.25_lib_dir}/graph.params.c)
 set(mobilenet0.25.tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/scripts/mobilenet0.25.py)
 add_custom_command(
@@ -69,7 +70,6 @@ add_custom_command(
         COMMAND ${AR_EXEC} -r ${mobilenet0.25_lib_dir}/graph.lib ${mobilenet0.25_lib_dir}/*.o
         COMMAND ${AR_EXEC} -r ${mobilenet0.25_lib_dir}/libgraph.a ${mobilenet0.25_lib_dir}/*.o
         DEPENDS ${mobilenet0.25.tvm_script}
-        VERBATIM
 )
 add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25.tvm_gen})
 target_link_libraries(mobilenet0.25.wasm tvm-rt)

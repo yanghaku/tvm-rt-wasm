@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <tvm/runtime/utils/common.h>
 
