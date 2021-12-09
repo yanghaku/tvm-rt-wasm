@@ -36,7 +36,7 @@ extern "C" {
 
 #define DURING_PRINT(t1, t0, msg)                                                                                      \
     do {                                                                                                               \
-        fprintf(stderr, "%s: %lf ms\n", msg, GET_DURING(t1, t0));                                                      \
+        printf("%s: %lf ms\n", msg, GET_DURING(t1, t0));                                                               \
     } while (0)
 
 #if defined(__GNUC__) || defined(__clang__)

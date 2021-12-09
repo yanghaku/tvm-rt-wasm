@@ -50,7 +50,7 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
     memcpy(&header, *blob, sizeof(header));
     *blob += sizeof(header);
     if (unlikely(header != kTVMNDArrayMagic)) {
-        SET_ERROR_RETURN(-1, "Invalid DLTensor file Magic number: %llu\n", header);
+        SET_ERROR_RETURN(-1, "Invalid DLTensor file Magic number: %llX, expect %llX\n", header, kTVMNDArrayMagic);
     }
     *blob += sizeof(uint64_t); // reserved
     *blob += sizeof(DLDevice); // DLDevice

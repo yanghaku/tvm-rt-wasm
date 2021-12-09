@@ -31,6 +31,8 @@ if (${USE_WASI_SDK})
 else ()
     link_directories(${CUDAToolkit_ROOT}/lib64)
     link_directories(${CUDAToolkit_ROOT}/lib64/stubs)
+    link_directories(${CUDAToolkit_ROOT}/lib/)
+    link_directories(${CUDAToolkit_ROOT}/lib/x64)
     link_libraries(cuda)
     set(PY_RUNTIME native)
 endif ()
@@ -44,8 +46,10 @@ if (${EXAMPLE_USE_CUDA})
         add_link_options(-Wl,--allow-undefined)
     endif ()
     SET(PY_TARGET cuda)
-else () 
-	link_libraries(m)
+else ()
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        link_libraries(m)
+    endif ()
     SET(PY_TARGET cpu)
 endif ()
 
@@ -75,3 +79,20 @@ add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25.
 target_link_libraries(mobilenet0.25.wasm tvm-rt)
 target_link_directories(mobilenet0.25.wasm PRIVATE ${mobilenet0.25_lib_dir})
 target_link_libraries(mobilenet0.25.wasm graph)
+
+# resnet-50
+set(resnet-50_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50)
+set(resnet-50_tvm_gen ${resnet-50_lib_dir}/graph.json.c)
+set(resnet-50_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/resnet-50/scripts/resnet-50.py)
+add_custom_command(
+        OUTPUT ${resnet-50_tvm_gen}
+        COMMAND python ${resnet-50_tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${resnet-50_lib_dir}
+        COMMAND tar -xf ${resnet-50_lib_dir}/graph.tar -C ${resnet-50_lib_dir}
+        COMMAND ${AR_EXEC} -r ${resnet-50_lib_dir}/graph.lib ${resnet-50_lib_dir}/*.o
+        COMMAND ${AR_EXEC} -r ${resnet-50_lib_dir}/libgraph.a ${resnet-50_lib_dir}/*.o
+        DEPENDS ${resnet-50_tvm_script}
+)
+add_executable(resnet-50.wasm resnet-50/resnet-50.c ${resnet-50_tvm_gen})
+target_link_libraries(resnet-50.wasm tvm-rt)
+target_link_directories(resnet-50.wasm PRIVATE ${resnet-50_lib_dir})
+target_link_libraries(resnet-50.wasm graph)
