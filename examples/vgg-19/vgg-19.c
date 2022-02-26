@@ -27,11 +27,10 @@
 #include <tvm/runtime/graph_executor_manager.h>
 
 #define OUTPUT_LEN 1024
+#define GRAPH_PARAMS_SIZE 550 * 1024 * 1024
 
+static char resnet_graph_params[GRAPH_PARAMS_SIZE];
 extern const unsigned char graph_json[];
-// extern const unsigned int graph_json_len;
-extern const unsigned char graph_params[];
-extern const unsigned int graph_params_len;
 
 #define RUN(func)                                                                                                      \
     do {                                                                                                               \
@@ -48,13 +47,12 @@ extern void *__tvm_dev_mblob;
 #endif
 
 int main(int argc, char **argv) {
-    SET_TIME(start_time)
-    fprintf(stderr, "module ctx = %p\n", &__tvm_module_ctx);
+    fprintf(stderr, "vgg-19: module ctx = %p\n", &__tvm_module_ctx);
 #if EXAMPLE_USE_CUDA
     fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
 #endif
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE__);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <graph.params> <picture.bin>\n", __FILE__);
         return -1;
     }
 
@@ -82,14 +80,21 @@ int main(int argc, char **argv) {
 
     SET_TIME(t1)
 
-    RUN(graphManager->LoadParams(graphManager, (const char *)graph_params, graph_params_len));
+    FILE *p = fopen(argv[1], "rb");
+    if (p == NULL) {
+        fprintf(stderr, "cannot open %s\n", argv[1]);
+    }
+    size_t param_len = fread(resnet_graph_params, 1, GRAPH_PARAMS_SIZE, p);
+    fprintf(stderr, "cap = %ld read = %zu\n", GRAPH_PARAMS_SIZE, param_len);
+    RUN(graphManager->LoadParams(graphManager, resnet_graph_params, param_len));
+    fclose(p);
 
-    SET_TIME(t2) // set input start
+    SET_TIME(t2) // load graph end, set input start
 
     // load input from file
-    FILE *fp = fopen(argv[1], "rb");
+    FILE *fp = fopen(argv[2], "rb");
     if (fp == NULL) {
-        fprintf(stderr, "cannot open file %s\n", argv[1]);
+        fprintf(stderr, "cannot open file %s\n", argv[2]);
         return -1;
     }
     fread(input_storage, 3 * 224 * 224, 4, fp);
@@ -149,6 +154,5 @@ int main(int argc, char **argv) {
            GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2), GET_DURING(t4, t3), GET_DURING(t5, t4),
            GET_DURING(t6, t5));
 
-    printf("total time: %lf ms\n", GET_DURING(t6, start_time));
     return 0;
 }

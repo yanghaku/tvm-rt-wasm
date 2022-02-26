@@ -1,22 +1,10 @@
 import argparse
 import os
 import sys
-import numpy as np
 import tvm
-import onnx
 from tvm import relay, runtime
-from tvm.contrib import download
-from tvm.contrib.download import download_testdata
 from tvm.target import Target
-from PIL import Image
-
-model_url = "".join(
-    [
-        "https://github.com/onnx/models/raw/",
-        "master/vision/classification/resnet/model/",
-        "resnet50-v2-7.onnx",
-    ]
-)
+from tvm.relay import testing
 
 
 # the function for change binary data to c source code
@@ -35,27 +23,11 @@ def data2c(in_file, out_file, var_name):
         f.write(out_str)
 
 
-def transform_image(img):
-    img = np.array(img) - np.array([123.0, 117.0, 104.0])
-    img /= np.array([58.395, 57.12, 57.375])
-    img = img.transpose((2, 0, 1))
-    img = img[np.newaxis, :]
-    return img
-
-
 def build_module(opts):
-    model_path = download_testdata(model_url, "resnet50-v2-7.onnx", module="onnx")
-    onnx_model = onnx.load(model_path)
-
-    image_url = "https://homes.cs.washington.edu/~moreau/media/vta/cat.jpg"
-    image_fn = os.path.join(opts.out_dir, "cat.png")
-    download.download(image_url, image_fn)
-    image = Image.open(image_fn).resize((224, 224))
-    img_data = transform_image(image).astype("float32")
-
-    input_name = "data"
-    shape_dict = {input_name: img_data.shape}
-    mod, params = relay.frontend.from_onnx(onnx_model, shape_dict)
+    batch_size = 1
+    mod, params = testing.vgg.get_workload(
+        num_layers=19, batch_size=batch_size, dtype="float32"
+    )
 
     host = "llvm --system-lib"
     if opts.runtime == 'wasm':

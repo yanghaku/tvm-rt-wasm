@@ -741,6 +741,10 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(GraphExecutor *graph) {
                 nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
             }
 
+            if (strcmp(node->func_name, "__nop") == 0) {
+                nodeOp->exec = NULL;
+                continue;
+            }
             int status = TVMModGetFunction(graph->module_handle, node->func_name, 1, &nodeOp->exec);
             if (unlikely(status)) {
                 SET_ERROR_RETURN(-1, "cannot find func from module, name = %s", node->func_name);

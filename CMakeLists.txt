@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.19)
 
 # the dependence prefix
 if(NOT DEFINED WASI_SDK_PREFIX)
-    set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
+    set(WASI_SDK_PREFIX /opt/wasi-sdk)
 endif()
 if(NOT DEFINED CUDAToolkit_ROOT)
-    set(CUDAToolkit_ROOT D:/lib/cuda/)
+    set(CUDAToolkit_ROOT /usr/local/cuda-11.5)
 endif()
 OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
 OPTION(USE_CUDA "USE CUDA" ON)

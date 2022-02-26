@@ -81,6 +81,9 @@ int main(int argc, char **argv) {
     SET_TIME(t1)
 
     FILE *p = fopen(argv[1], "rb");
+    if (p == NULL) {
+        fprintf(stderr, "cannot open %s\n", argv[1]);
+    }
     size_t param_len = fread(resnet_graph_params, 1, GRAPH_PARAMS_SIZE, p);
     fprintf(stderr, "cap = %ld read = %zu\n", GRAPH_PARAMS_SIZE, param_len);
     RUN(graphManager->LoadParams(graphManager, resnet_graph_params, param_len));
@@ -146,8 +149,8 @@ int main(int argc, char **argv) {
     SET_TIME(t6)
 
     printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
-    printf("create time: %lf ms\nload_params time: %lf ms\nrun time: %lf ms\nget_output time: %lf ms\ndestroy time: "
-           "%lf ms\n",
+    printf("create time: %lf ms\nload_params time: %lf ms\nset_input time: %lf\nrun time: %lf ms\nget_output time: %lf "
+           "ms\ndestroy time: %lf ms\n",
            GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2), GET_DURING(t4, t3), GET_DURING(t5, t4),
            GET_DURING(t6, t5));
 

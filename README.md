@@ -6,7 +6,7 @@ requirements:
 
 1. cmake and ninja
 2. tvm python package (http://210.28.132.171/yangbo/tvm-src)
-3. wasi-sdk
+3. wasi-sdk-14.0 (llvm-13.0.0)
 4. cuda toolkit (cuda version >= 11.2)
 
 The wasi-sdk and cuda-toolkit path, you can modify in the CmakeLists.txt or use command line.

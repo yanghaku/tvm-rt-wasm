@@ -116,8 +116,12 @@ int TVM_RT_WASM_CUDAGraphExecutorRelease(GraphExecutorManager **g) {
 
     CUDAGraphExecutor *graph = (CUDAGraphExecutor *)((*g)->graphHandle);
     // release cuda special element
-    CUDA_DRIVER_CALL(cuGraphExecDestroy(graph->cu_graph_exec));
-    CUDA_DRIVER_CALL(cuStreamDestroy(graph->cu_stream));
+    if (graph->cu_graph_exec) {
+        CUDA_DRIVER_CALL(cuGraphExecDestroy(graph->cu_graph_exec));
+    }
+    if (graph->cu_stream) {
+        CUDA_DRIVER_CALL(cuStreamDestroy(graph->cu_stream));
+    }
 
     return TVM_RT_WASM_GraphExecutorRelease(g);
 }

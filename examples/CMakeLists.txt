@@ -4,12 +4,12 @@ cmake_minimum_required(VERSION 3.19)
 
 # wasi-sdk
 if (NOT DEFINED WASI_SDK_PREFIX)
-    set(WASI_SDK_PREFIX D:/lib/wasi-sdk)
+    set(WASI_SDK_PREFIX /opt/wasi-sdk)
 endif ()
 
 # cuda home
 if (NOT DEFINED CUDAToolkit_ROOT)
-    set(CUDAToolkit_ROOT D:/lib/cuda/)
+    set(CUDAToolkit_ROOT /usr/local/cuda-11.5)
 endif ()
 
 # tvm-rt-wasm installed path
@@ -96,3 +96,20 @@ add_executable(resnet-50.wasm resnet-50/resnet-50.c ${resnet-50_tvm_gen})
 target_link_libraries(resnet-50.wasm tvm-rt)
 target_link_directories(resnet-50.wasm PRIVATE ${resnet-50_lib_dir})
 target_link_libraries(resnet-50.wasm graph)
+
+# vgg-19
+set(vgg-19_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-19)
+set(vgg-19_tvm_gen ${vgg-19_lib_dir}/graph.json.c)
+set(vgg-19_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/vgg-19/scripts/vgg-19.py)
+add_custom_command(
+        OUTPUT ${vgg-19_tvm_gen}
+        COMMAND python ${vgg-19_tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${vgg-19_lib_dir}
+        COMMAND tar -xf ${vgg-19_lib_dir}/graph.tar -C ${vgg-19_lib_dir}
+        COMMAND ${AR_EXEC} -r ${vgg-19_lib_dir}/graph.lib ${vgg-19_lib_dir}/*.o
+        COMMAND ${AR_EXEC} -r ${vgg-19_lib_dir}/libgraph.a ${vgg-19_lib_dir}/*.o
+        DEPENDS ${vgg-19_tvm_script}
+)
+add_executable(vgg-19.wasm vgg-19/vgg-19.c ${vgg-19_tvm_gen})
+target_link_libraries(vgg-19.wasm tvm-rt)
+target_link_directories(vgg-19.wasm PRIVATE ${vgg-19_lib_dir})
+target_link_libraries(vgg-19.wasm graph)
