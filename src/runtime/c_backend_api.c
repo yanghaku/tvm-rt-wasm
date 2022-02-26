@@ -18,7 +18,7 @@
  * \param out The result function.
  * \return 0 when no error is thrown, -1 when failure happens
  */
-TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
+int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
     int status = TVM_RT_WASM_TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
     if (unlikely(status == TRIE_NOT_FOUND)) {
         status = TVMFuncGetGlobal(func_name, out);
@@ -43,8 +43,8 @@ TVM_DLL int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMF
  * certain backends such as OpenGL.
  * \return nullptr when error is thrown, a valid ptr if success
  */
-TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, int dtype_code_hint,
-                                       int dtype_bits_hint) {
+void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, int dtype_code_hint,
+                               int dtype_bits_hint) {
     if (device_type == kDLCPU || device_type == kDLCUDAHost) {
         return TVM_RT_WASM_WorkplaceMemoryAlloc(nbytes);
     }
@@ -67,7 +67,7 @@ TVM_DLL void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t 
  *
  * \sa TVMBackendAllocWorkspace
  */
-TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
+int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
     if (device_type == kDLCPU || device_type == kDLCUDAHost) {
         TVM_RT_WASM_WorkplaceMemoryFree(ptr);
         return 0;
@@ -90,7 +90,7 @@ TVM_DLL int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
  *
  * \return 0 when no error is thrown, -1 when failure happens
  */
-TVM_DLL int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, int num_task) {
+int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, int num_task) {
     // Now WebAssembly does not support threads.
     static TVMParallelGroupEnv parallelGroupEnv = {.num_task = 1, .sync_handle = NULL};
     return flambda(0, &parallelGroupEnv, cdata);
@@ -102,4 +102,4 @@ TVM_DLL int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, in
  * \param penv The parallel environment backs the execution.
  * \return 0 when no error is thrown, -1 when failure happens
  */
-TVM_DLL int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) { return 0; }
+int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) { return 0; }
