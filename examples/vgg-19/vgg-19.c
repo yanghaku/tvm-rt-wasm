@@ -47,6 +47,8 @@ extern void *__tvm_dev_mblob;
 #endif
 
 int main(int argc, char **argv) {
+    SET_TIME(start_time)
+
     fprintf(stderr, "vgg-19: module ctx = %p\n", &__tvm_module_ctx);
 #if EXAMPLE_USE_CUDA
     fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
@@ -154,5 +156,6 @@ int main(int argc, char **argv) {
            GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2), GET_DURING(t4, t3), GET_DURING(t5, t4),
            GET_DURING(t6, t5));
 
+    printf("total time: %lf ms\n", GET_DURING(t6, start_time));
     return 0;
 }
