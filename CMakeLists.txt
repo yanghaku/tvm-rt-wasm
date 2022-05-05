@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.19)
 
 # the dependence prefix
-if(NOT DEFINED WASI_SDK_PREFIX)
+if (NOT DEFINED WASI_SDK_PREFIX)
     set(WASI_SDK_PREFIX /opt/wasi-sdk)
-endif()
-if(NOT DEFINED CUDAToolkit_ROOT)
-    set(CUDAToolkit_ROOT /usr/local/cuda-11.5)
-endif()
+endif ()
+if (NOT DEFINED CUDAToolkit_ROOT)
+    set(CUDAToolkit_ROOT /usr/local/cuda)
+endif ()
 OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
 OPTION(USE_CUDA "USE CUDA" ON)
 
@@ -33,12 +33,16 @@ endif ()
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm)
 
-add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args -Wno-error=format= -Wno-error=unused-function -fvisibility=hidden)
+add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args
+        -Wno-error=unused-function -fvisibility=hidden -Wl,--strip-all)
 SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -std=c11)
 
 include_directories(include)
 include_directories(3rdparty/dlpack/include)
 add_definitions(-DTVM_EXPORTS)
+
+# now many devices such as jetson nano cannot support cuda11.4+
+add_definitions(-DCUDA_10_ONLY)
 
 set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/runtime/*.c)

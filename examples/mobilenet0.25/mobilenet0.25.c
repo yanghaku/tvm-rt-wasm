@@ -28,6 +28,11 @@
 
 #define OUTPUT_LEN 1024
 
+#define INPUT_SHAPE (1 * 3 * 224 * 224)
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
+
 extern const unsigned char graph_json[];
 // extern const unsigned int graph_json_len;
 extern const unsigned char graph_params[];
@@ -47,19 +52,15 @@ extern void *__tvm_module_ctx;
 extern void *__tvm_dev_mblob;
 #endif
 
-int main(int argc, char **argv) {
+int main() {
     SET_TIME(start_time)
     fprintf(stderr, "module ctx = %p\n", &__tvm_module_ctx);
 #if EXAMPLE_USE_CUDA
     fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
 #endif
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <picture.bin>\n", __FILE__);
-        return -1;
-    }
 
     // static array storage
-    static float input_storage[1 * 3 * 224 * 224];
+    static float input_storage[INPUT_SHAPE];
     static float output_storage[OUTPUT_LEN];
 
     // local variables
@@ -86,14 +87,12 @@ int main(int argc, char **argv) {
 
     SET_TIME(t2) // set input start
 
-    // load input from file
-    FILE *fp = fopen(argv[1], "rb");
-    if (fp == NULL) {
-        fprintf(stderr, "cannot open file %s\n", argv[1]);
+    // load input from stdin
+    size_t len = fread(input_storage, 4, INPUT_SHAPE, stdin);
+    if (len != INPUT_SHAPE) {
+        fprintf(stderr, INPUT_ERR_MSG);
         return -1;
     }
-    fread(input_storage, 3 * 224 * 224, 4, fp);
-    fclose(fp);
     input.data = input_storage;
     input.device = cpu;
     input.ndim = 4;

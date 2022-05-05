@@ -33,7 +33,6 @@ else ()
     link_directories(${CUDAToolkit_ROOT}/lib64/stubs)
     link_directories(${CUDAToolkit_ROOT}/lib/)
     link_directories(${CUDAToolkit_ROOT}/lib/x64)
-    link_libraries(cuda)
     set(PY_RUNTIME native)
 endif ()
 
@@ -44,19 +43,20 @@ if (${EXAMPLE_USE_CUDA})
     add_definitions(-DEXAMPLE_USE_CUDA=1)
     if (${USE_WASI_SDK})
         add_link_options(-Wl,--allow-undefined)
+    else ()
+        # build for native need link with cuda library
+        link_libraries(cuda)
     endif ()
     SET(PY_TARGET cuda)
 else ()
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        link_libraries(m)
-    endif ()
+    link_libraries(m)
     SET(PY_TARGET cpu)
 endif ()
 
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm-examples)
 
-add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -flto=full)
+add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -flto -Wl,--strip-all)
 
 #include_directories(${TVM_RT_WASM_ROOT}/include)
 #link_directories(${TVM_RT_WASM_ROOT}/lib)

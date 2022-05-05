@@ -59,7 +59,15 @@ def build_module(opts):
     if opts.target == "cpu":
         target = Target(host)
     else:
-        target = Target("cuda -device=1050ti", host=host)
+        # use environment variable to custom cuda device such as jetson-nano
+        # e.g. "nvidia/jetson-nano"
+        if 'device' in os.environ:
+            device = os.environ['device']
+            print("custom the cuda device:", device)
+        else:
+            device = 'cuda'
+            print("use default host cuda device")
+        target = Target(device, host=host)
     print("build lib target = '", target, "'; runtime = '", host, "'")
 
     with tvm.transform.PassContext(opt_level=3, config={"tir.disable_vectorize": True}):
@@ -89,7 +97,7 @@ def build_inputs(opts):
 
     # Download test image
     image_url = "https://homes.cs.washington.edu/~moreau/media/vta/cat.jpg"
-    image_fn = os.path.join(opts.out_dir, "cat.png")
+    image_fn = os.path.join(opts.out_dir, "cat.jpg")
     download.download(image_url, image_fn)
     image = Image.open(image_fn).resize((224, 224))
 

@@ -84,13 +84,23 @@ static void TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_
 
 static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
     void *res = NULL;
+
+#ifdef CUDA_10_ONLY
+    CUDA_DRIVER_CALL(cuMemAlloc((CUdeviceptr *)&res, nbytes));
+#else
     CUDA_DRIVER_CALL(
         cuMemAllocFromPoolAsync((CUdeviceptr *)&res, nbytes, cudaDeviceApi.mem_pool, cudaDeviceApi.stream));
+#endif // CUDA_10_ONLY
+
     return res;
 }
 
 static void TVM_RT_WASM_CUDA_FreeWorkspace(int dev_id, void *ptr) {
+#ifdef CUDA_10_ONLY
+    CUDA_DRIVER_CALL(cuMemFree((CUdeviceptr)ptr));
+#else
     CUDA_DRIVER_CALL(cuMemFreeAsync((CUdeviceptr)ptr, cudaDeviceApi.stream));
+#endif // CUDA_10_ONLY
 }
 
 static int TVM_RT_WASM_CUDA_Release(DeviceAPI *d) {
@@ -139,7 +149,9 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
     CUDA_DRIVER_CALL(cuDeviceGetCount(&num_device));
     cudaDeviceApi.num_device = num_device;
 
+#ifndef CUDA_10_ONLY
     CUDA_DRIVER_CALL(cuDeviceGetDefaultMemPool(&cudaDeviceApi.mem_pool, 0));
+#endif // CUDA_10_ONLY
 
     SET_TIME(t2)
     cudaDeviceApi.contexts = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUstream) * num_device);

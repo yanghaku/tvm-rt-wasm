@@ -29,6 +29,11 @@
 #define OUTPUT_LEN 1024
 #define GRAPH_PARAMS_SIZE 550 * 1024 * 1024
 
+#define INPUT_SHAPE (1 * 3 * 224 * 224)
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
+
 static char resnet_graph_params[GRAPH_PARAMS_SIZE];
 extern const unsigned char graph_json[];
 
@@ -53,8 +58,8 @@ int main(int argc, char **argv) {
 #if EXAMPLE_USE_CUDA
     fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
 #endif
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <graph.params> <picture.bin>\n", __FILE__);
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <graph.params>\n", __FILE__);
         return -1;
     }
 
@@ -85,22 +90,21 @@ int main(int argc, char **argv) {
     FILE *p = fopen(argv[1], "rb");
     if (p == NULL) {
         fprintf(stderr, "cannot open %s\n", argv[1]);
+        return -1;
     }
     size_t param_len = fread(resnet_graph_params, 1, GRAPH_PARAMS_SIZE, p);
-    fprintf(stderr, "cap = %ld read = %zu\n", GRAPH_PARAMS_SIZE, param_len);
-    RUN(graphManager->LoadParams(graphManager, resnet_graph_params, param_len));
     fclose(p);
+
+    RUN(graphManager->LoadParams(graphManager, resnet_graph_params, param_len));
 
     SET_TIME(t2) // load graph end, set input start
 
     // load input from file
-    FILE *fp = fopen(argv[2], "rb");
-    if (fp == NULL) {
-        fprintf(stderr, "cannot open file %s\n", argv[2]);
+    size_t len = fread(input_storage, 4, INPUT_SHAPE, stdin);
+    if (len != INPUT_SHAPE) {
+        fprintf(stderr, INPUT_ERR_MSG);
         return -1;
     }
-    fread(input_storage, 3 * 224 * 224, 4, fp);
-    fclose(fp);
     input.data = input_storage;
     input.device = cpu;
     input.ndim = 4;

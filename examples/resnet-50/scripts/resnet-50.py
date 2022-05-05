@@ -13,7 +13,7 @@ from PIL import Image
 model_url = "".join(
     [
         "https://github.com/onnx/models/raw/",
-        "master/vision/classification/resnet/model/",
+        "main/vision/classification/resnet/model/",
         "resnet50-v2-7.onnx",
     ]
 )
@@ -59,11 +59,19 @@ def build_module(opts):
 
     host = "llvm --system-lib"
     if opts.runtime == 'wasm':
-        host += ' -mtriple=wasm32-unknown-wasm -mattr=+simd128'
+        host += ' -mtriple=wasm32-unknown-wasm'  # -mattr=+simd128
     if opts.target == "cpu":
         target = Target(host)
     else:
-        target = Target("cuda -device=1050ti", host=host)
+        # use environment variable to custom cuda device such as jetson-nano
+        # e.g. "nvidia/jetson-nano"
+        if 'device' in os.environ:
+            device = os.environ['device']
+            print("custom the cuda device:", device)
+        else:
+            device = 'cuda'
+            print("use default host cuda device")
+        target = Target(device, host=host)
     print("build lib target = '", target, "'; runtime = '", host, "'")
 
     with tvm.transform.PassContext(opt_level=0):

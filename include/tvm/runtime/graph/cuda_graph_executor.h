@@ -22,10 +22,12 @@ typedef struct CUDAGraphExecutor {
 
 #if USE_CUDA // USE_CUDA = 1
 
+#ifndef CUDA_10_ONLY
     /*! \brief The CUDA stream on which to capture a CUDA graph. */
     CUstream cu_stream;
     /*! \brief The captured CUDA graph will be instantiated to this. */
     CUgraphExec cu_graph_exec;
+#endif // CUDA_10_ONLY
 
 #endif // USE_CUDA
 } CUDAGraphExecutor;

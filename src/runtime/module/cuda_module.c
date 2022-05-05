@@ -157,7 +157,8 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         // parse format
         uint32_t fmt_size = (uint32_t) * (uint64_t *)blob;
         blob += sizeof(uint64_t); // fmt_size
-        if (memcmp(blob, "ptx", fmt_size) != 0) {
+        if (!((fmt_size == 5 && memcmp(blob, "cubin", fmt_size) == 0) ||
+              (fmt_size == 3 && memcmp(blob, "ptx", fmt_size) == 0))) {
             blob[fmt_size] = 0;
             SET_ERROR_RETURN(-1, "unsupported binary format %s\n", blob);
         }

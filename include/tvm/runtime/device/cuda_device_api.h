@@ -26,7 +26,12 @@ typedef struct CUDADeviceAPI {
     CUcontext *contexts;
     /*! \brief the now work stream */
     CUstream stream;
+
+#ifndef CUDA_10_ONLY
+    /*! \brief the cuda memory pool for workplace **/
     CUmemoryPool mem_pool;
+#endif // CUDA_10_ONLY
+
 #endif // USE_CUDA
 
 } CUDADeviceAPI;

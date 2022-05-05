@@ -64,6 +64,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
     //    CHECK_GraphExecutorManager(g);
     CUDAGraphExecutor *graph = (CUDAGraphExecutor *)g->graphHandle;
 
+#ifndef CUDA_10_ONLY
     // init context and stream
     CUDA_DRIVER_CALL(cuStreamCreate(&graph->cu_stream, CU_STREAM_DEFAULT));
     DeviceAPI *deviceApi;
@@ -75,6 +76,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
 
     // begin capture
     CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_GLOBAL));
+#endif
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
         PackedFunction *pf = graph->nodeOps[i].exec;
@@ -84,6 +86,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
         }
     }
 
+#ifndef CUDA_10_ONLY
     // end capture
     CUgraph cu_graph;
     CUDA_DRIVER_CALL(cuStreamEndCapture(graph->cu_stream, &cu_graph));
@@ -98,6 +101,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
     // run cuda graph
     CUDA_DRIVER_CALL(cuGraphLaunch(graph->cu_graph_exec, graph->cu_stream));
     CUDA_DRIVER_CALL(cuStreamSynchronize(graph->cu_stream));
+#endif
 
     return 0;
 }
@@ -114,6 +118,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRelease(GraphExecutorManager **g) {
     }
     CHECK_GraphExecutorManager(*g);
 
+#ifndef CUDA_10_ONLY
     CUDAGraphExecutor *graph = (CUDAGraphExecutor *)((*g)->graphHandle);
     // release cuda special element
     if (graph->cu_graph_exec) {
@@ -122,6 +127,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRelease(GraphExecutorManager **g) {
     if (graph->cu_stream) {
         CUDA_DRIVER_CALL(cuStreamDestroy(graph->cu_stream));
     }
+#endif
 
     return TVM_RT_WASM_GraphExecutorRelease(g);
 }
@@ -147,8 +153,11 @@ int TVM_RT_WASM_CUDAGraphExecutorClone(GraphExecutorManager *g, GraphExecutorMan
 
     CUDAGraphExecutor *new_cu_graph = (CUDAGraphExecutor *)(*cloned)->graphHandle;
     memcpy(new_cu_graph, new_graph, sizeof(GraphExecutor));
+
+#ifndef CUDA_10_ONLY
     new_cu_graph->cu_stream = NULL;
     new_cu_graph->cu_graph_exec = NULL;
+#endif
 
     (*cloned)->Run = TVM_RT_WASM_CUDAGraphExecutorRun;
     (*cloned)->Release = TVM_RT_WASM_CUDAGraphExecutorRelease;
