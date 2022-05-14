@@ -12,6 +12,16 @@
 extern "C" {
 #endif
 
+#ifdef NDEBUG // RELEASE
+
+#define SET_TIME(t0)
+#define GET_DURING(t1, t0)
+#define DURING_PRINT(t1, t0, msg)                                                                                      \
+    do {                                                                                                               \
+    } while (0)
+
+#else
+
 #ifdef _MSC_VER
 
 #include <Windows.h>
@@ -39,6 +49,8 @@ extern "C" {
         fprintf(stderr, "%s: %lf ms\n", msg, GET_DURING(t1, t0));                                                      \
     } while (0)
 
+#endif // NDEBUG
+
 #if defined(__GNUC__) || defined(__clang__)
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
@@ -51,14 +63,16 @@ extern char global_buf[];
 
 #define GLOBAL_BUF_SIZE 1024
 
-#undef NDEBUG
 #ifdef NDEBUG // release
+
 #define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
     do {                                                                                                               \
         sprintf(global_buf, fmt, ##__VA_ARGS__);                                                                       \
         return (err);                                                                                                  \
     } while (0)
+
 #else
+
 #define DBG(fmt, ...)                                                                                                  \
     do {                                                                                                               \
         fprintf(stderr, "function[%s]-line[%d]: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);                         \
@@ -69,12 +83,8 @@ extern char global_buf[];
         sprintf(global_buf, "function[%s]-line[%d]: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);                     \
         return (err);                                                                                                  \
     } while (0)
-#endif
 
-#define SET_ERROR(fmt, ...)                                                                                            \
-    do {                                                                                                               \
-        sprintf(global_buf, fmt, ##__VA_ARGS__);                                                                       \
-    } while (0)
+#endif // NDEBUG
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
@@ -88,7 +98,7 @@ extern char global_buf[];
 
 #else // c89 c90
 #define INLINE static inline
-#endif
+#endif // __STDC_VERSION__
 
 #ifdef __cplusplus
 } // extern "C"

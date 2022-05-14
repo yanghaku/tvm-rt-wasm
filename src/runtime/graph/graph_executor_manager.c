@@ -49,7 +49,7 @@ TVM_DLL int GraphExecutorManagerFactory(GraphExecutorType type, const char *grap
     }
 
     SET_TIME(t2)
-    int status = 0;
+    int status;
     switch (type) {
     case graphExecutor:
         status = TVM_RT_WASM_GraphExecutorCreate(graph_json, module_handle, devices, num_dev, g);

@@ -385,11 +385,15 @@ int TVM_RT_WASM_GraphExecutorRun(GraphExecutorManager *g) {
     CHECK_GraphExecutorManager(g);
     GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
 
+    int status;
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
         PackedFunction *pf = graph->nodeOps[i].exec;
         if (pf) { // call function handle
-            pf->exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes, graph->nodeOps[i].num_args,
-                     &graph->nodeOps[i].return_value, &graph->nodeOps[i].return_type_code, pf);
+            if (unlikely(status = pf->exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
+                                           graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
+                                           &graph->nodeOps[i].return_type_code, pf))) {
+                return status;
+            }
         }
     }
     return 0;

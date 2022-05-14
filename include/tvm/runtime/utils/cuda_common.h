@@ -25,8 +25,18 @@ extern "C" {
         CUresult result = (x);                                                                                         \
         if (unlikely(result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED)) {                                  \
             const char *msg;                                                                                           \
-            cuGetErrorName(result, &msg);                                                                              \
-            fprintf(stderr, "CUDA Error in %s %d : %s\n", __FILE__, __LINE__, msg);                                    \
+            cuGetErrorString(result, &msg);                                                                            \
+            SET_ERROR_RETURN(-1, "CUDA Driver Call Error: %s", msg);                                                   \
+        }                                                                                                              \
+    } while (0)
+
+#define CUDA_DRIVER_CALL_NULL(x)                                                                                       \
+    do {                                                                                                               \
+        CUresult result = (x);                                                                                         \
+        if (unlikely(result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED)) {                                  \
+            const char *msg;                                                                                           \
+            cuGetErrorString(result, &msg);                                                                            \
+            SET_ERROR_RETURN(NULL, "CUDA Driver Call Error: %s", msg);                                                 \
         }                                                                                                              \
     } while (0)
 

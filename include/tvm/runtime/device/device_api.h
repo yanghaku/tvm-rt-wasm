@@ -23,8 +23,9 @@ typedef struct DeviceAPI DeviceAPI;
     /*!                                                                                                                \
      * \brief Set the environment device id to device                                                                  \
      * \param dev_id The device_id to perform operation.                                                               \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*SetDevice)(int dev_id);                                                                                     \
+    int (*SetDevice)(int dev_id);                                                                                      \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Allocate a data space on device.                                                                         \
@@ -32,7 +33,7 @@ typedef struct DeviceAPI DeviceAPI;
      * \param nbytes The number of bytes in memory.                                                                    \
      * \param alignment The alignment of the memory.                                                                   \
      * \param type_hint The type of elements.                                                                          \
-     * \return The allocated device pointer.                                                                           \
+     * \return The allocated device pointer.  return NULL if fail.                                                     \
      */                                                                                                                \
     void *(*AllocDataSpace)(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint);                        \
                                                                                                                        \
@@ -43,7 +44,7 @@ typedef struct DeviceAPI DeviceAPI;
      * \param shape The shape of allocated tensor.                                                                     \
      * \param dtype The type of elements.                                                                              \
      * \param mem_scope The memory scope of allocated tensor.                                                          \
-     * \return The allocated device pointer.                                                                           \
+     * \return The allocated device pointer.  return NULL if fail.                                                     \
      */                                                                                                                \
     void *(*AllocDataSpaceScope)(int dev_id, int ndim, const int64_t *shape, DLDataType dtype, const char *mem_scope); \
                                                                                                                        \
@@ -51,20 +52,23 @@ typedef struct DeviceAPI DeviceAPI;
      * \brief Free a data space on device.                                                                             \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param ptr The data space.                                                                                      \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*FreeDataSpace)(int dev_id, void *ptr);                                                                      \
+    int (*FreeDataSpace)(int dev_id, void *ptr);                                                                       \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief copy data from one place to another                                                                      \
      * \param from The source array.                                                                                   \
      * \param to The target array.                                                                                     \
      * \param stream Optional stream object.                                                                           \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*CopyDataFromTo)(DLTensor * from, DLTensor * to, TVMStreamHandle stream);                                    \
+    int (*CopyDataFromTo)(DLTensor * from, DLTensor * to, TVMStreamHandle stream);                                     \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Create a new stream of execution.                                                                        \
      * \param dev_id The device_id to perform operation.                                                               \
+     * \return the allocated stream handle, NULL if fail                                                               \
      */                                                                                                                \
     TVMStreamHandle (*CreateStream)(int dev_id);                                                                       \
                                                                                                                        \
@@ -72,25 +76,29 @@ typedef struct DeviceAPI DeviceAPI;
      * \brief Free a stream of execution                                                                               \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param stream The pointer to be freed.                                                                          \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*FreeStream)(int dev_id, TVMStreamHandle stream);                                                            \
+    int (*FreeStream)(int dev_id, TVMStreamHandle stream);                                                             \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Synchronize the stream                                                                                   \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param stream The stream to be sync.                                                                            \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*StreamSync)(int dev_id, TVMStreamHandle stream);                                                            \
+    int (*StreamSync)(int dev_id, TVMStreamHandle stream);                                                             \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Set the stream                                                                                           \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param stream The stream to be set.                                                                             \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*SetStream)(int dev_id, TVMStreamHandle stream);                                                             \
+    int (*SetStream)(int dev_id, TVMStreamHandle stream);                                                              \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Get the now work stream                                                                                  \
+     * \return the stream handle, NULL if fail                                                                         \
      */                                                                                                                \
     TVMStreamHandle (*GetStream)();                                                                                    \
                                                                                                                        \
@@ -99,14 +107,16 @@ typedef struct DeviceAPI DeviceAPI;
      * \param dev_id The device_id to perform operation.                                                               \
      * \param event_src The source stream to synchronize.                                                              \
      * \param event_dst The destination stream to synchronize.                                                         \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*SyncStreamFromTo)(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst);                        \
+    int (*SyncStreamFromTo)(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst);                         \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Allocate temporal workspace for backend execution.                                                       \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param nbytes The size to be allocated.                                                                         \
      * \param type_hint The type of elements.                                                                          \
+     * \return allocated handle, NULL if fail                                                                          \
      */                                                                                                                \
     void *(*AllocWorkspace)(int dev_id, size_t nbytes, DLDataType type_hint);                                          \
                                                                                                                        \
@@ -114,8 +124,9 @@ typedef struct DeviceAPI DeviceAPI;
      * \brief Free temporal workspace in backend execution.                                                            \
      * \param dev_id The device_id to perform operation.                                                               \
      * \param ptr The pointer to be freed.                                                                             \
+     * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    void (*FreeWorkspace)(int dev_id, void *ptr);                                                                      \
+    int (*FreeWorkspace)(int dev_id, void *ptr);                                                                       \
                                                                                                                        \
     /*!                                                                                                                \
      * \brief Free the device API instance                                                                             \

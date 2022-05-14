@@ -204,7 +204,6 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
                 if (name_size == 24 && memcmp(blob, "tir.use_dyn_shared_memory", name_size) == 0) {
                     if (unlikely(i + 1 != mp_size)) {
                         const char *msg = "cuda binary parse error: the tir.use_dyn_shared_memory must in last!\n";
-                        fprintf(stderr, "%s", msg);
                         SET_ERROR_RETURN(-1, "%s", msg);
                     }
                     --info->num_func_arg_map;

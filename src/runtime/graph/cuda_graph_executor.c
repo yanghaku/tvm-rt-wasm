@@ -80,9 +80,13 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
         PackedFunction *pf = graph->nodeOps[i].exec;
+        int res;
         if (pf) { // call function handle
-            pf->exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes, graph->nodeOps[i].num_args,
-                     &graph->nodeOps[i].return_value, &graph->nodeOps[i].return_type_code, pf);
+            if (unlikely(res = pf->exec(graph->nodeOps[i].arg_values, graph->nodeOps[i].arg_type_codes,
+                                        graph->nodeOps[i].num_args, &graph->nodeOps[i].return_value,
+                                        &graph->nodeOps[i].return_type_code, pf))) {
+                return res;
+            }
         }
     }
 

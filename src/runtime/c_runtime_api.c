@@ -213,7 +213,7 @@ int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out) {
         return status;
     }
     *out = deviceApi->CreateStream(device_id);
-    return status;
+    return *out == NULL; // if successful, *out is not null, return 0
 }
 
 /*!
@@ -232,8 +232,7 @@ int TVMStreamFree(int device_type, int device_id, TVMStreamHandle stream) {
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->FreeStream(device_id, stream);
-    return status;
+    return deviceApi->FreeStream(device_id, stream);
 }
 
 /*!
@@ -252,8 +251,7 @@ int TVMSetStream(int device_type, int device_id, TVMStreamHandle handle) {
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->SetStream(device_id, handle);
-    return status;
+    return deviceApi->SetStream(device_id, handle);
 }
 
 /*!
@@ -272,8 +270,7 @@ int TVMSynchronize(int device_type, int device_id, TVMStreamHandle stream) {
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->StreamSync(device_id, stream);
-    return status;
+    return deviceApi->StreamSync(device_id, stream);
 }
 
 /*!
@@ -293,8 +290,7 @@ int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle s
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->SyncStreamFromTo(device_id, src, dst);
-    return status;
+    return deviceApi->SyncStreamFromTo(device_id, src, dst);
 }
 
 /*!
@@ -317,7 +313,7 @@ int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDat
         return status;
     }
     *out_data = deviceApi->AllocDataSpace(dev.device_id, nbytes, alignment, type_hint);
-    return status;
+    return *out_data == NULL;
 }
 
 /*!
@@ -351,8 +347,7 @@ int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->FreeDataSpace(dev.device_id, ptr);
-    return status;
+    return deviceApi->FreeDataSpace(dev.device_id, ptr);
 }
 
 /*!
@@ -389,8 +384,7 @@ int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream
     if (unlikely(status)) {
         return status;
     }
-    deviceApi->CopyDataFromTo(from, to, stream);
-    return status;
+    return deviceApi->CopyDataFromTo(from, to, stream);
 }
 
 int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *_rt, void *_h) {
@@ -399,8 +393,7 @@ int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *
     }
     DeviceAPI *api;
     TVM_RT_WASM_DeviceAPIGet(args->v_device.device_type, &api);
-    api->SetDevice(args->v_device.device_id);
-    return 0;
+    return api->SetDevice(args->v_device.device_id);
 }
 
 static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor() {
