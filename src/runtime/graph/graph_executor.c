@@ -563,8 +563,10 @@ int TVM_RT_WASM_GraphExecutorClone(GraphExecutorManager *g, GraphExecutorManager
     for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
         uint32_t sid = new_g->data_entry[eid].storage_id;
         if (new_g->storages == NULL) {
-            TVMDeviceAllocDataSpace(new_g->data_entry[eid].dl_tensor.device, tmp_storage_size[sid], 0, no_type,
-                                    (void **)(new_g->storages + sid));
+            if (unlikely(TVMDeviceAllocDataSpace(new_g->data_entry[eid].dl_tensor.device, tmp_storage_size[sid], 0,
+                                                 no_type, (void **)(new_g->storages + sid)))) {
+                return -1;
+            }
             TVMDeviceCopyDataFromTo(&old_g->data_entry[eid].dl_tensor, &new_g->data_entry[eid].dl_tensor, NULL);
         } else {
             new_g->data_entry[eid].dl_tensor.data = new_g->storages[sid].storage;
@@ -691,7 +693,10 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(GraphExecutor *graph) {
     // alloc memory for storage
     for (uint32_t i = 0; i < num_storage; ++i) {
         if (graph->storages[i].is_linked_param == 0) {
-            TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type, &(graph->storages[i].storage));
+            if (unlikely(TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type,
+                                                 &(graph->storages[i].storage)))) {
+                return -1;
+            }
         }
     }
 

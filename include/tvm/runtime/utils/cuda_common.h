@@ -23,7 +23,7 @@ extern "C" {
 #define CUDA_DRIVER_CALL(x)                                                                                            \
     do {                                                                                                               \
         CUresult result = (x);                                                                                         \
-        if (unlikely(result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED)) {                                  \
+        if (unlikely(result != CUDA_SUCCESS)) {                                                                        \
             const char *msg;                                                                                           \
             cuGetErrorString(result, &msg);                                                                            \
             SET_ERROR_RETURN(-1, "CUDA Driver Call Error: %s", msg);                                                   \
@@ -33,7 +33,7 @@ extern "C" {
 #define CUDA_DRIVER_CALL_NULL(x)                                                                                       \
     do {                                                                                                               \
         CUresult result = (x);                                                                                         \
-        if (unlikely(result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED)) {                                  \
+        if (unlikely(result != CUDA_SUCCESS)) {                                                                        \
             const char *msg;                                                                                           \
             cuGetErrorString(result, &msg);                                                                            \
             SET_ERROR_RETURN(NULL, "CUDA Driver Call Error: %s", msg);                                                 \
