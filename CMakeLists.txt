@@ -9,7 +9,15 @@ if (NOT DEFINED CUDAToolkit_ROOT)
 endif ()
 OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
 OPTION(USE_CUDA "USE CUDA" ON)
+OPTION(ENABLE_SHARED "Share GPU memory in serverless platform" ON)
 
+message("ENABLE_SHARED = ${ENABLE_SHARED}")
+if (${ENABLE_SHARED})
+    set(${USE_WASI_SDK} ON)
+    set(${USE_CUDA} ON)
+    add_definitions(-DENABLE_SHARED=1)
+    include_directories(3rdparty/wasmer)
+endif ()
 
 # wasi-sdk
 message("USE WASI-SDK = ${USE_WASI_SDK}")
@@ -42,7 +50,11 @@ include_directories(3rdparty/dlpack/include)
 add_definitions(-DTVM_EXPORTS)
 
 # now many devices such as jetson nano cannot support cuda11.4+
-add_definitions(-DCUDA_10_ONLY)
+OPTION(CUDA_10_ONLY "ONLY USE CUDA 10.2.89 API" ON)
+if (${CUDA_10_ONLY})
+    message("use cuda version 10.2.89 API")
+    add_definitions(-DCUDA_10_ONLY)
+endif ()
 
 set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/runtime/*.c)

@@ -690,9 +690,39 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(GraphExecutor *graph) {
         }
     }
 
+#ifdef ENABLE_SHARED
+#include <tvm/runtime/utils/cuda_common.h>
+    // check the shared params storage
+    uint8_t *is_shared = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(uint8_t) * num_storage);
+    memset(is_shared, 0, sizeof(uint8_t) * num_storage);
+    for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
+        uint32_t eid = DATA_ENTRY_ID(graph, nid, 0);
+        uint32_t storage_id = graph->data_entry[eid].storage_id;
+        if (is_shared[storage_id] == 0 && graph->nodes[nid].name != NULL && graph->nodes[nid].num_inputs == 0 &&
+            graph->nodes[nid].name[0] == 'p' && isdigit(graph->nodes[nid].name[1])) {
+            is_shared[storage_id] = 1;
+        } else {
+            is_shared[storage_id] = -1;
+        }
+    }
+#endif // ENABLE_SHARED
+
     // alloc memory for storage
     for (uint32_t i = 0; i < num_storage; ++i) {
         if (graph->storages[i].is_linked_param == 0) {
+
+#ifdef ENABLE_SHARED
+            // todo: change it to safely
+            static int alloc_num = 0;
+            char buf[10];
+            alloc_num += 1;
+            sprintf(buf, "%d", alloc_num);
+            if (storage_device[i].device_type == kDLCUDA && is_shared[i] == 1) {
+                CUDA_DRIVER_CALL(cuMemAllocShared(&(graph->storages[i].storage), storage_size[i], buf));
+                continue;
+            }
+#endif // ENABLE_SHARED
+
             if (unlikely(TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type,
                                                  &(graph->storages[i].storage)))) {
                 return -1;
@@ -704,6 +734,10 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(GraphExecutor *graph) {
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
         graph->data_entry[i].dl_tensor.data = graph->storages[graph->data_entry[i].storage_id].storage;
     }
+
+#ifdef ENABLE_SHARED
+    TVM_RT_WASM_WorkplaceMemoryFree(is_shared);
+#endif // ENABLE_SHARED
 
     TVM_RT_WASM_WorkplaceMemoryFree(storage_device);
     TVM_RT_WASM_WorkplaceMemoryFree(storage_size);

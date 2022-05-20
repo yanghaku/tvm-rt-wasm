@@ -75,7 +75,7 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
     deviceApi->SetStream(graph->devices[0].device_id, graph->cu_stream);
 
     // begin capture
-    CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_GLOBAL));
+    CUDA_DRIVER_CALL(cuStreamBeginCapture(graph->cu_stream, CU_STREAM_CAPTURE_MODE_THREAD_LOCAL));
 #endif
 
     for (uint32_t i = 0; i < graph->num_nodes; ++i) {
@@ -105,6 +105,9 @@ int TVM_RT_WASM_CUDAGraphExecutorRun(GraphExecutorManager *g) {
     // run cuda graph
     CUDA_DRIVER_CALL(cuGraphLaunch(graph->cu_graph_exec, graph->cu_stream));
     CUDA_DRIVER_CALL(cuStreamSynchronize(graph->cu_stream));
+
+#else
+    CUDA_DRIVER_CALL(cuStreamSynchronize(NULL));
 #endif
 
     return 0;

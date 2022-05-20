@@ -65,16 +65,19 @@ static int TVM_RT_WASM_CUDA_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStre
 
 static TVMStreamHandle TVM_RT_WASM_CUDA_CreateStream(int dev_id) {
     CUstream out;
+    CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
     CUDA_DRIVER_CALL_NULL(cuStreamCreate(&out, CU_STREAM_DEFAULT));
     return out;
 }
 
 static int TVM_RT_WASM_CUDA_FreeStream(int dev_id, TVMStreamHandle stream) {
+    CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
     CUDA_DRIVER_CALL(cuStreamDestroy(stream));
     return 0;
 }
 
 static int TVM_RT_WASM_CUDA_StreamSync(int dev_id, TVMStreamHandle stream) {
+    CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
     CUDA_DRIVER_CALL(cuStreamSynchronize(stream));
     return 0;
 }
