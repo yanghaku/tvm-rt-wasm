@@ -117,7 +117,7 @@ static int TVM_RT_WASM_CUDA_Release(DeviceAPI *d) {
     if (d != (DeviceAPI *)&cudaDeviceApi)
         return -1;
     for (uint32_t i = 0; i < cudaDeviceApi.num_device; ++i) {
-        CUDA_DRIVER_CALL(cuCtxDestroy(cudaDeviceApi.contexts[i]));
+        cuCtxDestroy(cudaDeviceApi.contexts[i]);
     }
     TVM_RT_WASM_HeapMemoryFree(cudaDeviceApi.contexts);
     return 0;

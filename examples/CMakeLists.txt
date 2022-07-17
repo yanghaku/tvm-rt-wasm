@@ -113,3 +113,20 @@ add_executable(vgg-19.wasm vgg-19/vgg-19.c ${vgg-19_tvm_gen})
 target_link_libraries(vgg-19.wasm tvm-rt)
 target_link_directories(vgg-19.wasm PRIVATE ${vgg-19_lib_dir})
 target_link_libraries(vgg-19.wasm graph)
+
+# yolo_v2
+set(yolo_v2_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/yolo_v2)
+set(yolo_v2_tvm_gen ${yolo_v2_lib_dir}/graph.json.c)
+set(yolo_v2_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/yolo_v2/scripts/yolo_v2.py)
+add_custom_command(
+        OUTPUT ${yolo_v2_tvm_gen}
+        COMMAND python ${yolo_v2_tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${yolo_v2_lib_dir}
+        COMMAND tar -xf ${yolo_v2_lib_dir}/graph.tar -C ${yolo_v2_lib_dir}
+        COMMAND ${AR_EXEC} -r ${yolo_v2_lib_dir}/graph.lib ${yolo_v2_lib_dir}/*.o
+        COMMAND ${AR_EXEC} -r ${yolo_v2_lib_dir}/libgraph.a ${yolo_v2_lib_dir}/*.o
+        DEPENDS ${yolo_v2_tvm_script}
+)
+add_executable(yolo_v2.wasm yolo_v2/yolo_v2.c ${yolo_v2_tvm_gen})
+target_link_libraries(yolo_v2.wasm tvm-rt)
+target_link_directories(yolo_v2.wasm PRIVATE ${yolo_v2_lib_dir})
+target_link_libraries(yolo_v2.wasm graph)

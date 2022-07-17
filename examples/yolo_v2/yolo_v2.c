@@ -21,18 +21,25 @@
 #endif
 
 #include <dlpack/dlpack.h>
-#include <float.h>
 #include <stdio.h>
 #include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/graph_executor_manager.h>
 
-#define OUTPUT_LEN 1024
-#define GRAPH_PARAMS_SIZE 550 * 1024 * 1024
+#define OUTPUT_LEN_0 (1 * 425 * 13 * 13)
+#define OUTPUT_LEN_1 (10)
+#define OUTPUT_LEN_2 (7)
+#define GRAPH_PARAMS_SIZE 195 * 1024 * 1024
 
-#define INPUT_SHAPE (1 * 3 * 224 * 224)
+#define INPUT_SHAPE (3 * 416 * 416)
+
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
+
+static int64_t input_shape[4] = {1, 3, 416, 416};
+static int64_t out_shape_0[] = {1, 425, 13, 13};
+static int64_t out_shape_1[] = {10};
+static int64_t out_shape_2[] = {7};
 
 static char graph_params[GRAPH_PARAMS_SIZE];
 extern const unsigned char graph_json[];
@@ -54,7 +61,7 @@ extern void *__tvm_dev_mblob;
 int main(int argc, char **argv) {
     SET_TIME(start_time)
 
-    fprintf(stderr, "vgg-19: module ctx = %p\n", &__tvm_module_ctx);
+    fprintf(stderr, "yolo_v2: module ctx = %p\n", &__tvm_module_ctx);
 #if EXAMPLE_USE_CUDA
     fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
 #endif
@@ -65,12 +72,14 @@ int main(int argc, char **argv) {
 
     // static array storage
     static float input_storage[INPUT_SHAPE];
-    static float output_storage[OUTPUT_LEN];
+    static float output_storage_0[OUTPUT_LEN_0];
+    static float output_storage_1[OUTPUT_LEN_1];
+    static int32_t output_storage_2[OUTPUT_LEN_2];
 
     // local variables
     DLDevice cpu = {kDLCPU, 0};
     DLDataType float32 = {kDLFloat, 32, 1};
-    DLTensor input, output;
+    DLTensor input, output[3];
 
     GraphExecutorManager *graphManager;
     TVMModuleHandle syslib = NULL;
@@ -86,7 +95,6 @@ int main(int argc, char **argv) {
 #endif
 
     SET_TIME(t1)
-
     FILE *p = fopen(argv[1], "rb");
     if (p == NULL) {
         fprintf(stderr, "cannot open %s\n", argv[1]);
@@ -109,8 +117,7 @@ int main(int argc, char **argv) {
     input.device = cpu;
     input.ndim = 4;
     input.dtype = float32;
-    int64_t shape[4] = {1, 3, 224, 224};
-    input.shape = shape;
+    input.shape = input_shape;
     input.strides = NULL;
     input.byte_offset = 0;
 
@@ -122,44 +129,50 @@ int main(int argc, char **argv) {
 
     SET_TIME(t4) // run end, get output start
 
-    output.data = output_storage;
-    output.device = cpu;
-    output.ndim = 2;
-    output.dtype = float32;
-    int64_t out_shape[2] = {1, 1000};
-    output.shape = out_shape;
-    output.strides = NULL;
-    output.byte_offset = 0;
+    for (int i = 0; i < 3; ++i) {
+        output[i].device = cpu;
+        output[i].dtype = float32;
+        output[i].strides = NULL;
+        output[i].byte_offset = 0;
+    }
 
-    RUN(graphManager->GetOutput(graphManager, 0, &output));
+    output[0].data = output_storage_0;
+    output[0].ndim = 4;
+    output[0].shape = out_shape_0;
+
+    output[1].data = output_storage_1;
+    output[1].ndim = 1;
+    output[1].shape = out_shape_1;
+
+    output[2].data = output_storage_2;
+    output[2].ndim = 1;
+    output[2].shape = out_shape_2;
+
+    for (int i = 0; i < 3; ++i) {
+        RUN(graphManager->GetOutput(graphManager, i, &output[i]));
+    }
 
     SET_TIME(t5) // get output end, destroy start
 
-    float max_iter = -FLT_MAX;
-    int32_t max_index = -1;
-    for (int i = 0; i < OUTPUT_LEN; ++i) {
-        if (output_storage[i] > max_iter) {
-            max_iter = output_storage[i];
-            max_index = i;
-        }
-    }
-
-    //    for (int i = 0; i < OUTPUT_LEN; ++i) {
-    //        int s = (int)(output_storage[i] * 10000.0);
-    //        if (s != 0) {
-    //            fprintf(stderr, "%d: %d\n", i, s);
-    //        }
-    //    }
     RUN(graphManager->Release(&graphManager));
 
     SET_TIME(t6)
 
-    printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
     printf("create time: %lf ms\nload_params time: %lf ms\nset_input time: %lf\nrun time: %lf ms\nget_output time: %lf "
            "ms\ndestroy time: %lf ms\n",
            GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2), GET_DURING(t4, t3), GET_DURING(t5, t4),
            GET_DURING(t6, t5));
 
     printf("total time: %lf ms\n", GET_DURING(t6, start_time));
+
+    printf("output_1 = ");
+    for (int i = 0; i < OUTPUT_LEN_1; ++i) {
+        printf("%.10f, ", output_storage_1[i]);
+    }
+    printf("\noutput_2 = ");
+    for (int i = 0; i < OUTPUT_LEN_2; ++i) {
+        printf("%d, ", output_storage_2[i]);
+    }
+    printf("\n");
     return 0;
 }

@@ -17,9 +17,9 @@
 
 import argparse
 import os
-from tvm import relay
 import tvm
-from tvm import runtime
+from tvm import relay, runtime, autotvm
+from tvm.autotvm.tuner import XGBTuner
 from tvm.target import Target
 import sys
 
@@ -38,6 +38,30 @@ def data2c(in_file, out_file, var_name):
 
     with open(out_file, "w") as f:
         f.write(out_str)
+
+
+def tune(log_file, tasks):
+    tuning_option = {
+        "n_trial": 2000,
+        "early_stopping": 600,
+        "measure_option": autotvm.measure_option(
+            builder=autotvm.LocalBuilder(timeout=10),
+            runner=autotvm.LocalRunner(number=20, repeat=3, timeout=4, min_repeat_ms=150),
+        ),
+    }
+
+    for i, task in enumerate(tasks):
+        prefix = "[Task %2d/%2d] " % (i + 1, len(tasks))
+        tuner_obj = XGBTuner(task, loss_type="rank")
+        tuner_obj.tune(
+            n_trial=min(tuning_option["n_trial"], len(task.config_space)),
+            early_stopping=tuning_option["early_stopping"],
+            measure_option=tuning_option["measure_option"],
+            callbacks=[
+                autotvm.callback.progress_bar(tuning_option["n_trial"], prefix=prefix),
+                autotvm.callback.log_to_file(log_file),
+            ],
+        )
 
 
 def build_module(opts):
@@ -70,10 +94,16 @@ def build_module(opts):
         target = Target(device, host=host)
     print("build lib target = '", target, "'; runtime = '", host, "'")
 
-    with tvm.transform.PassContext(opt_level=3, config={"tir.disable_vectorize": True}):
-        factory = relay.build(
-            func, target=target, params=params
-        )
+    if opts.tune:
+        log_file = opts.out_dir + "/mobilenet_tune_log"
+        tasks = autotvm.task.extract_from_program(func, target=target, params=params)
+        tune(log_file, tasks)
+        with autotvm.apply_history_best(log_file):
+            with tvm.transform.PassContext(opt_level=3, config={"tir.disable_vectorize": True}):
+                factory = relay.build_module.build(func, target=target, params=params)
+    else:
+        with tvm.transform.PassContext(opt_level=3, config={"tir.disable_vectorize": True}):
+            factory = relay.build_module.build(func, target=target, params=params)
 
     factory.get_lib().export_library(os.path.join(opts.out_dir, "graph.tar"))
 
@@ -119,6 +149,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--out-dir", default="./lib")
     parser.add_argument("--target", default="cpu", help="target device")
     parser.add_argument("--runtime", default="wasm", help="native or wasm")
+    parser.add_argument("--tune", default=False, type=bool)
     opt = parser.parse_args()
 
     build_module(opt)

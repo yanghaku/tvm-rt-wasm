@@ -12,6 +12,10 @@
 extern "C" {
 #endif
 
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
 #ifdef NDEBUG // RELEASE
 
 #define SET_TIME(t0)
@@ -63,7 +67,7 @@ extern char global_buf[];
 
 #define GLOBAL_BUF_SIZE 1024
 
-#ifdef NDEBUG // release
+#ifndef NDEBUG // release
 
 #define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
     do {                                                                                                               \
