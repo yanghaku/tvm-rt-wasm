@@ -59,7 +59,7 @@ def build_module(opts):
 
     host = "llvm --system-lib"
     if opts.runtime == 'wasm':
-        host += ' -mtriple=wasm32-unknown-wasm'  # -mattr=+simd128
+        host += ' -mtriple=wasm32-wasi -mattr=+simd128,+bulk-memory'
     if opts.target == "cpu":
         target = Target(host)
     else:

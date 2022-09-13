@@ -16,6 +16,7 @@ message("USE WASI-SDK = ${USE_WASI_SDK}")
 if (${USE_WASI_SDK})
     message("WASI-SDK path=${WASI_SDK_PREFIX}")
     set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -mbulk-memory")
 endif ()
 
 message("USE_CUDA = ${USE_CUDA}")

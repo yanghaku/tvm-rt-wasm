@@ -25,6 +25,9 @@ int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionH
         if (likely(status == TRIE_SUCCESS)) {
             TVM_RT_WASM_TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, *out);
         }
+        if (unlikely(status == TRIE_NOT_FOUND)) {
+            SET_ERROR_RETURN(status, "Cannot find function '%s' from env", func_name);
+        }
     }
     return status;
 }
