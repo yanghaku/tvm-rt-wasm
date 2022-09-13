@@ -1,9 +1,8 @@
 import argparse
 import os
-import time
 
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import sys
 import tvm
 from tvm import runtime, relay
@@ -192,8 +191,8 @@ def test(opts):
     tvm.relay.testing.yolo_detection.draw_detections(
         font_path, img, dets, thresh, names, last_layer.classes
     )
-    plt.imshow(img.transpose(1, 2, 0))
-    plt.show()
+    # plt.imshow(img.transpose(1, 2, 0))
+    # plt.show()
 
 
 def build_inputs(opts):

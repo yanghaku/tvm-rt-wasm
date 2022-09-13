@@ -67,12 +67,16 @@ extern char global_buf[];
 
 #define GLOBAL_BUF_SIZE 1024
 
-#ifndef NDEBUG // release
+#ifdef NDEBUG // release
 
 #define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
     do {                                                                                                               \
         sprintf(global_buf, fmt, ##__VA_ARGS__);                                                                       \
         return (err);                                                                                                  \
+    } while (0)
+
+#define DBG(fmt, ...)                                                                                                  \
+    do {                                                                                                               \
     } while (0)
 
 #else

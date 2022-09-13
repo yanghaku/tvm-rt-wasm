@@ -1,28 +1,6 @@
-#ifdef _MSC_VER
-
-#include <Windows.h>
-
-#define SET_TIME(t0)                                                                                                   \
-    long long(t0);                                                                                                     \
-    GetSystemTimePreciseAsFileTime(&(t0));
-
-#define GET_DURING(t1, t0) (((double)((t1) - (t0))) / 10000.0)
-
-#else
-
-#include <sys/time.h>
-
-#define SET_TIME(t0)                                                                                                   \
-    struct timeval(t0);                                                                                                \
-    gettimeofday(&(t0), NULL);
-
-#define GET_DURING(t1, t0) ((double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.0)
-
-#endif
-
+#include "during.h"
+#include "tvm_error_process.h"
 #include <dlpack/dlpack.h>
-#include <stdio.h>
-#include <tvm/runtime/c_runtime_api.h>
 #include <tvm/runtime/graph_executor_manager.h>
 
 #define OUTPUT_LEN_0 (1 * 425 * 13 * 13)
@@ -44,27 +22,9 @@ static int64_t out_shape_2[] = {7};
 static char graph_params[GRAPH_PARAMS_SIZE];
 extern const unsigned char graph_json[];
 
-#define RUN(func)                                                                                                      \
-    do {                                                                                                               \
-        status = (func);                                                                                               \
-        if (status) {                                                                                                  \
-            fprintf(stderr, "%s\n", TVMGetLastError());                                                                \
-            return status;                                                                                             \
-        }                                                                                                              \
-    } while (0)
-
-extern void *__tvm_module_ctx;
-#if EXAMPLE_USE_CUDA
-extern void *__tvm_dev_mblob;
-#endif
-
 int main(int argc, char **argv) {
     SET_TIME(start_time)
 
-    fprintf(stderr, "yolo_v2: module ctx = %p\n", &__tvm_module_ctx);
-#if EXAMPLE_USE_CUDA
-    fprintf(stderr, "dev ctx = %p\n", &__tvm_dev_mblob);
-#endif
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <graph.params>\n", __FILE__);
         return -1;

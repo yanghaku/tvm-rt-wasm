@@ -11,14 +11,6 @@ OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
 OPTION(USE_CUDA "USE CUDA" ON)
 OPTION(ENABLE_SHARED "Share GPU memory in serverless platform" ON)
 
-message("ENABLE_SHARED = ${ENABLE_SHARED}")
-if (${ENABLE_SHARED})
-    set(${USE_WASI_SDK} ON)
-    set(${USE_CUDA} ON)
-    add_definitions(-DENABLE_SHARED=1)
-    include_directories(3rdparty/wasmer)
-endif ()
-
 # wasi-sdk
 message("USE WASI-SDK = ${USE_WASI_SDK}")
 if (${USE_WASI_SDK})
@@ -31,22 +23,24 @@ if (${USE_CUDA})
     message("CUDAToolkit path = ${CUDAToolkit_ROOT}")
     add_definitions(-DUSE_CUDA=1)
     include_directories(${CUDAToolkit_ROOT}/include)
-    if (${USE_WASI_SDK})
-        add_link_options(-Wl,--allow-undefined)
-    endif ()
 else ()
     add_definitions(-DUSE_CUDA=0)
+endif ()
+
+message("ENABLE_SHARED = ${ENABLE_SHARED}")
+if (${USE_CUDA} AND ${ENABLE_SHARED})
+    add_definitions(-DENABLE_SHARED=1)
+    include_directories(3rdparty/wasmer)
 endif ()
 
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm)
 
-add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args
-        -Wno-error=unused-function -fvisibility=hidden -Wl,--strip-all)
-SET(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -std=c11)
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti -fPIC \
+            -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args \
+            -Wno-error=unused-function -fvisibility=hidden")
 
-include_directories(include)
-include_directories(3rdparty/dlpack/include)
+include_directories(include 3rdparty/dlpack/include)
 add_definitions(-DTVM_EXPORTS)
 
 # now many devices such as jetson nano cannot support cuda11.4+
@@ -55,6 +49,7 @@ if (${CUDA_10_ONLY})
     message("use cuda version 10.2.89 API")
     add_definitions(-DCUDA_10_ONLY)
 endif ()
+
 
 set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/runtime/*.c)

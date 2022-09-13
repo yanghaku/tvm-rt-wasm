@@ -87,8 +87,6 @@ static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes
     }
 
     CUstream stream = (CUstream)deviceApi->GetStream();
-//    DBG("run kernel: (%d,%d,%d) (%d,%d,%d)\n", grid_dim[0], grid_dim[1], grid_dim[2], block_dim[0], block_dim[1],
-//        block_dim[2]);
     CUDA_DRIVER_CALL(cuLaunchKernel(info->cu_function, grid_dim[0], grid_dim[1], grid_dim[2], block_dim[0],
                                     block_dim[1], block_dim[2], dyn_shared_mem_size, stream, info->kernel_arg_storages,
                                     NULL));

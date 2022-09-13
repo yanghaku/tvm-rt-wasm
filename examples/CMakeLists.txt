@@ -28,105 +28,95 @@ if (${USE_WASI_SDK})
     message("examples WASI-SDK path=${WASI_SDK_PREFIX}")
     set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
     set(PY_RUNTIME wasm)
+    add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections,--strip-all)
 else ()
+    set(PY_RUNTIME native)
     link_directories(${CUDAToolkit_ROOT}/lib64)
     link_directories(${CUDAToolkit_ROOT}/lib64/stubs)
     link_directories(${CUDAToolkit_ROOT}/lib/)
     link_directories(${CUDAToolkit_ROOT}/lib/x64)
-    set(PY_RUNTIME native)
-endif ()
+    link_libraries(m)
+
+    # check if the linker is lld
+    execute_process(COMMAND ${CMAKE_LINKER} --version OUTPUT_VARIABLE LD_VERSION_OUTPUT)
+    if (${LD_VERSION_OUTPUT} MATCHES "LLD*")
+        # lld cannot link .ctos and .init-array
+        add_link_options(-fuse-ld=gold)
+    endif ()
+endif (${USE_WASI_SDK})
 
 # whether use cuda
 message("examples USE_CUDA = ${EXAMPLE_USE_CUDA}")
 if (${EXAMPLE_USE_CUDA})
     message("examples CUDAToolkit path = ${CUDAToolkit_ROOT}")
     add_definitions(-DEXAMPLE_USE_CUDA=1)
-    if (${USE_WASI_SDK})
-        add_link_options(-Wl,--allow-undefined)
-    else ()
+    if (NOT ${USE_WASI_SDK})
         # build for native need link with cuda library
         link_libraries(cuda)
     endif ()
     SET(PY_TARGET cuda)
 else ()
-    link_libraries(m)
     SET(PY_TARGET cpu)
 endif ()
 
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm-examples)
 
-add_compile_options(-fno-exceptions -O3 -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=unused-function -fvisibility-inlines-hidden -flto -Wl,--strip-all)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti -fPIC \
+                -w -Wextra -Werror -Wl,--strip-all,--gc-sections")
 
+include_directories(common_headers)
 #include_directories(${TVM_RT_WASM_ROOT}/include)
 #link_directories(${TVM_RT_WASM_ROOT}/lib)
 
 find_package(Python3 COMPONENTS Interpreter)
 
-# mobilenet0.25
-set(mobilenet0.25_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet0.25)
-set(mobilenet0.25.tvm_gen ${mobilenet0.25_lib_dir}/graph.json.c ${mobilenet0.25_lib_dir}/graph.params.c)
-set(mobilenet0.25.tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/scripts/mobilenet0.25.py)
-add_custom_command(
-        OUTPUT ${mobilenet0.25.tvm_gen}
-        COMMAND python ${mobilenet0.25.tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${mobilenet0.25_lib_dir}
-        COMMAND tar -xf ${mobilenet0.25_lib_dir}/graph.tar -C ${mobilenet0.25_lib_dir}
-        COMMAND ${AR_EXEC} -r ${mobilenet0.25_lib_dir}/graph.lib ${mobilenet0.25_lib_dir}/*.o
-        COMMAND ${AR_EXEC} -r ${mobilenet0.25_lib_dir}/libgraph.a ${mobilenet0.25_lib_dir}/*.o
-        DEPENDS ${mobilenet0.25.tvm_script}
-)
-add_executable(mobilenet0.25.wasm mobilenet0.25/mobilenet0.25.c ${mobilenet0.25.tvm_gen})
-target_link_libraries(mobilenet0.25.wasm tvm-rt)
-target_link_directories(mobilenet0.25.wasm PRIVATE ${mobilenet0.25_lib_dir})
-target_link_libraries(mobilenet0.25.wasm graph)
 
-# resnet-50
+function(custom_tvm_executable target_name source_files tvm_gens tvm_py_script out_lib_dir)
+    if (MSVC)
+        set(GRAPH_LIB ${out_lib_dir}/graph.lib)
+    else ()
+        set(GRAPH_LIB ${out_lib_dir}/libgraph.a)
+    endif ()
+    add_custom_command(
+            OUTPUT ${tvm_gens}
+            COMMAND python ${tvm_py_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${out_lib_dir}
+            COMMAND tar -xf ${out_lib_dir}/graph.tar -C ${out_lib_dir}
+            COMMAND ${AR_EXEC} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
+            DEPENDS ${tvm_py_script}
+    )
+    add_executable(${target_name} ${source_files} ${tvm_gens})
+    target_link_libraries(${target_name} tvm-rt)
+    target_link_directories(${target_name} PRIVATE ${out_lib_dir})
+    # whole-archive ensure to force link the libgraph
+    target_link_options(${target_name} PRIVATE -Wl,--whole-archive -lgraph -Wl,--no-whole-archive)
+endfunction()
+
+
+## resnet-50
 set(resnet-50_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50)
 set(resnet-50_tvm_gen ${resnet-50_lib_dir}/graph.json.c)
 set(resnet-50_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/resnet-50/scripts/resnet-50.py)
-add_custom_command(
-        OUTPUT ${resnet-50_tvm_gen}
-        COMMAND python ${resnet-50_tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${resnet-50_lib_dir}
-        COMMAND tar -xf ${resnet-50_lib_dir}/graph.tar -C ${resnet-50_lib_dir}
-        COMMAND ${AR_EXEC} -r ${resnet-50_lib_dir}/graph.lib ${resnet-50_lib_dir}/*.o
-        COMMAND ${AR_EXEC} -r ${resnet-50_lib_dir}/libgraph.a ${resnet-50_lib_dir}/*.o
-        DEPENDS ${resnet-50_tvm_script}
-)
-add_executable(resnet-50.wasm resnet-50/resnet-50.c ${resnet-50_tvm_gen})
-target_link_libraries(resnet-50.wasm tvm-rt)
-target_link_directories(resnet-50.wasm PRIVATE ${resnet-50_lib_dir})
-target_link_libraries(resnet-50.wasm graph)
+set(resnet-50_sources ${CMAKE_CURRENT_SOURCE_DIR}/resnet-50/resnet-50.c)
+custom_tvm_executable(resnet-50.wasm ${resnet-50_sources} ${resnet-50_tvm_gen} ${resnet-50_tvm_script} ${resnet-50_lib_dir})
 
-# vgg-19
+## vgg-19
 set(vgg-19_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-19)
 set(vgg-19_tvm_gen ${vgg-19_lib_dir}/graph.json.c)
 set(vgg-19_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/vgg-19/scripts/vgg-19.py)
-add_custom_command(
-        OUTPUT ${vgg-19_tvm_gen}
-        COMMAND python ${vgg-19_tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${vgg-19_lib_dir}
-        COMMAND tar -xf ${vgg-19_lib_dir}/graph.tar -C ${vgg-19_lib_dir}
-        COMMAND ${AR_EXEC} -r ${vgg-19_lib_dir}/graph.lib ${vgg-19_lib_dir}/*.o
-        COMMAND ${AR_EXEC} -r ${vgg-19_lib_dir}/libgraph.a ${vgg-19_lib_dir}/*.o
-        DEPENDS ${vgg-19_tvm_script}
-)
-add_executable(vgg-19.wasm vgg-19/vgg-19.c ${vgg-19_tvm_gen})
-target_link_libraries(vgg-19.wasm tvm-rt)
-target_link_directories(vgg-19.wasm PRIVATE ${vgg-19_lib_dir})
-target_link_libraries(vgg-19.wasm graph)
+set(vgg-19_sources ${CMAKE_CURRENT_SOURCE_DIR}/vgg-19/vgg-19.c)
+custom_tvm_executable(vgg-19.wasm ${vgg-19_sources} ${vgg-19_tvm_gen} ${vgg-19_tvm_script} ${vgg-19_lib_dir})
 
-# yolo_v2
+## mobilenet0.25
+set(mobilenet0.25_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet0.25)
+set(mobilenet0.25_tvm_gen ${mobilenet0.25_lib_dir}/graph.json.c ${mobilenet0.25_lib_dir}/graph.params.c)
+set(mobilenet0.25_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/scripts/mobilenet0.25.py)
+set(mobilenet0.25_sources ${CMAKE_CURRENT_SOURCE_DIR}/mobilenet0.25/mobilenet0.25.c)
+custom_tvm_executable(mobilenet0.25.wasm ${mobilenet0.25_sources} ${mobilenet0.25_tvm_gen} ${mobilenet0.25_tvm_script} ${mobilenet0.25_lib_dir})
+
+## yolo_v2
 set(yolo_v2_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/yolo_v2)
 set(yolo_v2_tvm_gen ${yolo_v2_lib_dir}/graph.json.c)
 set(yolo_v2_tvm_script ${CMAKE_CURRENT_SOURCE_DIR}/yolo_v2/scripts/yolo_v2.py)
-add_custom_command(
-        OUTPUT ${yolo_v2_tvm_gen}
-        COMMAND python ${yolo_v2_tvm_script} --runtime ${PY_RUNTIME} --target ${PY_TARGET} -o ${yolo_v2_lib_dir}
-        COMMAND tar -xf ${yolo_v2_lib_dir}/graph.tar -C ${yolo_v2_lib_dir}
-        COMMAND ${AR_EXEC} -r ${yolo_v2_lib_dir}/graph.lib ${yolo_v2_lib_dir}/*.o
-        COMMAND ${AR_EXEC} -r ${yolo_v2_lib_dir}/libgraph.a ${yolo_v2_lib_dir}/*.o
-        DEPENDS ${yolo_v2_tvm_script}
-)
-add_executable(yolo_v2.wasm yolo_v2/yolo_v2.c ${yolo_v2_tvm_gen})
-target_link_libraries(yolo_v2.wasm tvm-rt)
-target_link_directories(yolo_v2.wasm PRIVATE ${yolo_v2_lib_dir})
-target_link_libraries(yolo_v2.wasm graph)
+set(yolo_v2_sources ${CMAKE_CURRENT_SOURCE_DIR}/yolo_v2/yolo_v2.c)
+custom_tvm_executable(yolo_v2.wasm ${yolo_v2_sources} ${yolo_v2_tvm_gen} ${yolo_v2_tvm_script} ${yolo_v2_lib_dir})

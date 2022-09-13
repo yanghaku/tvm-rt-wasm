@@ -4,7 +4,6 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <stdio.h>
 #include <string.h>
 #include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/device/cpu_memory.h>
@@ -17,7 +16,7 @@
 static Trie *system_lib_symbol = NULL;
 static uint32_t num_sys_lib_symbol = 0;
 
-static __attribute__((destructor)) tvm_runtime_for_webassembly_destructor_for_sys_symbol() {
+static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor_for_sys_symbol() {
     if (system_lib_symbol) {
         TVM_RT_WASM_TrieRelease(system_lib_symbol);
     }
@@ -107,7 +106,7 @@ static int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_modul
             blob += mod_type_key_size;
             status = TVM_RT_WASM_ModuleFactory(key, blob, MODULE_FACTORY_RESOURCE_BINARY, &modules[num_modules]);
             if (unlikely(status <= 0)) { // ModuleFactory will return offset
-                return status;
+                return -1;
             }
             blob += status;
             ++num_modules;
@@ -191,10 +190,9 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     // dev_blob
     const char *blob = NULL;
-    int status =
-        TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB, (void **)&blob);
-    if (status == TRIE_SUCCESS) {
-        status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
+    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB,
+                                              (void **)&blob)) {
+        int status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
         if (unlikely(status)) {
             return status;
         }
@@ -202,9 +200,8 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     // module context
     void **module_context = NULL;
-    status = TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_MODULE_CTX,
-                                   (void **)&module_context);
-    if (likely(status == TRIE_SUCCESS)) {
+    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_MODULE_CTX,
+                                              (void **)&module_context)) {
         *module_context = *libraryModule;
     }
 
@@ -215,7 +212,7 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     system_lib_symbol = NULL; // manage this Trie*
 
     sys_lib_module = *libraryModule;
-    return status;
+    return 0;
 }
 
 /*!
@@ -250,6 +247,5 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
     if (!memcmp(type, "cuda", 4)) {
         return TVM_RT_WASM_CUDAModuleCreate(resource, resource_type, (CUDAModule **)out);
     }
-    fprintf(stderr, "unsupported module type %s\n", type);
     SET_ERROR_RETURN(-1, "unsupported module type %s\n", type);
 }
