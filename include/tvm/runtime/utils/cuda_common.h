@@ -18,11 +18,7 @@ extern "C" {
 
 #if USE_CUDA // USE_CUDA = 1
 
-#if ENABLE_SHARED
-#include <wasmer_cuda_share.h>
-#else
 #include <cuda.h>
-#endif // ENABLE_SHARED
 
 #define CUDA_DRIVER_CALL(x)                                                                                            \
     do {                                                                                                               \

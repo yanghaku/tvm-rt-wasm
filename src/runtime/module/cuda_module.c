@@ -233,11 +233,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         }
         cuda_dev_api->SetDevice(0);
 
-#ifdef ENABLE_SHARED
-        CUDA_DRIVER_CALL(cuModuleLoadDataShared(&(*cudaModule)->cu_module, blob, "todo"));
-#else
         CUDA_DRIVER_CALL(cuModuleLoadData(&(*cudaModule)->cu_module, blob));
-#endif // ENABLE_SHARED
 
         blob += source_len;
 

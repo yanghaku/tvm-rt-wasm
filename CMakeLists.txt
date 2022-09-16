@@ -9,7 +9,6 @@ if (NOT DEFINED CUDAToolkit_ROOT)
 endif ()
 OPTION(USE_WASI_SDK "USE WASI-SDK" ON)
 OPTION(USE_CUDA "USE CUDA" ON)
-OPTION(ENABLE_SHARED "Share GPU memory in serverless platform" ON)
 
 # wasi-sdk
 message("USE WASI-SDK = ${USE_WASI_SDK}")
@@ -26,12 +25,6 @@ if (${USE_CUDA})
     include_directories(${CUDAToolkit_ROOT}/include)
 else ()
     add_definitions(-DUSE_CUDA=0)
-endif ()
-
-message("ENABLE_SHARED = ${ENABLE_SHARED}")
-if (${USE_CUDA} AND ${ENABLE_SHARED})
-    add_definitions(-DENABLE_SHARED=1)
-    include_directories(3rdparty/wasmer)
 endif ()
 
 #-----------------------------------------------------------------------------------------------------------------------
