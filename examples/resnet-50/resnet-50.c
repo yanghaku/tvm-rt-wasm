@@ -5,7 +5,7 @@
 #include <tvm/runtime/graph_executor_manager.h>
 
 #define OUTPUT_LEN 1024
-#define GRAPH_PARAMS_SIZE 99 * 1024 * 1024
+#define GRAPH_PARAMS_SIZE 124 * 1024 * 1024
 
 #define INPUT_SHAPE (1 * 3 * 224 * 224)
 #define STRINGIFY(x) #x

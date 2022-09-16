@@ -41,7 +41,7 @@ def build_module_run(opts):
         target = Target("cuda -device=1050ti", host=host)
     print("build lib target = '", target, "'; runtime = '", host, "'")
 
-    with tvm.transform.PassContext(opt_level=0):
+    with tvm.transform.PassContext(opt_level=3):
         factory = relay.build(mod, target=target, params=params)
 
     # create runtime

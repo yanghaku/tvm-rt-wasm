@@ -74,7 +74,7 @@ def build_module(opts):
         target = Target(device, host=host)
     print("build lib target = '", target, "'; runtime = '", host, "'")
 
-    with tvm.transform.PassContext(opt_level=0):
+    with tvm.transform.PassContext(opt_level=3):
         factory = relay.build(mod, target=target, params=params)
 
     factory.get_lib().export_library(os.path.join(opts.out_dir, "graph.tar"))
@@ -98,5 +98,7 @@ if __name__ == "__main__":
     parser.add_argument("--runtime", default="wasm", help="native or wasm")
     opt = parser.parse_args()
 
+    if not os.path.exists(opt.out_dir):
+        os.mkdir(opt.out_dir)
     build_module(opt)
     print("build module success!", file=sys.stderr)
