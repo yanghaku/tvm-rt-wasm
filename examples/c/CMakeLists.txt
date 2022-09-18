@@ -5,6 +5,11 @@ if (NOT DEFINED WASI_SDK_PREFIX)
     set(WASI_SDK_PREFIX /opt/wasi-sdk)
 endif ()
 
+# emsdk path
+if (NOT DEFINED EMSDK_PREFIX)
+    set(EMSDK_PREFIX /opt/emsdk)
+endif ()
+
 # cuda toolkit path
 if (NOT DEFINED CUDAToolkit_ROOT)
     set(CUDAToolkit_ROOT /usr/local/cuda)
@@ -19,29 +24,47 @@ endif ()
 set(AR_EXEC llvm-ar)
 
 option(USE_WASI_SDK "USE WASI SDK" OFF)
+option(USE_EMSDK "USE emscripten toolchain" OFF)
 option(EXAMPLE_USE_CUDA "example use cuda" ON)
-# target device
-set(TARGET_DEV "cpu" STRING)
+
+if (${USE_EMSDK} AND ${USE_WASI_SDK})
+    message(FATAL_ERROR "Cannot use wasi-sdk and emscripten at the same time!")
+endif ()
+if (${USE_EMSDK} AND ${EXAMPLE_USE_CUDA})
+    message(FATAL_ERROR "Emscripten target cannot support using cuda !")
+endif ()
+
 
 message("examples USE WASI-SDK = ${USE_WASI_SDK}")
+message("USE USE_EMSDK = ${USE_EMSDK}")
 if (${USE_WASI_SDK})
+    # setup wasi-sdk as toolchain
     message("examples WASI-SDK path=${WASI_SDK_PREFIX}")
     set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
-    set(PY_RUNTIME wasm)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -mbulk-memory")
+    set(TVM_HOST_TARGET "wasm32-wasi")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory")
     add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections,--strip-all)
 else ()
-    set(PY_RUNTIME native)
-    link_libraries(m)
+    # setup emsdk as toolchain
+    if (${USE_EMSDK})
+        message("example EMSDK path=${EMSDK_PREFIX}")
+        set(CMAKE_TOOLCHAIN_FILE ${EMSDK_PREFIX}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake)
+        set(TVM_HOST_TARGET "wasm32-emscripten")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -sNODERAWFS=1 -sTOTAL_MEMORY=1689976832")
+        add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections,--strip-all)
+    else () # native toolchain
+        link_libraries(m)
 
-    # check if the linker is lld
-    execute_process(COMMAND ${CMAKE_LINKER} --version OUTPUT_VARIABLE LD_VERSION_OUTPUT)
-    if (${LD_VERSION_OUTPUT} MATCHES "LLD*")
-        message("USE gold to replace lld")
-        # lld cannot process .ctos to .init-array
-        add_link_options(-fuse-ld=gold)
+        # check if the linker is lld
+        execute_process(COMMAND ${CMAKE_LINKER} --version OUTPUT_VARIABLE LD_VERSION_OUTPUT)
+        if (${LD_VERSION_OUTPUT} MATCHES "LLD*")
+            message("USE gold to replace lld")
+            # lld cannot process .ctos to .init-array
+            add_link_options(-fuse-ld=gold)
+        endif ()
     endif ()
 endif (${USE_WASI_SDK})
+
 
 # whether use cuda
 message("examples USE_CUDA = ${EXAMPLE_USE_CUDA}")
@@ -53,11 +76,18 @@ if (${EXAMPLE_USE_CUDA})
         link_directories(${CUDAToolkit_ROOT}/lib64 ${CUDAToolkit_ROOT}/lib/)
         link_libraries(cuda)
     endif ()
-    set(TARGET_DEV cuda)
-else ()
-    set(TARGET_DEV cpu)
+    if (NOT DEFINED TVM_DEVICE_TARGET)
+        set(TVM_DEVICE_TARGET cuda) # default device target for cuda
+    endif ()
 endif ()
-message("build target device = ${TARGET_DEV}")
+
+if (NOT DEFINED TVM_DEVICE_TARGET)
+    set(TVM_DEVICE_TARGET "cpu") # if not use cuda, default device target is cpu
+endif ()
+if (NOT DEFINED TVM_HOST_TARGET)
+    set(TVM_HOST_TARGET "native")
+endif ()
+message("TVM build target: host=${TVM_HOST_TARGET}, device=${TVM_DEVICE_TARGET}")
 
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm-c-examples)
@@ -92,7 +122,7 @@ function(custom_tvm_executable target_name source_files tvm_gens model out_lib_d
     endif ()
     add_custom_command(
             OUTPUT ${tvm_gens}
-            COMMAND python ${tvm_build_script} --model ${model} --runtime ${PY_RUNTIME} --target ${TARGET_DEV} -o ${out_lib_dir}
+            COMMAND python ${tvm_build_script} --model ${model} --host-target ${TVM_HOST_TARGET} --device-target ${TVM_DEVICE_TARGET} -o ${out_lib_dir}
             COMMAND tar -xf ${out_lib_dir}/graph.tar -C ${out_lib_dir}
             COMMAND ${AR_EXEC} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
             DEPENDS ${tvm_build_script}

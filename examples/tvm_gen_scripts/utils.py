@@ -6,12 +6,15 @@ from model_info import model_choices
 # get target from the given options
 def get_tvm_target(opts):
     host = "llvm --system-lib"
-    if opts.runtime == 'wasm':
+    if opts.host_target == 'wasm32-wasi':
         host += ' -mtriple=wasm32-wasi -mattr=+simd128,+bulk-memory'
-    if opts.target == "cpu":
-        t = Target(host)
+    elif opts.host_target == 'wasm32-emscripten':
+        host += ' -mtriple=wasm32-emscripten -mattr=+bulk-memory'
+
+    if opts.device_target == "cpu":
+        t = Target(host, host=host)
     else:
-        t = Target(opts.target, host=host)
+        t = Target(opts.device_target, host=host)
     print("build lib target = '", t, "'; runtime = '", host, "'")
     return t
 
@@ -33,8 +36,9 @@ def get_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="mobilenet", help="model name to build", choices=model_choices.keys())
     parser.add_argument("-o", "--out-dir", default="./lib")
-    parser.add_argument("--target", default="cpu", help="target device")
-    parser.add_argument("--runtime", default="native", help="native or wasm")
+    parser.add_argument("--device-target", default="cpu", help="device target")
+    parser.add_argument("--host-target", default="native",
+                        help="host runtime target, e.g. native,wasm32-wasi,wasm32-emscripten")
     parser.add_argument("--executor", default="graph", help="executor type", choices=("graph", "aot"))
     parser.add_argument("--emit-llvm", default=True, type=bool, help="generate the llvm-ir")
 

@@ -21,7 +21,7 @@ message("USE USE_EMSDK = ${USE_EMSDK}")
 if (${USE_EMSDK})
     message("EMSDK path=${EMSDK_PREFIX}")
     set(CMAKE_TOOLCHAIN_FILE ${EMSDK_PREFIX}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msimd128 -mbulk-memory")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory")
 endif ()
 
 # setup wasi-sdk as toolchain

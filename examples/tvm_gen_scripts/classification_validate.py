@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     if opt.validate:
         # validate model
-        opt.runtime = 'native'
+        opt.host_target = 'native'
         validate_model(opt)
     else:
         # just generate the inputs for classification
