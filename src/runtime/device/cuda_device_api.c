@@ -5,7 +5,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <tvm/runtime/device/cpu_memory.h>
 #include <tvm/runtime/device/cuda_device_api.h>
@@ -29,7 +28,7 @@ static void *TVM_RT_WASM_CUDA_AllocDataSpace(int dev_id, size_t nbytes, size_t a
 
 static void *TVM_RT_WASM_CUDA_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype,
                                                   const char *mem_scope) {
-    SET_ERROR_RETURN(-1, "%s is not supported yet\n", __FUNCTION__);
+    SET_ERROR_RETURN((void *)-1, "%s is not supported yet\n", __FUNCTION__);
 }
 
 static int TVM_RT_WASM_CUDA_FreeDataSpace(int dev_id, void *ptr) {
@@ -65,7 +64,7 @@ static int TVM_RT_WASM_CUDA_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStre
 
 static TVMStreamHandle TVM_RT_WASM_CUDA_CreateStream(int dev_id) {
     CUstream out;
-    CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
+    CUDA_DRIVER_CALL_NULL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
     CUDA_DRIVER_CALL_NULL(cuStreamCreate(&out, CU_STREAM_DEFAULT));
     return out;
 }
@@ -89,7 +88,9 @@ static int TVM_RT_WASM_CUDA_SetStream(int dev_id, TVMStreamHandle stream) {
 
 static TVMStreamHandle TVM_RT_WASM_CUDA_GetStream() { return cudaDeviceApi.stream; }
 
-static void TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {}
+static int TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {
+    return 0;
+}
 
 static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
     void *res = NULL;

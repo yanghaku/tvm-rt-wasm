@@ -12,69 +12,39 @@ A High performance and tiny tvm graph executor library written in C which can en
 
 implement the api for ```tvm/runtime/c_runtime_api.h``` and ```tvm/runtime/c_backend_api.h```.
 
-## Build for WebAssembly
+## Build the library
 
-requirements:
+### Requirements:
 
-1. cmake and ninja
-2. tvm python
-   package ([tvm github repo]) ([tvm install tutorial])
-3. wasi-sdk-14.0 ([wasi-sdk github repo])
-4. cuda toolkit (cuda version >= 10.2.89)
+1. cmake
+2. C compiler (clang/gcc/msvc for native target, wasi-sdk/emscripten for WebAssembly target)
 
-The wasi-sdk and cuda-toolkit path, you can modify in the CmakeLists.txt or use command line to specify.
+WebAssembly target toolchain download: [wasi-sdk github repo], [emsdk github repo]
 
-build examples python package requirements:
+### Available Options in cmake
 
-* tvm (or [```tlcpack```])
-* mxnet (for example mobilenet)
-* onnx (for example resnet,vgg)
-* pillow
+| Variable        | Default       | Description                                                          |
+|-----------------|---------------|----------------------------------------------------------------------|
+| USE_EMSDK       | OFF           | Use emsdk toolchain and compile to target ```(wasm32-emscription)``` |
+| USE_WASI_SDK    | OFF           | Use wasi-sdk toolchain and compile to target ```(wasm32-wasi)```     |
+| USE_CUDA        | ON            | Use CUDA support                                                     |
+| WASI_SDK_PREFIX | /opt/wasi-sdk | The path to wasi-sdk                                                 |
+| EMSDK_PREFIX    | /opt/emsdk    | The path to emsdk                                                    |
 
-### CUDA Version
+### Do build
 
-the option ```USE_CUDA``` is default ```ON```, so you just use cmake to build static library
-
-```shell
-mkdir -p build
-cd build
-cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release [ -DWASI_SDK_PREFIX=/wasi-sdk/path -DCUDAToolkit_ROOT=/cuda/path ]
-ninja
-```
-
-the example for full options is that:
-
-```shell
-cmake -DCMAKE_BUILD_TYPE=Release -G "Ninja" .. -DUSE_CUDA=ON -DEXAMPLE_USE_CUDA=ON -DUSE_WASI_SDK=OFF -DWASI_SDK_PREFIX=/opt/wasi-sdk -DCUDAToolkit_ROOT=/usr/local/cuda
-```
-
-you also can build the examples: (build examples need tvm python environment to general modules).
-
-```shell
-ninja mobilenet0.25.wasm
-```
-
-### CPU-only Version
-
-if you want build cpu version, you can set ```USE_CUDA=OFF```, and for examples you can set ```EXAMPLE_USE_CUDA=OFF```.
+Sample: build the ```wasm32-wasi``` target with CUDA support, the target can run with [**```wasmer-gpu```**].
 
 ```shell
 mkdir -p build
 cd build
-cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=OFF -DEXAMPLE_USE_CUDA=OFF [ -DWASI_SDK_PREFIX=/wasi-sdk/path ]
+cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=ON -DUSE_WASI_SDK=ON
 ninja
-ninja mobilenet0.25.wasm
 ```
 
-## build for native
+## Use the library
 
-If you want to build for native to run, you can just add the option  ```USE_WASI_SDK=OFF```
-(now only test ```gcc``` in linux)
-
-## Run the example
-
-if you build the examples into WebAssembly, for cpu only, you can run it using any WASM-runtime, but **for CUDA
-version**, you must use [**```wasmer-gpu```**].
+See the [examples](./examples)
 
 
 <!-- some external links-->
@@ -88,3 +58,5 @@ version**, you must use [**```wasmer-gpu```**].
 [**```wasmer-gpu```**]: https://github.com/yanghaku/wasmer-gpu
 
 [```tlcpack```]: https://tlcpack.ai/
+
+[emsdk github repo]: https://github.com/emscripten-core/emsdk

@@ -4,20 +4,24 @@
 #include <float.h>
 #include <tvm/runtime/graph_executor_manager.h>
 
-#define OUTPUT_LEN 1024
+#define OUTPUT_LEN 1000
+#define GRAPH_PARAMS_SIZE (15 * 1024 * 1024)
 
 #define INPUT_SHAPE (1 * 3 * 224 * 224)
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
 
+static char mobilenet_graph_params[GRAPH_PARAMS_SIZE];
 extern const unsigned char graph_json[];
-// extern const unsigned int graph_json_len;
-extern const unsigned char graph_params[];
-extern const unsigned int graph_params_len;
 
-int main() {
+int main(int argc, char **argv) {
     SET_TIME(start_time)
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <graph.params>\n", __FILE__);
+        return -1;
+    }
 
     // static array storage
     static float input_storage[INPUT_SHAPE];
@@ -43,7 +47,15 @@ int main() {
 
     SET_TIME(t1)
 
-    RUN(graphManager->LoadParams(graphManager, (const char *)graph_params, graph_params_len));
+    FILE *p = fopen(argv[1], "rb");
+    if (p == NULL) {
+        fprintf(stderr, "cannot open %s\n", argv[1]);
+        return -1;
+    }
+    size_t param_len = fread(mobilenet_graph_params, 1, GRAPH_PARAMS_SIZE, p);
+    fclose(p);
+
+    RUN(graphManager->LoadParams(graphManager, (const char *)mobilenet_graph_params, param_len));
 
     SET_TIME(t2) // set input start
 
@@ -62,7 +74,7 @@ int main() {
     input.strides = NULL;
     input.byte_offset = 0;
 
-    RUN(graphManager->SetInputByName(graphManager, "data", &input));
+    RUN(graphManager->SetInputByName(graphManager, "input", &input));
 
     SET_TIME(t3) // set input end, run graph start
 

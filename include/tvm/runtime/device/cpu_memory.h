@@ -40,7 +40,7 @@ extern size_t history_size;
 INLINE void *TVM_RT_WASM_HeapMemoryAlloc(size_t bytes) {
     uintptr_t ans = alignment_up(heap_now_ptr, ALIGNMENT_SIZE);
     heap_now_ptr = ans + bytes;
-    return ans;
+    return (void *)ans;
 }
 
 /*!
@@ -58,7 +58,7 @@ INLINE void *TVM_RT_WASM_WorkplaceMemoryAlloc(size_t bytes) {
     stack_alloc_history[history_size++] = stack_now_ptr;
     uintptr_t ans = alignment_up(stack_now_ptr, ALIGNMENT_SIZE);
     stack_now_ptr = ans + bytes;
-    return ans;
+    return (void *)ans;
 }
 
 /*!

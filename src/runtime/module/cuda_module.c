@@ -132,7 +132,7 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num
     (*cudaModule)->num_functions = num_func;
     for (uint32_t fid = 0; fid < num_func; ++fid) {
         (*cudaModule)->packed_functions[fid].module = (*cudaModule);
-        (*cudaModule)->packed_functions[fid].exec = TVM_RT_WASM_CUDAWrappedFunction;
+        (*cudaModule)->packed_functions[fid].exec = (TVMBackendPackedCFunc)TVM_RT_WASM_CUDAWrappedFunction;
         (*cudaModule)->packed_functions[fid].reserved = fid;
     }
 }
@@ -262,7 +262,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
             }
         }
 
-        return blob - resource;
+        return (int)(blob - resource);
     } else {
         SET_ERROR_RETURN(-1, "unknown resource type %d\n", resource_type);
     }
