@@ -81,10 +81,10 @@ def tune_module(opts, log_file, tasks):
 def run_module(opts, m: ExecutorFactoryModule, input_dict):
     if isinstance(m, GraphExecutorFactoryModule):
         executor_create_func = m.module.get_function(m.libmod_name)
-        executor = GraphModule(executor_create_func(tvm.device(opts.target, 0)))
+        executor = GraphModule(executor_create_func(tvm.device(opts.device_target, 0)))
     elif isinstance(m, AOTExecutorFactoryModule):
         executor_create_func = m.module.get_function(m.libmod_name)
-        executor = AotModule(executor_create_func(tvm.device(opts.target, 0)))
+        executor = AotModule(executor_create_func(tvm.device(opts.device_target, 0)))
     else:
         raise 'unsupported executor type: ' + str(type(m))
 

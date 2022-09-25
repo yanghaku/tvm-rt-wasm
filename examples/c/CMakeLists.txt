@@ -41,6 +41,7 @@ if (${USE_WASI_SDK})
     # setup wasi-sdk as toolchain
     message("examples WASI-SDK path=${WASI_SDK_PREFIX}")
     set(CMAKE_TOOLCHAIN_FILE ${WASI_SDK_PREFIX}/share/cmake/wasi-sdk.cmake)
+    set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
     set(TVM_HOST_TARGET "wasm32-wasi")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory")
     add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections,--strip-all)
@@ -51,7 +52,7 @@ else ()
         set(CMAKE_TOOLCHAIN_FILE ${EMSDK_PREFIX}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake)
         set(TVM_HOST_TARGET "wasm32-emscripten")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -sNODERAWFS=1 -sTOTAL_MEMORY=1689976832")
-        add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections,--strip-all)
+        add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections)
     else () # native toolchain
         link_libraries(m)
 
@@ -93,7 +94,7 @@ message("TVM build target: host=${TVM_HOST_TARGET}, device=${TVM_DEVICE_TARGET}"
 project(tvm-rt-wasm-c-examples)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti -fPIC \
-                -w -Wextra -Werror -Wl,--strip-all,--gc-sections")
+                -w -Wextra -Werror -Wl,--gc-sections")
 
 include_directories(common_headers)
 
@@ -110,10 +111,6 @@ find_package(Python3 COMPONENTS Interpreter)
 function(custom_tvm_executable target_name source_files tvm_gens model out_lib_dir)
     set(tvm_build_script_dir ${CMAKE_CURRENT_SOURCE_DIR}/../tvm_gen_scripts)
     set(tvm_build_script ${tvm_build_script_dir}/main.py)
-
-    if (${USE_WASI_SDK})
-        set(target_name "${target_name}.wasm")
-    endif ()
 
     if (MSVC)
         set(GRAPH_LIB ${out_lib_dir}/graph.lib)
