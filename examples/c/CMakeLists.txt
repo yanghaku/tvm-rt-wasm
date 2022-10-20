@@ -15,6 +15,11 @@ if (NOT DEFINED CUDAToolkit_ROOT)
     set(CUDAToolkit_ROOT /usr/local/cuda)
 endif ()
 
+# cuda-wasm-toolkit path (wasm32-wasi + cuda)
+if (NOT DEFINED CUDA_WASM_TOOLKIT_ROOT)
+    set(CUDA_WASM_TOOLKIT_ROOT /opt/cuda-wasm-toolkit/)
+endif ()
+
 # tvm-rt-wasm installed path
 if (NOT DEFINED TVM_RT_WASM_ROOT)
     set(TVM_RT_WASM_ROOT /opt/tvm-rt-wasm)
@@ -44,7 +49,7 @@ if (${USE_WASI_SDK})
     set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
     set(TVM_HOST_TARGET "wasm32-wasi")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory")
-    add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections,--strip-all)
+    add_link_options(-flto -Wl,--lto-O3,--gc-sections,--strip-all)
 else ()
     # setup emsdk as toolchain
     if (${USE_EMSDK})
@@ -55,14 +60,6 @@ else ()
         add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections)
     else () # native toolchain
         link_libraries(m)
-
-        # check if the linker is lld
-        execute_process(COMMAND ${CMAKE_LINKER} --version OUTPUT_VARIABLE LD_VERSION_OUTPUT)
-        if (${LD_VERSION_OUTPUT} MATCHES "LLD*")
-            message("USE gold to replace lld")
-            # lld cannot process .ctos to .init-array
-            add_link_options(-fuse-ld=gold)
-        endif ()
     endif ()
 endif (${USE_WASI_SDK})
 
@@ -76,6 +73,9 @@ if (${EXAMPLE_USE_CUDA})
         # build for native need link with cuda library
         link_directories(${CUDAToolkit_ROOT}/lib64 ${CUDAToolkit_ROOT}/lib/)
         link_libraries(cuda)
+    else ()
+        # wasm32-wasi + cuda
+        add_link_options(${CUDA_WASM_TOOLKIT_ROOT}/lib/cuda-driver-stub.bc -Wl,--allow-undefined-file=${CUDA_WASM_TOOLKIT_ROOT}/share/defined-driver-symbols.txt)
     endif ()
     if (NOT DEFINED TVM_DEVICE_TARGET)
         set(TVM_DEVICE_TARGET cuda) # default device target for cuda
