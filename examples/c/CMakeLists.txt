@@ -10,11 +10,6 @@ if (NOT DEFINED EMSDK_PREFIX)
     set(EMSDK_PREFIX /opt/emsdk)
 endif ()
 
-# cuda toolkit path
-if (NOT DEFINED CUDAToolkit_ROOT)
-    set(CUDAToolkit_ROOT /usr/local/cuda)
-endif ()
-
 # cuda-wasm-toolkit path (wasm32-wasi + cuda)
 if (NOT DEFINED CUDA_WASM_TOOLKIT_ROOT)
     set(CUDA_WASM_TOOLKIT_ROOT /opt/cuda-wasm-toolkit/)
@@ -67,12 +62,13 @@ endif (${USE_WASI_SDK})
 # whether use cuda
 message("examples USE_CUDA = ${EXAMPLE_USE_CUDA}")
 if (${EXAMPLE_USE_CUDA})
-    message("examples CUDAToolkit path = ${CUDAToolkit_ROOT}")
     add_definitions(-DEXAMPLE_USE_CUDA=1)
     if (NOT ${USE_WASI_SDK})
+        # cuda toolkit path
+        find_package(CUDAToolkit REQUIRED)
+        message("examples link cuda path = ${CUDAToolkit_LIBRARY_DIR}")
         # build for native need link with cuda library
-        link_directories(${CUDAToolkit_ROOT}/lib64 ${CUDAToolkit_ROOT}/lib/)
-        link_libraries(cuda)
+        link_libraries(CUDA::cuda_driver)
     else ()
         # wasm32-wasi + cuda
         add_link_options(${CUDA_WASM_TOOLKIT_ROOT}/lib/cuda-driver-stub.bc -Wl,--allow-undefined-file=${CUDA_WASM_TOOLKIT_ROOT}/share/defined-driver-symbols.txt)
