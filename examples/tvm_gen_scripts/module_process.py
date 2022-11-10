@@ -48,10 +48,12 @@ def build_module(opts, mod, params, target):
 
         with autotvm.apply_history_best(log_file):
             with PassContext(opt_level=3):
-                return relay.build(mod, target=target, params=params, executor=executor)
+                return relay.build(mod, target=target, params=params, executor=executor,
+                                   runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": True}))
     else:
         with PassContext(opt_level=3):
-            return relay.build(mod, target=target, params=params, executor=executor)
+            return relay.build(mod, target=target, params=params, executor=executor,
+                               runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": True}))
 
 
 def tune_module(opts, log_file, tasks):

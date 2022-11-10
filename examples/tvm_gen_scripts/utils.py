@@ -5,7 +5,7 @@ from model_info import model_choices
 
 # get target from the given options
 def get_tvm_target(opts):
-    host = "llvm --system-lib"
+    host = "llvm"
     if opts.host_target == 'wasm32-wasi':
         host += ' -mtriple=wasm32-wasi -mattr=+simd128,+bulk-memory'
     elif opts.host_target == 'wasm32-emscripten':

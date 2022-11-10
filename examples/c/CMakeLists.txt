@@ -44,7 +44,7 @@ if (${USE_WASI_SDK})
     set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
     set(TVM_HOST_TARGET "wasm32-wasi")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory")
-    add_link_options(-flto -Wl,--lto-O3,--gc-sections,--strip-all)
+    add_link_options(-flto -Wl,--lto-O3,--gc-sections)
 else ()
     # setup emsdk as toolchain
     if (${USE_EMSDK})
