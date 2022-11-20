@@ -78,7 +78,6 @@ static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes
     for (uint32_t i = 0; i < num_kernel_arg; ++i) {
         info->kernel_arg_storages[i] = &args[i].v_handle;
     }
-    info->kernel_arg_storages[num_kernel_arg] = NULL;
 
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
@@ -186,7 +185,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
 
             uint32_t num_kernel_arg = (uint32_t) * (uint64_t *)blob;
             info->num_kernel_args = num_kernel_arg;
-            info->kernel_arg_storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * (num_kernel_arg + 1));
+            info->kernel_arg_storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * (num_kernel_arg));
 
             blob += sizeof(uint64_t);                           // num_func_args
             blob += info->num_kernel_args * sizeof(DLDataType); // arg types

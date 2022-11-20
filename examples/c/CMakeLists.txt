@@ -71,7 +71,7 @@ if (${EXAMPLE_USE_CUDA})
         link_libraries(CUDA::cuda_driver)
     else ()
         # wasm32-wasi + cuda
-        add_link_options(${CUDA_WASM_TOOLKIT_ROOT}/lib/cuda-driver-stub.bc -Wl,--allow-undefined-file=${CUDA_WASM_TOOLKIT_ROOT}/share/defined-driver-symbols.txt)
+        add_link_options(${CUDA_WASM_TOOLKIT_ROOT}/lib/cuda-driver-stub.bc -Wl,--allow-undefined-file=${CUDA_WASM_TOOLKIT_ROOT}/share/defined-symbols.txt)
     endif ()
     if (NOT DEFINED TVM_DEVICE_TARGET)
         set(TVM_DEVICE_TARGET cuda) # default device target for cuda
