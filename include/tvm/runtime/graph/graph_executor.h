@@ -221,7 +221,6 @@ int TVM_RT_WASM_GraphExecutorGetNumOutputs(GraphExecutorManager *g);
 /*!
  * \brief set input to the graph based on name.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param index the index of inputs.
  * \param data_in The input data.
  * \return 0 if successful
@@ -231,7 +230,6 @@ int TVM_RT_WASM_GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, c
 /*!
  * \brief set input to the graph based on name.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param name the name string for node
  * \param data_in The input data.
  * \return 0 if successful
@@ -241,7 +239,6 @@ int TVM_RT_WASM_GraphExecutorSetInputByName(GraphExecutorManager *g, const char 
 /*!
  * \brief Return NDArray for given output index.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param index The output index.
  * \param out The DLTensor corresponding to given output node index.
  * \return The result of this function execution.
@@ -251,12 +248,19 @@ int TVM_RT_WASM_GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, 
 /*!
  * \brief Load parameters from parameter blob.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param param_blob A binary blob of parameter.
  * \param param_size The parameter size.
  * \return The result of this function execution.
  */
 int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *param_blob, uint32_t param_size);
+
+/*!
+ * \brief Load parameters from parameter blob.
+ * \param g The instance of GraphExecutorManager.
+ * \param filename File path to read and load
+ * \return The result of this function execution.
+ */
+int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(GraphExecutorManager *g, const char *filename);
 
 /*!
  * \brief Execute the graph.
@@ -269,7 +273,6 @@ int TVM_RT_WASM_GraphExecutorRun(GraphExecutorManager *g);
 /*!
  * \brief Release memory associated with the GraphExecutorManager.
  * \param g The instance of GraphExecutorManager.
- * \param executor Pointer to graph executor.
  * \return 0 if successful
  */
 int TVM_RT_WASM_GraphExecutorRelease(GraphExecutorManager **g);

@@ -5,14 +5,11 @@
 #include <tvm/runtime/graph_executor_manager.h>
 
 #define OUTPUT_LEN 1000
-#define GRAPH_PARAMS_SIZE (124 * 1024 * 1024)
-
 #define INPUT_SHAPE (1 * 3 * 224 * 224)
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
 
-static char resnet_graph_params[GRAPH_PARAMS_SIZE];
 extern const unsigned char graph_json[];
 
 int main(int argc, char **argv) {
@@ -47,15 +44,7 @@ int main(int argc, char **argv) {
 
     SET_TIME(t1)
 
-    FILE *p = fopen(argv[1], "rb");
-    if (p == NULL) {
-        fprintf(stderr, "cannot open %s\n", argv[1]);
-        return -1;
-    }
-    size_t param_len = fread(resnet_graph_params, 1, GRAPH_PARAMS_SIZE, p);
-    fclose(p);
-
-    RUN(graphManager->LoadParams(graphManager, resnet_graph_params, param_len));
+    RUN(graphManager->LoadParamsFromFile(graphManager, argv[1]));
 
     SET_TIME(t2) // load graph end, set input start
 

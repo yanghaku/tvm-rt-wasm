@@ -4,7 +4,6 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <stdlib.h>
 #include <string.h>
 #include <tvm/runtime/device/cpu_memory.h>
 #include <tvm/runtime/device/device_api.h>
@@ -38,6 +37,7 @@ int TVM_RT_WASM_CUDAGraphExecutorCreate(const char *graph_json, TVMModuleHandle 
     (*g)->SetInputByName = TVM_RT_WASM_GraphExecutorSetInputByName;
     (*g)->GetOutput = TVM_RT_WASM_GraphExecutorGetOutput;
     (*g)->LoadParams = TVM_RT_WASM_GraphExecutorLoadParams;
+    (*g)->LoadParamsFromFile = TVM_RT_WASM_GraphExecutorLoadParamsFromFile;
 
     (*g)->Run = TVM_RT_WASM_CUDAGraphExecutorRun;
     (*g)->Release = TVM_RT_WASM_CUDAGraphExecutorRelease;

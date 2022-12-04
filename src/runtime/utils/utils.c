@@ -102,6 +102,88 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
     return status;
 }
 
+/*!
+ * \brief parse binary and load data to tensor (only load the data)
+ * @param tensor the init tensor with no data
+ * @param fp the opened file struct
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp) {
+#define read_from_fp(ptr, len, fp)                                                                                     \
+    do {                                                                                                               \
+        if (unlikely(fread((ptr), 1, (len), fp) != (len))) {                                                           \
+                                                                                                                       \
+            SET_ERROR_RETURN(-1, "invalid param binary: unexpect EOF");                                                \
+        }                                                                                                              \
+    } while (0)
+
+    uint64_t header;
+    read_from_fp(&header, sizeof(uint64_t), fp);
+
+    if (unlikely(header != kTVMNDArrayMagic)) {
+        SET_ERROR_RETURN(-1, "Invalid DLTensor file Magic number: %llX, expect %llX\n", header, kTVMNDArrayMagic);
+    }
+
+    read_from_fp(&header, sizeof(uint64_t), fp); // reserved
+    DLDevice _d;
+    read_from_fp(&_d, sizeof(DLDevice), fp); // DLDevice
+    (void)_d;
+
+    int ndim;
+    read_from_fp(&ndim, sizeof(int), fp); // ndim
+    if (unlikely(tensor->ndim != ndim)) { // ndim
+        SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, given %d", tensor->ndim, ndim);
+    }
+
+    DLDataType _dlDataType;
+    read_from_fp(&_dlDataType, sizeof(DLDataType), fp); // DLDataType
+    (void)_dlDataType;
+
+    for (int i = 0; i < tensor->ndim; ++i) { // shapes
+        uint64_t shape;
+        read_from_fp(&shape, sizeof(uint64_t), fp);
+        if (unlikely(tensor->shape[i] != shape)) {
+            SET_ERROR_RETURN(-1, "Invalid DLTensor shape: expect shape[%d] = %lld, but given %lld\n", i,
+                             tensor->shape[i], shape);
+        }
+    }
+
+    int64_t byte_size;
+    read_from_fp(&byte_size, sizeof(int64_t), fp);
+    int64_t tensor_size = (int64_t)TVM_RT_WASM_DLTensor_GetDataBytes(tensor);
+    if (unlikely(byte_size != tensor_size)) {
+        SET_ERROR_RETURN(-1, "Invalid DLTensor ata byte size: expect %llu, but given %llu\n", tensor_size, byte_size);
+    }
+
+    if (tensor->device.device_type == kDLCPU || tensor->device.device_type == kDLCUDAHost) {
+        read_from_fp(tensor->data, byte_size, fp);
+        return 0;
+    }
+
+    void *buf = TVM_RT_WASM_WorkplaceMemoryAlloc(byte_size);
+
+    size_t read_size = fread(buf, 1, byte_size, fp);
+    if (read_size != byte_size) {
+        TVM_RT_WASM_WorkplaceMemoryFree(buf);
+        SET_ERROR_RETURN(-1, "invalid param binary: unexpect EOF");
+    }
+
+    DLDevice cpu = {kDLCPU, 0};
+    DLTensor src_tensor = {
+        .ndim = tensor->ndim,
+        .shape = tensor->shape,
+        .dtype = tensor->dtype,
+        .device = cpu,
+        .data = buf,
+    };
+
+    // do copy data
+    int status = TVMDeviceCopyDataFromTo(&src_tensor, tensor, NULL);
+
+    TVM_RT_WASM_WorkplaceMemoryFree(buf);
+    return status;
+}
+
 /*!----------------------------------------for utils/trie.h ----------------------------------------------------------*/
 
 /*! \brief this is a table for char to index (for all uint8_t )  for Trie */

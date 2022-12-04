@@ -35,6 +35,7 @@ int TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle modu
     (*g)->SetInputByName = TVM_RT_WASM_GraphExecutorSetInputByName;
     (*g)->GetOutput = TVM_RT_WASM_GraphExecutorGetOutput;
     (*g)->LoadParams = TVM_RT_WASM_GraphExecutorLoadParams;
+    (*g)->LoadParamsFromFile = TVM_RT_WASM_GraphExecutorLoadParamsFromFile;
     (*g)->Run = TVM_RT_WASM_GraphExecutorRun;
     (*g)->Release = TVM_RT_WASM_GraphExecutorRelease;
     (*g)->Clone = TVM_RT_WASM_GraphExecutorClone;
@@ -201,7 +202,7 @@ int TVM_RT_WASM_GraphExecutorGetInputIndex(GraphExecutorManager *g, const char *
     if (unlikely(TVM_RT_WASM_TrieQuery(graph->inputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
         SET_ERROR_RETURN(-1, "name(%s)is not FOUND in input nodes", name);
     }
-    return index;
+    return (int)index;
 }
 
 /*!
@@ -220,7 +221,7 @@ int TVM_RT_WASM_GraphExecutorGetOutputIndex(GraphExecutorManager *g, const char 
     if (unlikely(TVM_RT_WASM_TrieQuery(graph->outputs_map, (const uint8_t *)name, (void **)&index) == TRIE_NOT_FOUND)) {
         SET_ERROR_RETURN(-1, "name(%s)is not FOUND in output nodes", name);
     }
-    return index;
+    return (int)index;
 }
 
 /*!
@@ -246,7 +247,6 @@ int TVM_RT_WASM_GraphExecutorGetNumOutputs(GraphExecutorManager *g) {
 /*!
  * \brief set input to the graph based on name.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param index the index of inputs.
  * \param data_in The input data.
  * \return 0 if successful
@@ -266,7 +266,6 @@ int TVM_RT_WASM_GraphExecutorSetInput(GraphExecutorManager *g, uint32_t index, c
 /*!
  * \brief set input to the graph based on name.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param name the name string for node
  * \param data_in The input data.
  * \return 0 if successful
@@ -282,7 +281,6 @@ int TVM_RT_WASM_GraphExecutorSetInputByName(GraphExecutorManager *g, const char 
 /*!
  * \brief Return NDArray for given output index.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param index The output index.
  * \param out The DLTensor corresponding to given output node index.
  * \return The result of this function execution.
@@ -303,7 +301,6 @@ int TVM_RT_WASM_GraphExecutorGetOutput(GraphExecutorManager *g, uint32_t index, 
 /*!
  * \brief Load parameters from parameter blob.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \param param_blob A binary blob of parameter.
  * \param param_size The parameter size.
  * \return The result of this function execution.
@@ -319,7 +316,7 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
         SET_ERROR_RETURN(-1, "invalid argument: param_size is too short, at least %zu", sizeof(uint64_t) * 2);
     }
     if (unlikely(*((uint64_t *)param_blob) != kTVMNDArrayListMagic)) {
-        SET_ERROR_RETURN(-1, "invalid param blob: magic error, expected %llu, given %llu", kTVMNDArrayListMagic,
+        SET_ERROR_RETURN(-1, "invalid param binary: magic error, expected %llu, given %llu", kTVMNDArrayListMagic,
                          *((uint64_t *)param_blob));
     }
     const char *blob = param_blob + sizeof(uint64_t) + sizeof(uint64_t); // magic(8 bytes), reserved(8 bytes)
@@ -334,7 +331,7 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
         uint32_t str_len = (uint32_t) * (uint64_t *)blob;
         blob += sizeof(uint64_t) + str_len;
         if (unlikely(str_len == 0)) {
-            SET_ERROR_RETURN(-1, "invalid param blob: node name cannot be \"\"");
+            SET_ERROR_RETURN(-1, "invalid param binary: node name cannot be \"\"");
         }
     }
 
@@ -343,7 +340,7 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
     blob += sizeof(arr_num);
 
     if (unlikely(name_num != arr_num)) {
-        SET_ERROR_RETURN(-1, "invalid param blob: name_num(%llu) != arr_num(%llu)", name_num, arr_num);
+        SET_ERROR_RETURN(-1, "invalid param binary: name_num(%llu) != arr_num(%llu)", name_num, arr_num);
     }
 
     // scan name and load param
@@ -354,7 +351,7 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
         intptr_t index = -1;
         if (unlikely(TVM_RT_WASM_TrieQueryWithLen(graph->inputs_map, (const uint8_t *)name, str_len, (void **)&index) ==
                      TRIE_NOT_FOUND)) {
-            SET_ERROR_RETURN(-1, "invalid param blob: param node name(%s) not found", name);
+            SET_ERROR_RETURN(-1, "invalid param binary: param node name(%s) not found", name);
         }
 
         uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
@@ -376,9 +373,117 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
 }
 
 /*!
+ * \brief Load parameters from parameter blob.
+ * \param g The instance of GraphExecutorManager.
+ * \param filename File path to read and load
+ * \return The result of this function execution.
+ */
+int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(GraphExecutorManager *g, const char *filename) {
+    CHECK_GraphExecutorManager(g);
+    GraphExecutor *graph = (GraphExecutor *)g->graphHandle;
+
+    if (unlikely(filename == NULL)) {
+        SET_ERROR_RETURN(-1, "invalid argument: filename cannot be null");
+    }
+
+    FILE *fp = NULL;
+    if (unlikely((fp = fopen(filename, "rb")) == NULL)) {
+        SET_ERROR_RETURN(-1, "IO Error: Cannot open file `%s`", filename);
+    }
+
+#define read_from_fp(ptr, len, fp, err_handle_block)                                                                   \
+    do {                                                                                                               \
+        if (unlikely(fread((ptr), 1, (len), fp) != (len))) {                                                           \
+            {                                                                                                          \
+                err_handle_block;                                                                                      \
+            }                                                                                                          \
+            SET_ERROR_RETURN(-1, "invalid param binary: unexpect EOF");                                                \
+        }                                                                                                              \
+    } while (0)
+
+    // magic(8 bytes)
+    uint64_t array_list_magic;
+    read_from_fp(&array_list_magic, sizeof(uint64_t), fp, fclose(fp));
+    if (unlikely(array_list_magic != kTVMNDArrayListMagic)) {
+        fclose(fp);
+        SET_ERROR_RETURN(-1, "invalid param binary: magic error, expected %llu, given %llu", kTVMNDArrayListMagic,
+                         array_list_magic);
+    }
+
+    // reserved(8 bytes)
+    read_from_fp(&array_list_magic, sizeof(uint64_t), fp, fclose(fp));
+
+    uint64_t name_num;
+    read_from_fp(&name_num, sizeof(uint64_t), fp, fclose(fp));
+    if (unlikely(graph->num_nodes < name_num)) {
+        fclose(fp);
+        SET_ERROR_RETURN(-1, "invalid param binary: node name number cannot large than graph's node number");
+    }
+
+#define NAME_BUFFER_SIZE 1024
+
+    size_t *name_indexes = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(size_t) * name_num);
+    char *name_buf = TVM_RT_WASM_WorkplaceMemoryAlloc(NAME_BUFFER_SIZE);
+
+#define do_before_return()                                                                                             \
+    do {                                                                                                               \
+        fclose(fp);                                                                                                    \
+        TVM_RT_WASM_WorkplaceMemoryFree(name_buf);                                                                     \
+        TVM_RT_WASM_WorkplaceMemoryFree(name_indexes);                                                                 \
+    } while (0)
+
+    // scan names
+    for (uint32_t i = 0; i < (uint32_t)name_num; ++i) {
+        uint64_t str_len;
+        read_from_fp(&str_len, sizeof(uint64_t), fp, do_before_return());
+
+        if (unlikely(str_len == 0 || str_len > NAME_BUFFER_SIZE)) {
+            do_before_return();
+            SET_ERROR_RETURN(-1, "invalid param binary: node name cannot be must >0 and <%d", NAME_BUFFER_SIZE);
+        }
+        read_from_fp(name_buf, str_len, fp, do_before_return());
+
+        intptr_t index = -1;
+        if (unlikely(TVM_RT_WASM_TrieQueryWithLen(graph->inputs_map, (const uint8_t *)name_buf, (size_t)str_len,
+                                                  (void **)&index) == TRIE_NOT_FOUND)) {
+            do_before_return();
+            SET_ERROR_RETURN(-1, "invalid param binary: param node name(%s) not found", name_buf);
+        }
+        name_indexes[i] = (size_t)index;
+    }
+
+    uint64_t arr_num;
+    read_from_fp(&arr_num, sizeof(uint64_t), fp, do_before_return());
+    if (unlikely(name_num != arr_num)) {
+        do_before_return();
+        SET_ERROR_RETURN(-1, "invalid param binary: name_num(%llu) != arr_num(%llu)", name_num, arr_num);
+    }
+
+    // do load param
+    for (uint32_t i = 0; i < (uint32_t)arr_num; ++i) {
+        uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[name_indexes[i]], 0);
+        if (unlikely(eid >= graph->num_data_entry)) {
+            do_before_return();
+            SET_ERROR_RETURN(-1, "Error, entry id (%u) is greater than the number of data entry (%u)", eid,
+                             graph->num_data_entry);
+        }
+
+        int status = TVM_RT_WASM_DLTensor_LoadDataFromFile(&graph->data_entry[eid].dl_tensor, fp);
+        if (unlikely(status)) {
+            do_before_return();
+            return status;
+        }
+    }
+
+    do_before_return();
+    return 0;
+#undef do_before_return
+#undef read_from_fp
+}
+
+/*!
  * \brief Execute the graph.
  * \param g The instance of GraphExecutorManager.
- * \param executor The graph executor.
  * \return 0 if successful
  */
 int TVM_RT_WASM_GraphExecutorRun(GraphExecutorManager *g) {

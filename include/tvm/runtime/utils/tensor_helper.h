@@ -103,6 +103,14 @@ INLINE uint64_t TVM_RT_WASM_DLTensor_GetDataBytes(const DLTensor *tensor) {
  */
 int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob);
 
+/*!
+ * \brief parse binary and load data to tensor (only load the data)
+ * @param tensor the init tensor with no data
+ * @param fp the opened file struct
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
