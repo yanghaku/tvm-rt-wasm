@@ -92,11 +92,42 @@ static int TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_s
     return 0;
 }
 
+#ifdef CUDA_10_ONLY
+#define MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE 100
+typedef struct {
+    void *ptr;
+    size_t size;
+    uint32_t is_free;
+} CachedWorkspaceMemory;
+static CachedWorkspaceMemory cachedWorkspaceMemory[MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE];
+static uint32_t cachedWorkspaceMemorySize = 0;
+#endif // CUDA_10_ONLY
+
 static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
     void *res = NULL;
 
 #ifdef CUDA_10_ONLY
+    for (uint32_t i = 0; i < cachedWorkspaceMemorySize; ++i) {
+        if (cachedWorkspaceMemory[i].size == nbytes && cachedWorkspaceMemory[i].is_free) {
+            cachedWorkspaceMemory[i].is_free = 0;
+            return cachedWorkspaceMemory[i].ptr;
+        }
+    }
     CUDA_DRIVER_CALL_NULL(cuMemAlloc((CUdeviceptr *)&res, nbytes));
+    if (cachedWorkspaceMemorySize == MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) { // cache is full
+        cachedWorkspaceMemorySize = 0;
+        // free the unused cached
+        for (uint32_t i = 0; i < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE; ++i) {
+            if (!cachedWorkspaceMemory[i].is_free) {
+                cachedWorkspaceMemory[cachedWorkspaceMemorySize++] = cachedWorkspaceMemory[i];
+            }
+        }
+    }
+    if (cachedWorkspaceMemorySize < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) {
+        cachedWorkspaceMemory[cachedWorkspaceMemorySize].is_free = 0;
+        cachedWorkspaceMemory[cachedWorkspaceMemorySize].ptr = res;
+        cachedWorkspaceMemory[cachedWorkspaceMemorySize++].size = nbytes;
+    }
 #else
     CUDA_DRIVER_CALL_NULL(
         cuMemAllocFromPoolAsync((CUdeviceptr *)&res, nbytes, cudaDeviceApi.mem_pool, cudaDeviceApi.stream));
@@ -107,6 +138,12 @@ static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataTy
 
 static int TVM_RT_WASM_CUDA_FreeWorkspace(int dev_id, void *ptr) {
 #ifdef CUDA_10_ONLY
+    for (int i = 0; i < cachedWorkspaceMemorySize; ++i) {
+        if (cachedWorkspaceMemory[i].ptr == ptr) {
+            cachedWorkspaceMemory[i].is_free = 1;
+            return 0;
+        }
+    }
     CUDA_DRIVER_CALL(cuMemFree((CUdeviceptr)ptr));
 #else
     CUDA_DRIVER_CALL(cuMemFreeAsync((CUdeviceptr)ptr, cudaDeviceApi.stream));
@@ -117,6 +154,13 @@ static int TVM_RT_WASM_CUDA_FreeWorkspace(int dev_id, void *ptr) {
 static int TVM_RT_WASM_CUDA_Release(DeviceAPI *d) {
     if (d != (DeviceAPI *)&cudaDeviceApi)
         return -1;
+
+#ifdef CUDA_10_ONLY
+    for (int i = 0; i < cachedWorkspaceMemorySize; ++i) {
+        TVM_RT_WASM_CUDA_FreeDataSpace(0, cachedWorkspaceMemory[i].ptr);
+    }
+#endif // CUDA_10_ONLY
+
     for (uint32_t i = 0; i < cudaDeviceApi.num_device; ++i) {
         cuCtxDestroy(cudaDeviceApi.contexts[i]);
     }
@@ -162,6 +206,8 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
 
 #ifndef CUDA_10_ONLY
     CUDA_DRIVER_CALL(cuDeviceGetDefaultMemPool(&cudaDeviceApi.mem_pool, 0));
+#else
+    cachedWorkspaceMemorySize = 0;
 #endif // CUDA_10_ONLY
 
     SET_TIME(t2)

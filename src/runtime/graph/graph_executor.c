@@ -369,7 +369,7 @@ int TVM_RT_WASM_GraphExecutorLoadParams(GraphExecutorManager *g, const char *par
         name += str_len;
     }
 
-    return 0;
+    return TVMSynchronize(graph->devices[0].device_type, graph->devices[0].device_id, NULL);
 }
 
 /*!
@@ -476,7 +476,7 @@ int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(GraphExecutorManager *g, const c
     }
 
     do_before_return();
-    return 0;
+    return TVMSynchronize(graph->devices[0].device_type, graph->devices[0].device_id, NULL);
 #undef do_before_return
 #undef read_from_fp
 }

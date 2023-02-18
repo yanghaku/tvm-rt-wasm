@@ -1,4 +1,5 @@
 #include "during.h"
+#include "graph_utils.h"
 #include "tvm_error_process.h"
 #include <dlpack/dlpack.h>
 #include <float.h>
@@ -27,88 +28,58 @@ int main(int argc, char **argv) {
     // local variables
     DLDevice cpu = {kDLCPU, 0};
     DLDataType float32 = {kDLFloat, 32, 1};
-    DLTensor input, output;
-
-    GraphExecutorManager *graphManager;
-    TVMModuleHandle syslib = NULL;
-    int status;
-
-    SET_TIME(t0) // init start
-
-#if EXAMPLE_USE_CUDA
-    DLDevice cuda = {kDLCUDA, 0};
-    RUN(GraphExecutorManagerFactory(graphExecutorCUDA, (const char *)graph_json, syslib, &cuda, 1, &graphManager));
-#else
-    RUN(GraphExecutorManagerFactory(graphExecutor, (const char *)graph_json, syslib, &cpu, 1, &graphManager));
-#endif
-
-    SET_TIME(t1)
-
-    RUN(graphManager->LoadParamsFromFile(graphManager, argv[1]));
-
-    SET_TIME(t2) // load graph end, set input start
-
-    // load input from file
-    size_t len = fread(input_storage, 4, INPUT_SHAPE, stdin);
-    if (len != INPUT_SHAPE) {
-        fprintf(stderr, INPUT_ERR_MSG);
-        return -1;
-    }
-    input.data = input_storage;
-    input.device = cpu;
-    input.ndim = 4;
-    input.dtype = float32;
-    int64_t shape[4] = {1, 3, 224, 224};
-    input.shape = shape;
-    input.strides = NULL;
-    input.byte_offset = 0;
-
-    RUN(graphManager->SetInputByName(graphManager, "data", &input));
-
-    SET_TIME(t3) // set input end, run graph start
-
-    RUN(graphManager->Run(graphManager));
-
-    SET_TIME(t4) // run end, get output start
-
-    output.data = output_storage;
-    output.device = cpu;
-    output.ndim = 2;
-    output.dtype = float32;
+    int64_t input_shape[4] = {1, 3, 224, 224};
     int64_t out_shape[2] = {1, 1000};
-    output.shape = out_shape;
-    output.strides = NULL;
-    output.byte_offset = 0;
+    DLTensor input = {
+        .data = input_storage,
+        .device = cpu,
+        .ndim = 4,
+        .dtype = float32,
+        .shape = input_shape,
+        .strides = NULL,
+        .byte_offset = 0,
+    };
+    DLTensor output = {
+        .data = output_storage,
+        .device = cpu,
+        .ndim = 2,
+        .dtype = float32,
+        .shape = out_shape,
+        .strides = NULL,
+        .byte_offset = 0,
+    };
 
-    RUN(graphManager->GetOutput(graphManager, 0, &output));
+    int status;
+    GraphExecutorManager *graphManager = NULL;
+    RUN(init_graph_with_syslib(argv[1], (const char *)graph_json, &graphManager));
 
-    SET_TIME(t5) // get output end, destroy start
-
-    float max_iter = -FLT_MAX;
-    int32_t max_index = -1;
-    for (int i = 0; i < OUTPUT_LEN; ++i) {
-        if (output_storage[i] > max_iter) {
-            max_iter = output_storage[i];
-            max_index = i;
+    while (1) {
+        // load input from file
+        size_t len = fread(input_storage, 4, INPUT_SHAPE, stdin);
+        if (len != INPUT_SHAPE) {
+            if (feof(stdin)) {
+                break;
+            }
+            fprintf(stderr, INPUT_ERR_MSG);
+            return -1;
         }
+
+        RUN(run_graph(graphManager, &input, &output, "data", 0));
+
+        float max_iter = -FLT_MAX;
+        int32_t max_index = -1;
+        for (int i = 0; i < OUTPUT_LEN; ++i) {
+            if (output_storage[i] > max_iter) {
+                max_iter = output_storage[i];
+                max_index = i;
+            }
+        }
+        printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
     }
 
-    //    for (int i = 0; i < OUTPUT_LEN; ++i) {
-    //        int s = (int)(output_storage[i] * 10000.0);
-    //        if (s != 0) {
-    //            fprintf(stderr, "%d: %d\n", i, s);
-    //        }
-    //    }
     RUN(graphManager->Release(&graphManager));
 
-    SET_TIME(t6)
-
-    printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
-    printf("create time: %lf ms\nload_params time: %lf ms\nset_input time: %lf\nrun time: %lf ms\nget_output time: %lf "
-           "ms\ndestroy time: %lf ms\n",
-           GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2), GET_DURING(t4, t3), GET_DURING(t5, t4),
-           GET_DURING(t6, t5));
-
-    printf("total time: %lf ms\n", GET_DURING(t6, start_time));
+    SET_TIME(end_time)
+    printf("\nTotal time: %lf ms\n", GET_DURING(end_time, start_time));
     return 0;
 }
