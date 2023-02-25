@@ -31,13 +31,15 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
     return status;
 }
 
-int run_graph(GraphExecutorManager *graphManager, const DLTensor *input, DLTensor *output, const char *input_name,
-              int output_index) {
+int run_graph(GraphExecutorManager *graphManager, const DLTensor *inputs, const char **input_names, int input_num,
+              const DLTensor *outputs, const int *output_indexes, int output_num) {
     int status;
 
     SET_TIME(t0) // set input start
 
-    RUN(graphManager->SetInputByName(graphManager, input_name, input));
+    for (int i = 0; i < input_num; ++i) {
+        RUN(graphManager->SetInputByName(graphManager, input_names[i], inputs + i));
+    }
 
     SET_TIME(t1) // set input end, run graph start
 
@@ -45,7 +47,9 @@ int run_graph(GraphExecutorManager *graphManager, const DLTensor *input, DLTenso
 
     SET_TIME(t2) // run end, get output start
 
-    RUN(graphManager->GetOutput(graphManager, output_index, output));
+    for (int i = 0; i < output_num; ++i) {
+        RUN(graphManager->GetOutput(graphManager, output_indexes[i], outputs + i));
+    }
 
     SET_TIME(t3) // get output end
     printf("Set graph input time: %lf ms\nRun graph time: %lf ms\nGet graph output time: %lf ms\n", GET_DURING(t1, t0),

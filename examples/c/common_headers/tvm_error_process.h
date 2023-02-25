@@ -12,7 +12,7 @@ extern "C" {
     do {                                                                                                               \
         status = (func);                                                                                               \
         if (status) {                                                                                                  \
-            fprintf(stderr, "(line:%d) TVM API ERROR: %s\n", __LINE__, TVMGetLastError());                             \
+            fprintf(stderr, "%s(line:%d) TVM API ERROR: %s\n", __FILE_NAME__, __LINE__, TVMGetLastError());            \
             return status;                                                                                             \
         }                                                                                                              \
     } while (0)

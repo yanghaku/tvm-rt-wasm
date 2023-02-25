@@ -152,3 +152,9 @@ set(yolo-v4_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/yolo-v4)
 set(yolo-v4_tvm_gen ${yolo-v4_lib_dir}/graph.json.c)
 set(yolo-v4_sources yolo-v4/yolo-v4.c)
 custom_tvm_executable(yolo-v4 ${yolo-v4_sources} ${yolo-v4_tvm_gen} "yolo-v4" ${yolo-v4_lib_dir})
+
+## bert-large-uncased
+set(bert-large-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-large-uncased)
+set(bert-large-uncased_tvm_gen ${bert-large-uncased_lib_dir}/graph.json.c)
+set(bert-large-uncased_sources bert-large-uncased/bert-large-uncased.c)
+custom_tvm_executable(bert-large-uncased ${bert-large-uncased_sources} ${bert-large-uncased_tvm_gen} "bert-large-uncased" ${bert-large-uncased_lib_dir})

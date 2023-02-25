@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     DLDataType float32 = {kDLFloat, 32, 1};
     int64_t input_shape[4] = {1, 3, 224, 224};
     int64_t out_shape[2] = {1, 1000};
-    DLTensor input = {
+    const DLTensor inputs[] = {{
         .data = input_storage,
         .device = cpu,
         .ndim = 4,
@@ -38,8 +38,8 @@ int main(int argc, char **argv) {
         .shape = input_shape,
         .strides = NULL,
         .byte_offset = 0,
-    };
-    DLTensor output = {
+    }};
+    const DLTensor outputs[] = {{
         .data = output_storage,
         .device = cpu,
         .ndim = 2,
@@ -47,7 +47,9 @@ int main(int argc, char **argv) {
         .shape = out_shape,
         .strides = NULL,
         .byte_offset = 0,
-    };
+    }};
+    const char *input_names[] = {"data"};
+    const int output_indexes[] = {0};
 
     int status;
     GraphExecutorManager *graphManager = NULL;
@@ -64,7 +66,7 @@ int main(int argc, char **argv) {
             return -1;
         }
 
-        RUN(run_graph(graphManager, &input, &output, "data", 0));
+        RUN(run_graph(graphManager, inputs, input_names, 1, outputs, output_indexes, 1));
 
         float max_iter = -FLT_MAX;
         int32_t max_index = -1;
