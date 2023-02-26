@@ -1,9 +1,5 @@
-#include "during.h"
 #include "graph_utils.h"
-#include "tvm_error_process.h"
-#include <dlpack/dlpack.h>
 #include <float.h>
-#include <tvm/runtime/graph_executor_manager.h>
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -78,8 +74,8 @@ int main(int argc, char **argv) {
     const int output_indexes[] = {0, 1};
 
     int status;
-    GraphExecutorManager *graphManager = NULL;
-    RUN(init_graph_with_syslib(argv[1], (const char *)graph_json, &graphManager));
+    GraphHandle graph_handle = NULL;
+    RUN(init_graph_with_syslib(argv[1], (const char *)graph_json, &graph_handle));
 
     while (1) {
         // load input from file
@@ -92,7 +88,7 @@ int main(int argc, char **argv) {
             return -1;
         }
 
-        RUN(run_graph(graphManager, inputs, input_names, 2, outputs, output_indexes, 2));
+        RUN(run_graph(graph_handle, inputs, input_names, 2, outputs, output_indexes, 2));
 
         float max_iter = -FLT_MAX;
         float min_iter = FLT_MAX;
@@ -111,10 +107,10 @@ int main(int argc, char **argv) {
 
         // 7.272131 -4.657999
         printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
-        printf("The minimum position in output vector is: %d, with min-value %f.\n", min_index, min_iter);
+        printf("The minimum position in output vector is: %d, with min-value %f. END\n", min_index, min_iter);
     }
 
-    RUN(graphManager->Release(&graphManager));
+    RUN(delete_graph(graph_handle));
 
     SET_TIME(end_time)
     printf("\nTotal time: %lf ms\n", GET_DURING(end_time, start_time));

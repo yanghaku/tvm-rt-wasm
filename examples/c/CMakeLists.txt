@@ -58,6 +58,8 @@ else ()
     endif ()
 endif (${USE_WASI_SDK})
 
+#-----------------------------------------------------------------------------------------------------------------------
+project(tvm-rt-wasm-c-examples)
 
 # whether use cuda
 message("examples USE_CUDA = ${EXAMPLE_USE_CUDA}")
@@ -86,13 +88,11 @@ if (NOT DEFINED TVM_HOST_TARGET)
 endif ()
 message("TVM build target: host=${TVM_HOST_TARGET}, device=${TVM_DEVICE_TARGET}")
 
-#-----------------------------------------------------------------------------------------------------------------------
-project(tvm-rt-wasm-c-examples)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti -fPIC \
                 -w -Wextra -Werror -Wl,--gc-sections")
 
-include_directories(common_headers)
+include_directories(common_headers .)
 
 # if this CMakeLists.txt is in source top level, must include and link with the tvm-rt-wasm library
 # if this CmakeLists.txt is built as a subdirectory in tvm-rt-wasm project, do not need this
@@ -146,12 +146,6 @@ set(mobilenet_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet)
 set(mobilenet_tvm_gen "${mobilenet_lib_dir}/graph.json.c")
 set(mobilenet_sources mobilenet/mobilenet.c)
 custom_tvm_executable(mobilenet ${mobilenet_sources} ${mobilenet_tvm_gen} "mobilenet" ${mobilenet_lib_dir})
-
-## yolo-v4
-set(yolo-v4_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/yolo-v4)
-set(yolo-v4_tvm_gen ${yolo-v4_lib_dir}/graph.json.c)
-set(yolo-v4_sources yolo-v4/yolo-v4.c)
-custom_tvm_executable(yolo-v4 ${yolo-v4_sources} ${yolo-v4_tvm_gen} "yolo-v4" ${yolo-v4_lib_dir})
 
 ## bert-large-uncased
 set(bert-large-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-large-uncased)

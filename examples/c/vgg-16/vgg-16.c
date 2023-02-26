@@ -1,9 +1,5 @@
-#include "during.h"
 #include "graph_utils.h"
-#include "tvm_error_process.h"
-#include <dlpack/dlpack.h>
 #include <float.h>
-#include <tvm/runtime/graph_executor_manager.h>
 
 #define OUTPUT_LEN 1024
 #define INPUT_SHAPE (1 * 3 * 224 * 224)
@@ -52,8 +48,8 @@ int main(int argc, char **argv) {
     const int output_indexes[] = {0};
 
     int status;
-    GraphExecutorManager *graphManager = NULL;
-    RUN(init_graph_with_syslib(argv[1], (const char *)graph_json, &graphManager));
+    GraphHandle graph_handle = NULL;
+    RUN(init_graph_with_syslib(argv[1], (const char *)graph_json, &graph_handle));
 
     while (1) {
         // load input from file
@@ -66,7 +62,7 @@ int main(int argc, char **argv) {
             return -1;
         }
 
-        RUN(run_graph(graphManager, inputs, input_names, 1, outputs, output_indexes, 1));
+        RUN(run_graph(graph_handle, inputs, input_names, 1, outputs, output_indexes, 1));
 
         float max_iter = -FLT_MAX;
         int32_t max_index = -1;
@@ -76,10 +72,10 @@ int main(int argc, char **argv) {
                 max_index = i;
             }
         }
-        printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
+        printf("The maximum position in output vector is: %d, with max-value %f. END\n", max_index, max_iter);
     }
 
-    RUN(graphManager->Release(&graphManager));
+    RUN(delete_graph(graph_handle));
 
     SET_TIME(end_time)
     printf("\nTotal time: %lf ms\n", GET_DURING(end_time, start_time));
