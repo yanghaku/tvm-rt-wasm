@@ -63,13 +63,13 @@ endfunction()
 ## resnet-50
 set(resnet-50_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50)
 set(resnet-50_tvm_gen ${resnet-50_lib_dir}/graph.json.c)
-set(resnet-50_sources ${EXAMPLE_PATH}/resnet-50/resnet-50.c)
+set(resnet-50_sources ${EXAMPLE_PATH}/resnet/resnet.c)
 custom_tvm_executable(resnet-50 ${resnet-50_sources} ${resnet-50_tvm_gen} "resnet-50" ${resnet-50_lib_dir})
 
 ## vgg-16
 set(vgg-16_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16)
 set(vgg-16_tvm_gen ${vgg-16_lib_dir}/graph.json.c)
-set(vgg-16_sources ${EXAMPLE_PATH}/vgg-16/vgg-16.c)
+set(vgg-16_sources ${EXAMPLE_PATH}/vgg/vgg.c)
 custom_tvm_executable(vgg-16 ${vgg-16_sources} ${vgg-16_tvm_gen} "vgg-16" ${vgg-16_lib_dir})
 
 ## mobilenet

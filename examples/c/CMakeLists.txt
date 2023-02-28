@@ -132,13 +132,13 @@ endfunction()
 ## resnet-50
 set(resnet-50_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50)
 set(resnet-50_tvm_gen ${resnet-50_lib_dir}/graph.json.c)
-set(resnet-50_sources resnet-50/resnet-50.c)
+set(resnet-50_sources resnet/resnet.c)
 custom_tvm_executable(resnet-50 ${resnet-50_sources} ${resnet-50_tvm_gen} "resnet-50" ${resnet-50_lib_dir})
 
 ## vgg-16
 set(vgg-16_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16)
 set(vgg-16_tvm_gen ${vgg-16_lib_dir}/graph.json.c)
-set(vgg-16_sources vgg-16/vgg-16.c)
+set(vgg-16_sources vgg/vgg.c)
 custom_tvm_executable(vgg-16 ${vgg-16_sources} ${vgg-16_tvm_gen} "vgg-16" ${vgg-16_lib_dir})
 
 ## mobilenet
@@ -152,3 +152,33 @@ set(bert-large-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-large-uncase
 set(bert-large-uncased_tvm_gen ${bert-large-uncased_lib_dir}/graph.json.c)
 set(bert-large-uncased_sources bert-large-uncased/bert-large-uncased.c)
 custom_tvm_executable(bert-large-uncased ${bert-large-uncased_sources} ${bert-large-uncased_tvm_gen} "bert-large-uncased" ${bert-large-uncased_lib_dir})
+
+## resnet-18
+set(resnet-18_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-18)
+set(resnet-18_tvm_gen ${resnet-18_lib_dir}/graph.json.c)
+set(resnet-18_sources resnet/resnet.c)
+custom_tvm_executable(resnet-18 ${resnet-18_sources} ${resnet-18_tvm_gen} "resnet-18" ${resnet-18_lib_dir})
+
+## resnet-34
+set(resnet-34_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-34)
+set(resnet-34_tvm_gen ${resnet-34_lib_dir}/graph.json.c)
+set(resnet-34_sources resnet/resnet.c)
+custom_tvm_executable(resnet-34 ${resnet-34_sources} ${resnet-34_tvm_gen} "resnet-34" ${resnet-34_lib_dir})
+
+## resnet-101
+set(resnet-101_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-101)
+set(resnet-101_tvm_gen ${resnet-101_lib_dir}/graph.json.c)
+set(resnet-101_sources resnet/resnet.c)
+custom_tvm_executable(resnet-101 ${resnet-101_sources} ${resnet-101_tvm_gen} "resnet-101" ${resnet-101_lib_dir})
+
+## resnet-152
+set(resnet-152_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-152)
+set(resnet-152_tvm_gen ${resnet-152_lib_dir}/graph.json.c)
+set(resnet-152_sources resnet/resnet.c)
+custom_tvm_executable(resnet-152 ${resnet-152_sources} ${resnet-152_tvm_gen} "resnet-152" ${resnet-152_lib_dir})
+
+## vgg-19
+set(vgg-19_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-19)
+set(vgg-19_tvm_gen ${vgg-19_lib_dir}/graph.json.c)
+set(vgg-19_sources vgg/vgg.c)
+custom_tvm_executable(vgg-19 ${vgg-19_sources} ${vgg-19_tvm_gen} "vgg-19" ${vgg-19_lib_dir})

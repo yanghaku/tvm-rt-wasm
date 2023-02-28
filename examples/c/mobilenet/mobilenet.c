@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
             }
         }
         printf("The maximum position in output vector is: %d, with max-value %f. END\n", max_index, max_iter);
+        fflush(stdout);
     }
 
     RUN(delete_graph(graph_handle));
