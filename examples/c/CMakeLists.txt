@@ -122,6 +122,8 @@ function(custom_tvm_executable target_name source_files tvm_gens model out_lib_d
             WORKING_DIRECTORY ${tvm_build_script_dir}
     )
     add_executable(${target_name} ${source_files} ${tvm_gens})
+    string(REPLACE "-" "_" target_define ${target_name})    # '-' replace to '_'
+    target_compile_definitions(${target_name} PUBLIC -D${target_define})
     target_link_libraries(${target_name} tvm-rt)
     target_link_directories(${target_name} PRIVATE ${out_lib_dir})
     # whole-archive ensure to force link the libgraph
@@ -150,7 +152,7 @@ custom_tvm_executable(mobilenet ${mobilenet_sources} ${mobilenet_tvm_gen} "mobil
 ## bert-large-uncased
 set(bert-large-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-large-uncased)
 set(bert-large-uncased_tvm_gen ${bert-large-uncased_lib_dir}/graph.json.c)
-set(bert-large-uncased_sources bert-large-uncased/bert-large-uncased.c)
+set(bert-large-uncased_sources bert-uncased/bert-uncased.c)
 custom_tvm_executable(bert-large-uncased ${bert-large-uncased_sources} ${bert-large-uncased_tvm_gen} "bert-large-uncased" ${bert-large-uncased_lib_dir})
 
 ## resnet-18
@@ -182,3 +184,23 @@ set(vgg-19_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-19)
 set(vgg-19_tvm_gen ${vgg-19_lib_dir}/graph.json.c)
 set(vgg-19_sources vgg/vgg.c)
 custom_tvm_executable(vgg-19 ${vgg-19_sources} ${vgg-19_tvm_gen} "vgg-19" ${vgg-19_lib_dir})
+
+## bert-base-uncased
+set(bert-base-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-base-uncased)
+set(bert-base-uncased_tvm_gen ${bert-base-uncased_lib_dir}/graph.json.c)
+set(bert-base-uncased_sources bert-uncased/bert-uncased.c)
+custom_tvm_executable(bert-base-uncased ${bert-base-uncased_sources} ${bert-base-uncased_tvm_gen} "bert-base-uncased" ${bert-base-uncased_lib_dir})
+
+
+
+## resnet-50-int8
+set(resnet-50-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50-int8)
+set(resnet-50-int8_tvm_gen ${resnet-50-int8_lib_dir}/graph.json.c)
+set(resnet-50-int8_sources resnet/resnet.c)
+custom_tvm_executable(resnet-50-int8 ${resnet-50-int8_sources} ${resnet-50-int8_tvm_gen} "resnet-50-int8" ${resnet-50-int8_lib_dir})
+
+## vgg-16-int8
+set(vgg-16-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16-int8)
+set(vgg-16-int8_tvm_gen ${vgg-16-int8_lib_dir}/graph.json.c)
+set(vgg-16-int8_sources vgg/vgg.c)
+custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} ${vgg-16-int8_tvm_gen} "vgg-16-int8" ${vgg-16-int8_lib_dir})

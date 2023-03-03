@@ -5,10 +5,18 @@
 #define TOSTRING(x) STRINGIFY(x)
 #define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
 
+#ifdef bert_large_uncased
+#define HIDDEN_SHAPE 1024
+#elifdef bert_base_uncased
+#define HIDDEN_SHAPE 768
+#else
+#error "Unknown Model"
+#endif
+
 #define INPUT_SHAPE_0 (1 * 14)
 #define INPUT_SHAPE_1 (1 * 14)
-#define OUTPUT_SHAPE_0 (1 * 14 * 1024)
-#define OUTPUT_SHAPE_1 (1 * 1024)
+#define OUTPUT_SHAPE_0 (1 * 14 * HIDDEN_SHAPE)
+#define OUTPUT_SHAPE_1 (1 * HIDDEN_SHAPE)
 
 extern const unsigned char graph_json[];
 
@@ -31,8 +39,8 @@ int main(int argc, char **argv) {
     const DLDataType int64 = {kDLInt, 64, 1};
     const int64_t input_shape_0[] = {1, 14};
     const int64_t input_shape_1[] = {1, 14};
-    const int64_t out_shape_0[] = {1, 14, 1024};
-    const int64_t out_shape_1[] = {1, 1024};
+    const int64_t out_shape_0[] = {1, 14, HIDDEN_SHAPE};
+    const int64_t out_shape_1[] = {1, HIDDEN_SHAPE};
     const DLTensor inputs[] = {{
                                    .data = input_storage,
                                    .device = cpu,

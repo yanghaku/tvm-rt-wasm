@@ -16,10 +16,14 @@ model_choices = {
                            "vision/classification/mobilenet"),
     "vgg-16": ModelInfo("vgg-16", "vgg16-7.onnx", {"data": (1, 3, 224, 224)},
                         "vision/classification/vgg"),
+    "vgg-16-int8": ModelInfo("vgg-16-int8", "vgg16-12-int8.onnx", {"data": (1, 3, 224, 224)},
+                             "vision/classification/vgg"),
     "vgg-19": ModelInfo("vgg-19", "vgg19-7.onnx", {"data": (1, 3, 224, 224)},
                         "vision/classification/vgg"),
     "resnet-50": ModelInfo("resnet-50", "resnet50-v2-7.onnx", {"data": (1, 3, 224, 224)},
                            "vision/classification/resnet"),
+    "resnet-50-int8": ModelInfo("resnet-50-int8", "resnet50-v1-12-int8.onnx", {"data": (1, 3, 224, 224)},
+                                "vision/classification/resnet/"),
     "resnet-18": ModelInfo("resnet-18", "resnet18-v2-7.onnx", {"data": (1, 3, 224, 224)},
                            "vision/classification/resnet"),
     "resnet-34": ModelInfo("resnet-34", "resnet34-v2-7.onnx", {"data": (1, 3, 224, 224)},
@@ -31,6 +35,7 @@ model_choices = {
     "yolo-v4": ModelInfo("yolo-v4", "yolov4.onnx", {"0": (1, 416, 416, 3)},
                          "vision/object_detection_segmentation/yolov4"),
     "bert-large-uncased": ModelInfo("bert-large-uncased", "bert-large-uncased", '', '', "pytorch"),
+    "bert-base-uncased": ModelInfo("bert-base-uncased", "bert-base-uncased", '', '', "pytorch"),
 }
 
 

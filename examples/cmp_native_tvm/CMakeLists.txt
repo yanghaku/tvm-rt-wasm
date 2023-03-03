@@ -54,6 +54,8 @@ function(custom_tvm_executable target_name source_files tvm_gens model out_lib_d
             WORKING_DIRECTORY ${tvm_build_script_dir}
     )
     add_executable(${target_name} ${source_files} ${tvm_gens})
+    string(REPLACE "-" "_" target_define ${target_name})    # '-' replace to '_'
+    target_compile_definitions(${target_name} PUBLIC -D${target_define})
     target_link_directories(${target_name} PRIVATE ${out_lib_dir})
     # whole-archive ensure to force link the libgraph
     target_link_options(${target_name} PRIVATE -Wl,--whole-archive -lgraph -Wl,--no-whole-archive)
@@ -81,5 +83,5 @@ custom_tvm_executable(mobilenet ${mobilenet_sources} ${mobilenet_tvm_gen} "mobil
 ## bert-large-uncased
 set(bert-large-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-large-uncased)
 set(bert-large-uncased_tvm_gen ${bert-large-uncased_lib_dir}/graph.json.c)
-set(bert-large-uncased_sources ${EXAMPLE_PATH}/bert-large-uncased/bert-large-uncased.c)
+set(bert-large-uncased_sources ${EXAMPLE_PATH}/bert-uncased/bert-uncased.c)
 custom_tvm_executable(bert-large-uncased ${bert-large-uncased_sources} ${bert-large-uncased_tvm_gen} "bert-large-uncased" ${bert-large-uncased_lib_dir})
