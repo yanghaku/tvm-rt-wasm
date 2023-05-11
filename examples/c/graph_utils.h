@@ -3,10 +3,10 @@
 
 #include "dlpack/dlpack.h"
 #include "during.h"
-#include "tvm/runtime/graph_executor_manager.h"
+#include "graph_executor.h"
 #include "tvm_error_process.h"
 
-typedef GraphExecutorManager *GraphHandle;
+typedef TVM_RT_WASM_GraphExecutor GraphHandle;
 
 int init_graph_with_syslib(const char *graph_param_path, const char *graph_json, GraphHandle *graph_handle_ptr) {
     TVMModuleHandle syslib = NULL;
@@ -16,15 +16,15 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
 
 #if EXAMPLE_USE_CUDA
     DLDevice cuda = {kDLCUDA, 0};
-    RUN(GraphExecutorManagerFactory(graphExecutorCUDA, graph_json, syslib, &cuda, 1, graph_handle_ptr));
+    RUN(TVM_RT_WASM_GraphExecutorCreate(graph_json, syslib, &cuda, 1, graph_handle_ptr));
 #else
     DLDevice cpu = {kDLCPU, 0};
-    RUN(GraphExecutorManagerFactory(graphExecutor, graph_json, syslib, &cpu, 1, graph_handle_ptr));
+    RUN(TVM_RT_WASM_GraphExecutorCreate(graph_json, syslib, &cpu, 1, graph_handle_ptr));
 #endif
 
     SET_TIME(t1) // init graph end, load params start
 
-    RUN((*graph_handle_ptr)->LoadParamsFromFile((*graph_handle_ptr), graph_param_path));
+    RUN(TVM_RT_WASM_GraphExecutorLoadParamsFromFile(*graph_handle_ptr, graph_param_path));
 
     SET_TIME(t2) // load graph end, set input start
 
@@ -39,17 +39,17 @@ int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **inp
     SET_TIME(t0) // set input start
 
     for (int i = 0; i < input_num; ++i) {
-        RUN(graph_handle->SetInputByName(graph_handle, input_names[i], inputs + i));
+        RUN(TVM_RT_WASM_GraphExecutorSetInput(graph_handle, input_names[i], inputs + i));
     }
 
     SET_TIME(t1) // set input end, run graph start
 
-    RUN(graph_handle->Run(graph_handle));
+    RUN(TVM_RT_WASM_GraphExecutorRun(graph_handle));
 
     SET_TIME(t2) // run end, get output start
 
     for (int i = 0; i < output_num; ++i) {
-        RUN(graph_handle->GetOutput(graph_handle, output_indexes[i], outputs + i));
+        RUN(TVM_RT_WASM_GraphExecutorGetOutput(graph_handle, output_indexes[i], outputs + i));
     }
 
     SET_TIME(t3) // get output end
@@ -58,6 +58,6 @@ int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **inp
     return status;
 }
 
-inline int delete_graph(GraphHandle graph_handle) { return graph_handle->Release(&graph_handle); }
+inline int delete_graph(GraphHandle graph_handle) { return TVM_RT_WASM_GraphExecutorDestory(&graph_handle); }
 
 #endif // TVM_RT_EXAMPLE_WASM_GRAPH_UTILS_H

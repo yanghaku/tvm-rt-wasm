@@ -27,7 +27,8 @@ WebAssembly target toolchain download: [wasi-sdk github repo], [emsdk github rep
 |-----------------|---------------|----------------------------------------------------------------------|
 | USE_EMSDK       | OFF           | Use emsdk toolchain and compile to target ```(wasm32-emscription)``` |
 | USE_WASI_SDK    | OFF           | Use wasi-sdk toolchain and compile to target ```(wasm32-wasi)```     |
-| USE_CUDA        | ON            | Use CUDA support                                                     |
+| USE_CUDA        | OFF           | Use CUDA support                                                     |
+| USE_WEBGPU      | OFF           | Use WebGPU support                                                   |
 | WASI_SDK_PREFIX | /opt/wasi-sdk | The path to wasi-sdk                                                 |
 | EMSDK_PREFIX    | /opt/emsdk    | The path to emsdk                                                    |
 

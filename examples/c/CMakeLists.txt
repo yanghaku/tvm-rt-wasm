@@ -25,13 +25,17 @@ set(AR_EXEC llvm-ar)
 
 option(USE_WASI_SDK "USE WASI SDK" OFF)
 option(USE_EMSDK "USE emscripten toolchain" OFF)
-option(EXAMPLE_USE_CUDA "example use cuda" ON)
+option(EXAMPLE_USE_CUDA "example use cuda" OFF)
+option(EXAMPLE_USE_WEBGPU "example use webgpu" OFF)
 
 if (${USE_EMSDK} AND ${USE_WASI_SDK})
     message(FATAL_ERROR "Cannot use wasi-sdk and emscripten at the same time!")
 endif ()
 if (${USE_EMSDK} AND ${EXAMPLE_USE_CUDA})
-    message(FATAL_ERROR "Emscripten target cannot support using cuda !")
+    message(FATAL_ERROR "Emscripten cannot support using cuda!")
+endif ()
+if (${USE_WASI_SDK} AND ${EXAMPLE_USE_WEBGPU})
+    message(FATAL_ERROR "Wasi-sdk cannot support useing webgpu now!")
 endif ()
 
 
