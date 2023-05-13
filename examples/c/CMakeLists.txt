@@ -21,7 +21,9 @@ if (NOT DEFINED TVM_RT_WASM_ROOT)
 endif ()
 
 # set the ar path
-set(AR_EXEC llvm-ar)
+if (NOT DEFINED CMAKE_AR)
+    set (CMAKE_AR llvm-ar)
+endif ()
 
 option(USE_WASI_SDK "USE WASI SDK" OFF)
 option(USE_EMSDK "USE emscripten toolchain" OFF)
@@ -93,9 +95,14 @@ if (${EXAMPLE_USE_WEBGPU})
             message(FATAL_ERROR "Must set WEBGPU_NATIVE_LIB to link with native webgpu library!.")
         else ()
             link_libraries(${WEBGPU_NATIVE_LIB})
+            link_libraries(dl pthread)
+            # must use lld to link the libwgpu_native or libdawn
+            add_link_options("-fuse-ld=lld")
         endif ()
     else ()
-        # emsdk + webgpu, run in browser or nodejs. do nothing
+        # emsdk + webgpu, run in nodejs. (the c examples cannot run in browser)
+        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
     endif ()
     if (NOT DEFINED TVM_DEVICE_TARGET)
         set(TVM_DEVICE_TARGET webgpu) # default device target for webgpu
@@ -139,7 +146,7 @@ function(custom_tvm_executable target_name source_files tvm_gens model out_lib_d
             OUTPUT ${tvm_gens}
             COMMAND python ${tvm_build_script} --model ${model} --host-target ${TVM_HOST_TARGET} --device-target ${TVM_DEVICE_TARGET} -o ${out_lib_dir}
             COMMAND tar -xf ${out_lib_dir}/graph.tar -C ${out_lib_dir}
-            COMMAND ${AR_EXEC} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
+            COMMAND ${CMAKE_AR} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
             DEPENDS ${tvm_build_script}
             WORKING_DIRECTORY ${tvm_build_script_dir}
     )

@@ -8,6 +8,10 @@ extern "C" {
 #include <stdio.h>
 #include <tvm/runtime/c_runtime_api.h>
 
+#ifndef __FILE_NAME__
+#define __FILE_NAME__ __FILE__
+#endif // !__FILE_NAME__
+
 #define RUN(func)                                                                                                      \
     do {                                                                                                               \
         status = (func);                                                                                               \

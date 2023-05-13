@@ -18,7 +18,7 @@ static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) { return 0; }
 
 static void *TVM_RT_WASM_WebGPU_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
     void *res = NULL;
-    WGPU_CALL_NULL(WGPU_MemoryAlloc((WGPU_Memory *)&res, nbytes));
+    WGPU_CALL_NULL(WGPU_MemoryAlloc(webGPUDeviceAPI.device, (WGPU_Memory *)&res, nbytes));
     return res;
 }
 
@@ -109,7 +109,7 @@ static void *TVM_RT_WASM_WebGPU_AllocWorkspace(int dev_id, size_t nbytes, DLData
             return cachedWorkspaceMemory[i].ptr;
         }
     }
-    WGPU_CALL_NULL(WGPU_MemoryAlloc((WGPU_Memory *)&res, nbytes));
+    WGPU_CALL_NULL(WGPU_MemoryAlloc(webGPUDeviceAPI.device, (WGPU_Memory *)&res, nbytes));
 
     if (cachedWorkspaceMemorySize < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) {
         cachedWorkspaceMemory[cachedWorkspaceMemorySize].is_free = 0;
@@ -139,9 +139,7 @@ static int TVM_RT_WASM_WebGPU_Release(DeviceAPI *d) {
         TVM_RT_WASM_WebGPU_FreeDataSpace(0, cachedWorkspaceMemory[i].ptr);
     }
 
-    for (int i = 0; i < webGPUDeviceAPI.num_device; ++i) {
-        WGPU_CALL(WGPU_DeviceFree(webGPUDeviceAPI.devices[i]));
-    }
+    WGPU_CALL(WGPU_DeviceFree(webGPUDeviceAPI.device));
     return 0;
 }
 
@@ -173,29 +171,15 @@ int TVM_RT_WASM_WebGPUDeviceAPICreate(WebGPUDeviceAPI **out) {
     webGPUDeviceAPI.FreeWorkspace = TVM_RT_WASM_WebGPU_FreeWorkspace;
     webGPUDeviceAPI.Release = TVM_RT_WASM_WebGPU_Release;
 
-    SET_TIME(t0)
-    // todo: init gpu device
-    SET_TIME(t1)
-
-    int num_device = 0;
-    // get webgpu count
-    WGPU_CALL(WGPU_DeviceCount(&num_device));
-    if (num_device <= 0) {
-        SET_ERROR_RETURN(-1, "WebGPU: no available devices.");
-    }
-    webGPUDeviceAPI.num_device = num_device;
-
     cachedWorkspaceMemorySize = 0;
 
-    SET_TIME(t2)
-    webGPUDeviceAPI.devices = TVM_RT_WASM_HeapMemoryAlloc(sizeof(WGPU_Device) * num_device);
-    for (int i = 0; i < num_device; ++i) {
-        WGPU_CALL(WGPU_DeviceGet(webGPUDeviceAPI.devices + i, i));
-    }
-    SET_TIME(t3)
+    SET_TIME(t0)
+
+    WGPU_CALL(WGPU_DeviceGet(&webGPUDeviceAPI.device));
+
+    SET_TIME(t1)
 
     DURING_PRINT(t1, t0, "init webgpu device time");
-    DURING_PRINT(t3, t2, "webgpu contexts create time");
     return 0;
 
 #else

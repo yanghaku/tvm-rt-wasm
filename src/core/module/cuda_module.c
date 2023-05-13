@@ -30,21 +30,7 @@ static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes
 
     uint32_t num_kernel_args = info->num_kernel_args;
     CHECK_DYN_MEM();
-
-    for (uint32_t i = 0; i < info->num_func_arg_map; ++i) {
-        if (unlikely(*(type_codes + i + num_kernel_args) != kTVMArgInt)) {
-            SET_ERROR_RETURN(-1, "params type error, expect int type");
-        }
-        if (info->func_arg_index_map[i] >= 3) {
-            block_dim[info->func_arg_index_map[i] - 3] = args[num_kernel_args + i].v_int64;
-        } else {
-            grid_dim[info->func_arg_index_map[i]] = args[num_kernel_args + i].v_int64;
-        }
-    }
-
-    for (uint32_t i = 0; i < num_kernel_args; ++i) {
-        info->kernel_arg_storages[i] = &args[i].v_handle;
-    }
+    CHECK_AND_PARSE_ARGS();
 
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);

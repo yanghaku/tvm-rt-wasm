@@ -29,9 +29,14 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
 
     uint32_t num_kernel_args = info->num_kernel_args;
     CHECK_DYN_MEM();
+    if (dyn_shared_mem_size != 0) {
+        SET_ERROR_RETURN(-1, "WebGPU cannot support dynamic shared memory, but got size %d.", dyn_shared_mem_size);
+    }
 
-    // todo
-    int status = 0;
+    CHECK_AND_PARSE_ARGS();
+
+    int status = WGPU_FunctionRun(info->device_func, block_dim, grid_dim, (WGPU_Memory *)info->kernel_arg_storages,
+                                  num_kernel_args);
 
     return status;
 }

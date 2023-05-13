@@ -21,9 +21,7 @@ typedef struct WebGPUDeviceAPI {
 
 #if USE_WEBGPU // USE_WEBGPU == 1
 
-    WGPU_Device *devices;
-
-    int num_device;
+    WGPU_Device device;
 
 #endif // USE_WEBGPU
 

@@ -37,18 +37,11 @@ typedef struct WGPU_Memory_st *WGPU_Memory;
 typedef struct WGPU_Function_st *WGPU_Function;
 
 /*!
- * \brief Get the number of device.
- * \param count_ptr The pointer to receive count.
- * \return 0 if success.
- */
-int WGPU_DeviceCount(int *count_ptr);
-
-/*!
- * \brief Get the device using device id, range is [0,device_count).
+ * \brief Get the device.
  * \param device_ptr The pointer to receive device.
  * \return 0 if success.
  */
-int WGPU_DeviceGet(WGPU_Device *device_ptr, int dev_id);
+int WGPU_DeviceGet(WGPU_Device *device_ptr);
 
 /*!
  * \brief Free the device instance.
@@ -58,19 +51,13 @@ int WGPU_DeviceGet(WGPU_Device *device_ptr, int dev_id);
 int WGPU_DeviceFree(WGPU_Device device);
 
 /*!
- * \brief Block to wait all async gpu compute.
- * \param device The device to sync.
- * \return 0 if success.
- */
-int WGPU_DeviceSync(WGPU_Device device);
-
-/*!
  * \brief Alloc device memory.
+ * \param device The device where memory in.
  * \param memory_ptr The pointer to receive allocated device memory.
  * \param nbytes The number of bytes to alloc.
  * \return 0 if success.
  */
-int WGPU_MemoryAlloc(WGPU_Memory *memory_ptr, size_t nbytes);
+int WGPU_MemoryAlloc(WGPU_Device device, WGPU_Memory *memory_ptr, size_t nbytes);
 
 /*!
  * \brief Free the device memory.
@@ -124,9 +111,14 @@ int WGPU_FunctionCreate(WGPU_Function *func_ptr, char *source);
 /*!
  * \brief Submit function to gpu to run.
  * \param function The function instance.
+ * \param block_dims The dimension of blocks.
+ * \param thread_dims The dimension of threads.
+ * \param kernel_args The device function arguments.
+ * \param num_kernel_args The number of device function arguments.
  * \return 0 if success.
  */
-int WGPU_FunctionRun(WGPU_Function function /* todo */);
+int WGPU_FunctionRun(WGPU_Function function, size_t block_dims[3], size_t thread_dims[3], WGPU_Memory kernel_args[],
+                     uint32_t num_kernel_args);
 
 /*!
  * \brief Free the device function.
