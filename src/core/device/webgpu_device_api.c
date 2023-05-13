@@ -14,14 +14,11 @@
 /*! \brief the webgpu Device API will be a single static instance */
 static WebGPUDeviceAPI webGPUDeviceAPI;
 
-static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) {
-    // todo
-    return 0;
-}
+static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) { return 0; }
 
 static void *TVM_RT_WASM_WebGPU_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
     void *res = NULL;
-    // todo
+    WGPU_CALL_NULL(WGPU_MemoryAlloc((WGPU_Memory *)&res, nbytes));
     return res;
 }
 
@@ -31,7 +28,7 @@ static void *TVM_RT_WASM_WebGPU_AllocDataSpaceScope(int dev_id, int ndim, const 
 }
 
 static int TVM_RT_WASM_WebGPU_FreeDataSpace(int dev_id, void *ptr) {
-    // todo
+    WGPU_CALL(WGPU_MemoryFree((WGPU_Memory)ptr));
     return 0;
 }
 
@@ -45,15 +42,18 @@ static int TVM_RT_WASM_WebGPU_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMSt
         if (to->device.device_type == kDLCPU) {
             memcpy(to->data, from->data, bytes);
         } else if (to->device.device_type == kDLWebGPU) {
-            // todo : cpu -> webgpu
+            WGPU_CALL(
+                WGPU_MemoryCopyHtoD((WGPU_Memory)to->data, to->byte_offset, from->data, from->byte_offset, bytes));
         } else {
             SET_ERROR_RETURN(-1, "Error: unsupported data copy!\n");
         }
     } else if (from->device.device_type == kDLWebGPU) {
         if (to->device.device_type == kDLCPU) {
-            // todo : webgpu -> cpu
+            WGPU_CALL(
+                WGPU_MemoryCopyDtoH(to->data, to->byte_offset, (WGPU_Memory)from->data, from->byte_offset, bytes));
         } else if (to->device.device_type == kDLWebGPU) {
-            // todo : webgpu -> webgpu
+            WGPU_CALL(WGPU_MemoryCopyDtoD((WGPU_Memory)to->data, to->byte_offset, (WGPU_Memory)from->data,
+                                          from->byte_offset, bytes));
         } else {
             SET_ERROR_RETURN(-1, "Error: unsupported data copy!\n");
         }
@@ -84,7 +84,6 @@ static int TVM_RT_WASM_WebGPU_SetStream(int dev_id, TVMStreamHandle stream) {
 
 static TVMStreamHandle TVM_RT_WASM_WebGPU_GetStream() {
     // todo
-    // return webGPUDeviceAPI.stream;
     return NULL;
 }
 
@@ -110,17 +109,8 @@ static void *TVM_RT_WASM_WebGPU_AllocWorkspace(int dev_id, size_t nbytes, DLData
             return cachedWorkspaceMemory[i].ptr;
         }
     }
-    // todo : alloca memory
+    WGPU_CALL_NULL(WGPU_MemoryAlloc((WGPU_Memory *)&res, nbytes));
 
-    if (cachedWorkspaceMemorySize == MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) { // cache is full
-        cachedWorkspaceMemorySize = 0;
-        // free the unused cached
-        for (uint32_t i = 0; i < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE; ++i) {
-            if (!cachedWorkspaceMemory[i].is_free) {
-                cachedWorkspaceMemory[cachedWorkspaceMemorySize++] = cachedWorkspaceMemory[i];
-            }
-        }
-    }
     if (cachedWorkspaceMemorySize < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) {
         cachedWorkspaceMemory[cachedWorkspaceMemorySize].is_free = 0;
         cachedWorkspaceMemory[cachedWorkspaceMemorySize].ptr = res;
@@ -131,13 +121,13 @@ static void *TVM_RT_WASM_WebGPU_AllocWorkspace(int dev_id, size_t nbytes, DLData
 }
 
 static int TVM_RT_WASM_WebGPU_FreeWorkspace(int dev_id, void *ptr) {
-    for (int i = 0; i < cachedWorkspaceMemorySize; ++i) {
+    for (int i = cachedWorkspaceMemorySize - 1; i >= 0; --i) {
         if (cachedWorkspaceMemory[i].ptr == ptr) {
             cachedWorkspaceMemory[i].is_free = 1;
             return 0;
         }
     }
-    // todo : free the ptr
+    WGPU_CALL(WGPU_MemoryFree(ptr));
     return 0;
 }
 
@@ -149,6 +139,9 @@ static int TVM_RT_WASM_WebGPU_Release(DeviceAPI *d) {
         TVM_RT_WASM_WebGPU_FreeDataSpace(0, cachedWorkspaceMemory[i].ptr);
     }
 
+    for (int i = 0; i < webGPUDeviceAPI.num_device; ++i) {
+        WGPU_CALL(WGPU_DeviceFree(webGPUDeviceAPI.devices[i]));
+    }
     return 0;
 }
 
@@ -186,12 +179,18 @@ int TVM_RT_WASM_WebGPUDeviceAPICreate(WebGPUDeviceAPI **out) {
 
     int num_device = 0;
     // get webgpu count
+    WGPU_CALL(WGPU_DeviceCount(&num_device));
+    if (num_device <= 0) {
+        SET_ERROR_RETURN(-1, "WebGPU: no available devices.");
+    }
+    webGPUDeviceAPI.num_device = num_device;
+
     cachedWorkspaceMemorySize = 0;
 
     SET_TIME(t2)
-    // webGPUDeviceAPI.contexts = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUcontext) * num_device);
+    webGPUDeviceAPI.devices = TVM_RT_WASM_HeapMemoryAlloc(sizeof(WGPU_Device) * num_device);
     for (int i = 0; i < num_device; ++i) {
-        // todo: init context
+        WGPU_CALL(WGPU_DeviceGet(webGPUDeviceAPI.devices + i, i));
     }
     SET_TIME(t3)
 
@@ -201,5 +200,5 @@ int TVM_RT_WASM_WebGPUDeviceAPICreate(WebGPUDeviceAPI **out) {
 
 #else
     WebGPU_NOT_SUPPORTED();
-#endif
+#endif // USE_WEBGPU
 }

@@ -18,7 +18,14 @@
 static Trie *system_lib_symbol = NULL;
 static uint32_t num_sys_lib_symbol = 0;
 
+/*! \brief the system library module is a single instance */
+static Module *sys_lib_module = NULL;
+
 static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor_for_sys_symbol() {
+    if (sys_lib_module) {
+        sys_lib_module->Release(sys_lib_module);
+    }
+
     if (system_lib_symbol) {
         TVM_RT_WASM_TrieRelease(system_lib_symbol);
     }
@@ -39,23 +46,9 @@ TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
     return TVM_RT_WASM_TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
 }
 
-/*! \brief the system library module is a single instance */
-static Module *sys_lib_module = NULL;
-
 /*! \brief the simple release function for system_lib_module and dso_lib_module */
 static int TVM_RT_WASM_DefaultModuleReleaseFunc(Module *self) {
-    if (self->imports) {
-        for (uint32_t i = 0; i < self->num_imports; ++i) {
-            self->imports[i]->Release(self->imports[i]);
-        }
-        TVM_RT_WASM_HeapMemoryFree(self->imports);
-    }
-    if (self->module_funcs_map) {
-        TVM_RT_WASM_TrieRelease(self->module_funcs_map);
-    }
-    if (self->env_funcs_map) {
-        TVM_RT_WASM_TrieRelease(self->env_funcs_map);
-    }
+    MODULE_BASE_MEMBER_FREE(self);
     TVM_RT_WASM_HeapMemoryFree(self);
     return 0;
 }

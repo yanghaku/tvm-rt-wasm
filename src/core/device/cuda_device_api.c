@@ -15,7 +15,10 @@
 static CUDADeviceAPI cudaDeviceApi;
 
 static int TVM_RT_WASM_CUDA_SetDevice(int dev_id) {
-    CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
+    if (unlikely(cudaDeviceApi.current_device != dev_id)) {
+        cudaDeviceApi.current_device = dev_id;
+        CUDA_DRIVER_CALL(cuCtxSetCurrent(cudaDeviceApi.contexts[dev_id]));
+    }
     return 0;
 }
 
@@ -116,6 +119,7 @@ static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataTy
     if (cachedWorkspaceMemorySize == MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) { // cache is full
         cachedWorkspaceMemorySize = 0;
         // free the unused cached
+        // todo: fix memory leak here.
         for (uint32_t i = 0; i < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE; ++i) {
             if (!cachedWorkspaceMemory[i].is_free) {
                 cachedWorkspaceMemory[cachedWorkspaceMemorySize++] = cachedWorkspaceMemory[i];
@@ -201,7 +205,11 @@ int TVM_RT_WASM_CUDADeviceAPICreate(CUDADeviceAPI **out) {
 
     int num_device = 0;
     CUDA_DRIVER_CALL(cuDeviceGetCount(&num_device));
+    if (num_device <= 0) {
+        SET_ERROR_RETURN(-1, "CUDA: no available devices.");
+    }
     cudaDeviceApi.num_device = num_device;
+    cudaDeviceApi.current_device = -1;
 
 #ifndef CUDA_10_ONLY
     CUDA_DRIVER_CALL(cuDeviceGetDefaultMemPool(&cudaDeviceApi.mem_pool, 0));

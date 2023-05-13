@@ -79,6 +79,22 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
 #define TVM_DEV_MODULE_BLOB "__tvm_dev_mblob"
 #define TVM_SET_DEVICE_FUNCTION "__tvm_set_device"
 
+#define MODULE_BASE_MEMBER_FREE(module)                                                                                \
+    do {                                                                                                               \
+        if (module->imports) {                                                                                         \
+            for (uint32_t i = 0; i < module->num_imports; ++i) {                                                       \
+                module->imports[i]->Release(module->imports[i]);                                                       \
+            }                                                                                                          \
+            TVM_RT_WASM_HeapMemoryFree(module->imports);                                                               \
+        }                                                                                                              \
+        if (module->module_funcs_map) {                                                                                \
+            TVM_RT_WASM_TrieRelease(module->module_funcs_map);                                                         \
+        }                                                                                                              \
+        if (module->env_funcs_map) {                                                                                   \
+            TVM_RT_WASM_TrieRelease(module->env_funcs_map);                                                            \
+        }                                                                                                              \
+    } while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

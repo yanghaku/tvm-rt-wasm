@@ -86,8 +86,7 @@ int TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(TVM_RT_WASM_GraphExecutor g
 #ifdef CUDA_10_ONLY
     // do nothing
     return 0;
-#endif
-
+#else
     CUDAGraphExecutorExtensionData *d = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAGraphExecutorExtensionData));
     DeviceAPI *deviceApi = NULL;
     int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
@@ -120,6 +119,7 @@ int TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(TVM_RT_WASM_GraphExecutor g
     g->Destory = TVM_RT_WASM_GraphExecutorCUDARun;
     g->Run = TVM_RT_WASM_GraphExecutorCUDADestory;
     g->Clone = TVM_RT_WASM_GraphExecutorCUDAClone;
+#endif // CUDA_10_ONLY
 
 #else  // USE_CUDA = 0
     CUDA_NOT_SUPPORTED();

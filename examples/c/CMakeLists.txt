@@ -84,6 +84,24 @@ if (${EXAMPLE_USE_CUDA})
     endif ()
 endif ()
 
+message("examples EXAMPLE_USE_WEBGPU = ${EXAMPLE_USE_WEBGPU}")
+if (${EXAMPLE_USE_WEBGPU})
+    add_definitions(-DEXAMPLE_USE_WEBGPU=1)
+    if (NOT ${USE_EMSDK})
+        # native webgpu, should link native webgpu library, such dawn
+        if (NOT DEFINED WEBGPU_NATIVE_LIB)
+            message(FATAL_ERROR "Must set WEBGPU_NATIVE_LIB to link with native webgpu library!.")
+        else ()
+            link_libraries(${WEBGPU_NATIVE_LIB})
+        endif ()
+    else ()
+        # emsdk + webgpu, run in browser or nodejs. do nothing
+    endif ()
+    if (NOT DEFINED TVM_DEVICE_TARGET)
+        set(TVM_DEVICE_TARGET webgpu) # default device target for webgpu
+    endif ()
+endif ()
+
 if (NOT DEFINED TVM_DEVICE_TARGET)
     set(TVM_DEVICE_TARGET "cpu") # if not use cuda, default device target is cpu
 endif ()

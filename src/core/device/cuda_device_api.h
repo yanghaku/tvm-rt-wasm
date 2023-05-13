@@ -19,9 +19,12 @@ extern "C" {
 typedef struct CUDADeviceAPI {
     DEVICE_API_INTERFACE
 
-    uint32_t num_device;
-
 #if USE_CUDA // USE_CUDA = 1
+
+    /*! \brief the number of device */
+    uint32_t num_device;
+    /*! \brief current device id */
+    int current_device;
     /*! \brief the cuda contexts for every devices */
     CUcontext *contexts;
     /*! \brief the now work stream */

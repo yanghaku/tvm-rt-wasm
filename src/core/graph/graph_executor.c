@@ -30,54 +30,50 @@ static int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
  * \param num_dev the number of devices
- * \param g Pointer which receives a pointer to the newly-created instance.
- * \return 0 if successful.
+ * \return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
  */
-int TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                                    uint32_t num_dev, TVM_RT_WASM_GraphExecutor *g) {
+TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle,
+                                                          const DLDevice *devices, uint32_t num_dev) {
     // if module_handle is NULL, we use the systemLib
     if (unlikely(module_handle == NULL)) {
         SET_TIME(t0)
         int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
         if (unlikely(status)) {
-            return status;
+            return NULL;
         }
         SET_TIME(t1)
         DURING_PRINT(t1, t0, "sys_lib_create time");
     }
     if (unlikely(graph_json == NULL)) {
-        SET_ERROR_RETURN(-1, "invalid argument: graph json cannot be NULL");
-    }
-    if (unlikely(g == NULL)) {
-        SET_ERROR_RETURN(-1, "invalid argument: graph executor manager pointer cannot be NULL");
+        SET_ERROR_RETURN(NULL, "invalid argument: graph json cannot be NULL");
     }
     if (unlikely(devices == NULL)) {
-        SET_ERROR_RETURN(-1, "invalid argument: devices cannot be NULL");
+        SET_ERROR_RETURN(NULL, "invalid argument: devices cannot be NULL");
     }
     if (unlikely(num_dev == 0)) {
-        SET_ERROR_RETURN(-1, "invalid argument: the number of devices cannot be zero, at least 1");
+        SET_ERROR_RETURN(NULL, "invalid argument: the number of devices cannot be zero, at least 1");
     }
 
     SET_TIME(t2)
     // start create graph executor
     TVM_RT_WASM_GraphExecutor graph = TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_GraphExecutor_st));
-    *g = graph;
     memset(graph, 0, sizeof(struct TVM_RT_WASM_GraphExecutor_st));
 
     int status = TVM_RT_WASM_GraphExecutorLoad(graph_json, module_handle, devices, num_dev, graph);
     if (unlikely(status)) {
-        return status;
+        TVM_RT_WASM_HeapMemoryFree(graph);
+        return NULL;
     }
 
     // if cuda graph
     if (devices[0].device_type == kDLCUDA) {
-        status = TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(graph);
+        TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(graph);
     }
 
     // end create graph executor
     SET_TIME(t3)
     DURING_PRINT(t3, t2, "graph build time");
-    return status;
+    return graph;
 }
 
 #ifndef GRAPH_JSON_KEY_SIZE
@@ -1065,6 +1061,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
     }
 
     ARRAY_CHECK_NEXT_NON_EXISTS(reader, "nodes array len expect %zu, parse fail", node_size);
+    global_buf[0] = '\0';
     return 0;
 }
 
@@ -1290,7 +1287,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character);"); // ']'
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character);"); // ']'
         } else if (!strcmp(key, "shape")) {
-            ARRAY_CHECK_NEXT_EXISTS(reader, "parse graphAttr shape fail");        // '['
+            ARRAY_CHECK_NEXT_EXISTS(reader, "parse graphAttr shape fail"); // '['
 
             int str_len = TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
             if (unlikely(str_len <= 0)) {
@@ -1350,6 +1347,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
         }
     }
 
+    global_buf[0] = '\0';
     return status;
 }
 

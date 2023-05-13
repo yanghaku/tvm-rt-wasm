@@ -23,11 +23,10 @@ typedef struct TVM_RT_WASM_GraphExecutor_st *TVM_RT_WASM_GraphExecutor;
  * \param module_handle TVM Module that exposes the functions to call.
  * \param devices runtime execution device.
  * \param num_dev the number of devices
- * \param g Pointer which receives a pointer to the newly-created instance.
- * \return 0 if successful.
+ * \return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle,
-                                            const DLDevice *devices, uint32_t num_dev, TVM_RT_WASM_GraphExecutor *g);
+TVM_DLL TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle,
+                                                                  const DLDevice *devices, uint32_t num_dev);
 
 /*!
  * \brief Destory the instance of TVM_RT_WASM_GraphExecutor.

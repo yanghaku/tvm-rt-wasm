@@ -15,12 +15,17 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
     SET_TIME(t0) // init graph start
 
 #if EXAMPLE_USE_CUDA
-    DLDevice cuda = {kDLCUDA, 0};
-    RUN(TVM_RT_WASM_GraphExecutorCreate(graph_json, syslib, &cuda, 1, graph_handle_ptr));
+    DLDevice graph_device = {kDLCUDA, 0};
+#elif EXAMPLE_USE_WEBGPU
+    DLDevice graph_device = {kDLWebGPU, 0};
 #else
-    DLDevice cpu = {kDLCPU, 0};
-    RUN(TVM_RT_WASM_GraphExecutorCreate(graph_json, syslib, &cpu, 1, graph_handle_ptr));
+    DLDevice graph_device = {kDLCPU, 0};
 #endif
+    *graph_handle_ptr = TVM_RT_WASM_GraphExecutorCreate(graph_json, syslib, &graph_device, 1);
+
+    if (!*graph_handle_ptr) {
+        return -1;
+    }
 
     SET_TIME(t1) // init graph end, load params start
 
@@ -39,7 +44,7 @@ int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **inp
     SET_TIME(t0) // set input start
 
     for (int i = 0; i < input_num; ++i) {
-        RUN(TVM_RT_WASM_GraphExecutorSetInput(graph_handle, input_names[i], inputs + i));
+        RUN(TVM_RT_WASM_GraphExecutorSetInputByName(graph_handle, input_names[i], inputs + i));
     }
 
     SET_TIME(t1) // set input end, run graph start

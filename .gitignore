@@ -5,3 +5,5 @@ build*
 lib
 test
 *__pycache__*
+js/node_modules
+js/*.lock

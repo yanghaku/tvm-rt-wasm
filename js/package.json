@@ -1,0 +1,15 @@
+{
+    "name": "tvm-rt-wasm",
+    "version": "0.0.1",
+    "description": "A High performance and tiny tvm runtime library written in C. (backend: cpu, webgpu)",
+    "repository": "https://github.com/yanghaku/tvm-rt-wasm.git",
+    "author": "yanghaku",
+    "license": "Apache-2.0",
+    "private": false,
+    "dependencies": {
+        "@rollup/plugin-typescript": "^11.1.0",
+        "@webgpu/types": "^0.1.32",
+        "eslint": "^8.40.0",
+        "typescript": "^5.0.4"
+    }
+}

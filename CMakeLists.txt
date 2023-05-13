@@ -22,9 +22,6 @@ endif ()
 if (${USE_EMSDK} AND ${USE_CUDA})
     message(FATAL_ERROR "Emscripten cannot support using cuda!")
 endif ()
-if (${USE_WEBGPU} AND (NOT ${USE_EMSDK}))
-    message(FATAL_ERROR "WebGPU need USE_EMSDK = ON!")
-endif()
 
 # setup emsdk as toolchain
 message("USE USE_EMSDK = ${USE_EMSDK}")
@@ -60,6 +57,9 @@ endif ()
 # webgpu support
 message("USE_WEBGPU = ${USE_WEBGPU}")
 if (${USE_WEBGPU})
+    if (NOT ${USE_EMSDK})
+        include_directories(3rdparty/webgpu-headers)
+    endif ()
     add_definitions(-DUSE_WEBGPU=1)
 else ()
     add_definitions(-DUSE_WEBGPU=0)
@@ -72,7 +72,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -fno-exceptions -O3 -ffunction-sect
             -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args \
             -Wno-error=unused-function -fvisibility=hidden")
 
-include_directories(include 3rdparty/dlpack/include src/core)
+include_directories(include 3rdparty/dlpack/include src src/core)
 add_definitions(-DTVM_EXPORTS)
 
 

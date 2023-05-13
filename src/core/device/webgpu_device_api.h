@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 #include <device/device_api.h>
+#include <utils/webgpu_common.h>
 
 /*! \brief WebGPUDeviceAPI implement the interface DeviceAPI */
 typedef struct WebGPUDeviceAPI {
@@ -20,7 +21,11 @@ typedef struct WebGPUDeviceAPI {
 
 #if USE_WEBGPU // USE_WEBGPU == 1
 
-#endif         // USE_WEBGPU
+    WGPU_Device *devices;
+
+    int num_device;
+
+#endif // USE_WEBGPU
 
 } WebGPUDeviceAPI;
 
