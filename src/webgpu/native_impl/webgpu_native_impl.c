@@ -21,6 +21,7 @@ extern void wgpuAdapterDrop(WGPUAdapter adapter);
 extern void wgpuBindGroupDrop(WGPUBindGroup bindGroup);
 extern void wgpuShaderModuleDrop(WGPUShaderModule shader_module);
 extern void wgpuComputePipelineDrop(WGPUComputePipeline compute_pipeline);
+extern void wgpuAddTasksToQueue(WGPUDevice device);
 
 typedef struct WGPUDeviceImpl WGPU_Device_st;
 
@@ -95,6 +96,7 @@ static void device_lost_callback(WGPUDeviceLostReason reason, char const *messag
 }
 
 static void uncaptured_error_callback(WGPUErrorType type, char const *message, void *userdata) {
+    fprintf(stderr, "WebGPU: %s\n", message);
     TVMAPISetLastError(message);
 }
 
@@ -113,40 +115,11 @@ int WGPU_DeviceGet(WGPU_Device *device_ptr) {
         SET_ERROR_RETURN((int)webGPU_Adapter.status, "Cannot get GPU Adapters\n");
     }
 
-    const WGPURequiredLimits limits = {
-        .nextInChain = NULL,
-        .limits =
-            {
-                .maxTextureDimension1D = 8192,
-                .maxTextureDimension2D = 8192,
-                .maxTextureDimension3D = 2048,
-                .maxTextureArrayLayers = 256,
-                .maxBindGroups = 4,
-                .maxBindingsPerBindGroup = 640,
-                .maxDynamicUniformBuffersPerPipelineLayout = 8,
-                .maxDynamicStorageBuffersPerPipelineLayout = 4,
-                .maxSampledTexturesPerShaderStage = 16,
-                .maxSamplersPerShaderStage = 16,
-                .maxStorageBuffersPerShaderStage = 8,
-                .maxStorageTexturesPerShaderStage = 4,
-                .maxUniformBuffersPerShaderStage = 12,
-                .maxUniformBufferBindingSize = 64 << 10,
-                .maxStorageBufferBindingSize = 128 << 20,
-                .maxVertexBuffers = 8,
-                .maxBufferSize = 1 << 28,
-                .maxVertexAttributes = 16,
-                .maxVertexBufferArrayStride = 2048,
-                .minUniformBufferOffsetAlignment = 256,
-                .minStorageBufferOffsetAlignment = 256,
-                .maxInterStageShaderComponents = 60,
-                .maxComputeWorkgroupStorageSize = 16384,
-                .maxComputeInvocationsPerWorkgroup = 1024,
-                .maxComputeWorkgroupSizeX = 1024,
-                .maxComputeWorkgroupSizeY = 1024,
-                .maxComputeWorkgroupSizeZ = 1024,
-                .maxComputeWorkgroupsPerDimension = 65535,
-            },
-    };
+    WGPURequiredLimits limits;
+    // use the adapter limits as requested limits.
+    wgpuAdapterGetLimits(webGPU_Adapter.adapter, &limits);
+    // todo: check limits.
+
     WGPUDeviceDescriptor device_desc;
     memset(&device_desc, 0, sizeof(WGPUDeviceDescriptor));
     device_desc.requiredLimits = &limits;
@@ -154,6 +127,9 @@ int WGPU_DeviceGet(WGPU_Device *device_ptr) {
     if (unlikely(!*device_ptr)) {
         return -1;
     }
+
+    // if use the dawn, set the submit done callback function.
+    wgpuDevicePoll(*device_ptr, true, NULL);
 
     wgpuDeviceSetUncapturedErrorCallback(*device_ptr, uncaptured_error_callback, NULL);
     wgpuDeviceSetDeviceLostCallback(*device_ptr, device_lost_callback, NULL);
@@ -214,6 +190,8 @@ int WGPU_MemoryCopyDtoH(void *dst, size_t dst_byte_offset, WGPU_Memory src, size
     WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(src->device, NULL);
     wgpuCommandEncoderCopyBufferToBuffer(command_encoder, src->buffer, src_byte_offset, dst_gpu, 0, nbytes);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
+
+    wgpuAddTasksToQueue(src->device);
     WGPUQueue q = wgpuDeviceGetQueue(src->device);
     wgpuQueueSubmit(q, 1, &command_buffer);
 
@@ -235,6 +213,8 @@ int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src
     wgpuCommandEncoderCopyBufferToBuffer(command_encoder, src->buffer, src_byte_offset, dst->buffer, dst_byte_offset,
                                          nbytes);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
+
+    wgpuAddTasksToQueue(src->device);
     WGPUQueue q = wgpuDeviceGetQueue(src->device);
     wgpuQueueSubmit(q, 1, &command_buffer);
     return 0;
@@ -333,6 +313,7 @@ int WGPU_FunctionRun(WGPU_Function function, size_t grid_dims[3], size_t block_d
     wgpuComputePassEncoderEnd(compute_pass_encoder);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
 
+    wgpuAddTasksToQueue(function->device);
     WGPUQueue q = wgpuDeviceGetQueue(function->device);
     wgpuQueueSubmit(q, 1, &command_buffer);
 

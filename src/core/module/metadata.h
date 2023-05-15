@@ -68,6 +68,8 @@
             }                                                                                                          \
             --info->num_func_arg_map;                                                                                  \
             info->use_dyn_mem = 1;                                                                                     \
+        } else if (name_size > 17 && memcmp(blob, "paramWriteAccess:", 17) == 0) {                                     \
+            /* no nothing now */                                                                                       \
         } else if (name_size == 10 && memcmp(blob, "blockIdx.", 9) == 0) {                                             \
             info->func_arg_index_map[i] = (uint8_t)(blob[9] - 'x');                                                    \
         } else if (name_size == 11 && memcmp(blob, "threadIdx.", 10) == 0) {                                           \
