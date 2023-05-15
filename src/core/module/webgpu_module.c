@@ -33,9 +33,12 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
         SET_ERROR_RETURN(-1, "WebGPU cannot support dynamic shared memory, but got size %d.", dyn_shared_mem_size);
     }
 
-    CHECK_AND_PARSE_ARGS();
+    CHECK_AND_GET_DIM();
+    for (uint32_t i = 0; i < num_kernel_args; ++i) {
+        info->kernel_arg_storages[i] = args[i].v_handle;
+    }
 
-    int status = WGPU_FunctionRun(info->device_func, block_dim, grid_dim, (WGPU_Memory *)info->kernel_arg_storages,
+    int status = WGPU_FunctionRun(info->device_func, grid_dim, block_dim, (WGPU_Memory *)info->kernel_arg_storages,
                                   num_kernel_args);
 
     return status;
@@ -110,6 +113,14 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, WebG
                              source_map_size);
         }
 
+        DeviceAPI *webgpu_dev_api = NULL;
+        int status = TVM_RT_WASM_DeviceAPIGet(kDLWebGPU, &webgpu_dev_api);
+        if (unlikely(status)) {
+            return status;
+        }
+        // get the device
+        WGPU_Device gpu_device = (WGPU_Device)webgpu_dev_api->GetStream();
+
         blob += sizeof(uint64_t); // source_map_size
         for (uint32_t fid = 0; fid < source_map_size; ++fid) {
             // key: name
@@ -122,7 +133,8 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, WebG
             uint32_t src_size = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t); // src_size
 
-            WGPU_CALL(WGPU_FunctionCreate(&func_info_list[fid].device_func, blob));
+            WGPU_CALL(WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob, src_size,
+                                          func_info_list[fid].num_kernel_args));
 
             blob += src_size; // source string
         }

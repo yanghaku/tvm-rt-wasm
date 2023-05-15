@@ -102,22 +102,26 @@ int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src
 
 /*!
  * \brief Create device function.
+ * \param device The device where function in.
  * \param func_ptr The pointer to receive created function instance.
  * \param source The text device source code.
+ * \param source_len The length of text source code.
+ * \param num_kernel_args The number of device function arguments.
  * \return 0 if success.
  */
-int WGPU_FunctionCreate(WGPU_Function *func_ptr, char *source);
+int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, char *source, uint32_t source_len,
+                        uint32_t num_kernel_args);
 
 /*!
  * \brief Submit function to gpu to run.
  * \param function The function instance.
- * \param block_dims The dimension of blocks.
- * \param thread_dims The dimension of threads.
+ * \param grid_dims The dimension of grid.
+ * \param block_dims The dimension of block.
  * \param kernel_args The device function arguments.
  * \param num_kernel_args The number of device function arguments.
  * \return 0 if success.
  */
-int WGPU_FunctionRun(WGPU_Function function, size_t block_dims[3], size_t thread_dims[3], WGPU_Memory kernel_args[],
+int WGPU_FunctionRun(WGPU_Function function, size_t grid_dims[3], size_t block_dims[3], WGPU_Memory kernel_args[],
                      uint32_t num_kernel_args);
 
 /*!

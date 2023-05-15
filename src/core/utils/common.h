@@ -69,7 +69,7 @@ extern "C" {
 
 extern char global_buf[];
 
-#define GLOBAL_BUF_SIZE 1024
+#define GLOBAL_BUF_SIZE 4096
 
 #ifdef NDEBUG // release
 

@@ -83,8 +83,8 @@ static int TVM_RT_WASM_WebGPU_SetStream(int dev_id, TVMStreamHandle stream) {
 }
 
 static TVMStreamHandle TVM_RT_WASM_WebGPU_GetStream() {
-    // todo
-    return NULL;
+    // the webgpu has no stream, now it return the current device
+    return (TVMStreamHandle)webGPUDeviceAPI.device;
 }
 
 static int TVM_RT_WASM_WebGPU_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {

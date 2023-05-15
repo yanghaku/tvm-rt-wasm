@@ -101,7 +101,7 @@
         }                                                                                                              \
     } while (0)
 
-#define CHECK_AND_PARSE_ARGS()                                                                                         \
+#define CHECK_AND_GET_DIM()                                                                                            \
     do {                                                                                                               \
         for (uint32_t i = 0; i < info->num_func_arg_map; ++i) {                                                        \
             if (unlikely(*(type_codes + i + num_kernel_args) != kTVMArgInt)) {                                         \
@@ -112,10 +112,6 @@
             } else {                                                                                                   \
                 grid_dim[info->func_arg_index_map[i]] = args[num_kernel_args + i].v_int64;                             \
             }                                                                                                          \
-        }                                                                                                              \
-                                                                                                                       \
-        for (uint32_t i = 0; i < num_kernel_args; ++i) {                                                               \
-            info->kernel_arg_storages[i] = &args[i].v_handle;                                                          \
         }                                                                                                              \
     } while (0)
 

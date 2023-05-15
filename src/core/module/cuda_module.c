@@ -30,7 +30,10 @@ static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes
 
     uint32_t num_kernel_args = info->num_kernel_args;
     CHECK_DYN_MEM();
-    CHECK_AND_PARSE_ARGS();
+    CHECK_AND_GET_DIM();
+    for (uint32_t i = 0; i < num_kernel_args; ++i) {
+        info->kernel_arg_storages[i] = &args[i].v_handle;
+    }
 
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
