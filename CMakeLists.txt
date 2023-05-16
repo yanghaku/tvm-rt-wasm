@@ -86,6 +86,10 @@ set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/*.c)
 add_library(tvm-rt STATIC ${LIB_SRC})
 
+if (${USE_WEBGPU} AND ${USE_EMSDK})
+    add_executable(tvm-rt-wasm ${LIB_SRC})
+    target_link_options(tvm-rt-wasm PRIVATE --no-entry -O3 -flto -fno-exceptions -fno-rtti -fPIC -Wl,--gc-sections -sWASM_BIGINT=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB -sSTANDALONE_WASM=1 -sERROR_ON_UNDEFINED_SYMBOLS=1)
+endif ()
 
 # set default install path
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
