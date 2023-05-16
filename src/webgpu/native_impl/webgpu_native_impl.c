@@ -220,8 +220,8 @@ int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src
     return 0;
 }
 
-int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, char *source, uint32_t source_len,
-                        uint32_t num_kernel_args) {
+int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char *source, uint32_t source_len,
+                        const char *entry_name, uint32_t entry_name_len, uint32_t num_kernel_args) {
     // todo: avoid copy
     char *source_code = (char *)TVM_RT_WASM_WorkplaceMemoryAlloc(source_len + 1);
     memcpy(source_code, source, source_len);
@@ -287,8 +287,8 @@ int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, char *sourc
     return 0;
 }
 
-int WGPU_FunctionRun(WGPU_Function function, size_t grid_dims[3], size_t block_dims[3], WGPU_Memory kernel_args[],
-                     uint32_t num_kernel_args) {
+int WGPU_FunctionRun(WGPU_Function function, const WGPU_Memory *kernel_args, uint32_t num_kernel_args,
+                     size_t grid_dim_x, size_t grid_dim_y, size_t grid_dim_z) {
     for (uint32_t i = 0; i < num_kernel_args; ++i) {
         function->bind_group_entries[i].buffer = kernel_args[i]->buffer;
         function->bind_group_entries[i].size = kernel_args[i]->size;
@@ -309,7 +309,7 @@ int WGPU_FunctionRun(WGPU_Function function, size_t grid_dims[3], size_t block_d
     WGPUComputePassEncoder compute_pass_encoder = wgpuCommandEncoderBeginComputePass(command_encoder, NULL);
     wgpuComputePassEncoderSetPipeline(compute_pass_encoder, function->compute_pipeline);
     wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, bind_group, 0, NULL);
-    wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, block_dims[0], block_dims[1], block_dims[2]);
+    wgpuComputePassEncoderDispatchWorkgroups(compute_pass_encoder, grid_dim_x, grid_dim_y, grid_dim_z);
     wgpuComputePassEncoderEnd(compute_pass_encoder);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
 

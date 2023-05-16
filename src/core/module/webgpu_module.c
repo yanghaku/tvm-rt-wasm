@@ -38,8 +38,8 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
         info->kernel_arg_storages[i] = args[i].v_handle;
     }
 
-    int status = WGPU_FunctionRun(info->device_func, grid_dim, block_dim, (WGPU_Memory *)info->kernel_arg_storages,
-                                  num_kernel_args);
+    int status = WGPU_FunctionRun(info->device_func, (WGPU_Memory *)info->kernel_arg_storages, num_kernel_args,
+                                  grid_dim[0], grid_dim[1], grid_dim[2]);
 
     return status;
 }
@@ -133,7 +133,7 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, WebG
             uint32_t src_size = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t); // src_size
 
-            WGPU_CALL(WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob, src_size,
+            WGPU_CALL(WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob, src_size, NULL, 0,
                                           func_info_list[fid].num_kernel_args));
 
             blob += src_size; // source string

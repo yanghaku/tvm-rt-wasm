@@ -106,23 +106,26 @@ int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src
  * \param func_ptr The pointer to receive created function instance.
  * \param source The text device source code.
  * \param source_len The length of text source code.
+ * \param entry_name The name of entry point.
+ * \param entry_name_len The length of entry point name.
  * \param num_kernel_args The number of device function arguments.
  * \return 0 if success.
  */
-int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, char *source, uint32_t source_len,
-                        uint32_t num_kernel_args);
+int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char *source, uint32_t source_len,
+                        const char *entry_name, uint32_t entry_name_len, uint32_t num_kernel_args);
 
 /*!
  * \brief Submit function to gpu to run.
  * \param function The function instance.
- * \param grid_dims The dimension of grid.
- * \param block_dims The dimension of block.
  * \param kernel_args The device function arguments.
  * \param num_kernel_args The number of device function arguments.
+ * \param grid_dim_x The x dim of compute work groups.
+ * \param grid_dim_y The y dim of compute work groups.
+ * \param grid_dim_z The z dim of compute work groups.
  * \return 0 if success.
  */
-int WGPU_FunctionRun(WGPU_Function function, size_t grid_dims[3], size_t block_dims[3], WGPU_Memory kernel_args[],
-                     uint32_t num_kernel_args);
+int WGPU_FunctionRun(WGPU_Function function, const WGPU_Memory *kernel_args, uint32_t num_kernel_args,
+                     size_t grid_dim_x, size_t grid_dim_y, size_t grid_dim_z);
 
 /*!
  * \brief Free the device function.
