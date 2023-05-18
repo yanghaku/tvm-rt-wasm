@@ -35,6 +35,16 @@ export class DLDevice {
         return new DLDevice(DLDeviceType.kDLWebGPU, 0);
     }
 
+    static SizeOf(): number {
+        return 8;
+    }
+
+    write_to_memory(arr: Uint8Array): void {
+        const arr32 = Uint32Array.from(arr);
+        arr32[0] = this.device_type;
+        arr32[1] = this.device_id;
+    }
+
     toString(): string {
         return "DLDevice { type = " + DLDeviceTypeStrings[this.device_type] + ", id = " + this.device_id.toString() + "}";
     }
@@ -61,12 +71,12 @@ export class DLDataType {
     }
 }
 
-export class DLTensor {
-    data: number;
-    device: DLDevice;
-    ndim: number;
-    dtype: number;
-    shape: Array<number>;
-    strides: Array<number>;
-    byte_offset: number;
-}
+// export class DLTensor {
+//     data: ArrayBuffer;
+//     device: DLDevice;
+//     ndim: number;
+//     dtype: number;
+//     shape: Array<number>;
+//     strides: Array<number>;
+//     byte_offset: number;
+// }

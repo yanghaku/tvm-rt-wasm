@@ -37,11 +37,7 @@ EM_ASYNC_JS(int, WGPU_DeviceGet, (WGPU_Device * dev_id_ptr), {
     if (globalThis.TVM_RT_WASM_WEBGPU_CTX == undefined) {
         const err_f = function(msg) {
             console.error(msg);
-            const bytes = msg.length * 4 + 1;
-            const ptr = _malloc(bytes);
-            stringToUTF8(msg, ptr, bytes);
-            _TVMAPISetLastError(ptr);
-            _free(ptr);
+            _TVMAPISetLastError(stringToUTF8OnStack(msg));
         };
         globalThis.TVM_RT_WASM_WEBGPU_CTX = {
             dev_ids : 0,

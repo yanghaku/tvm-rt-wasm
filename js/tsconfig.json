@@ -1,14 +1,21 @@
 {
     "compilerOptions": {
         "target": "ES2020",
-        "outDir": "dist/",
-        "rootDir": "src/",
-        "strict": true
+        "module": "ESNext",
+        "outDir": "dist/ts",
+        "rootDir": ".",
+        "declaration": true,
+        "allowUnreachableCode": false,
+        "strict": true,
     },
     "include": [
-        "src/"
+        "src/",
+        "build/tvm-rt-module.d.ts",
+        "build/tvm-rt-module.js",
     ],
     "exclude": [
+        "dist/**",
+        "**.config**",
         "node_modules/**"
     ]
 }

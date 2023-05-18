@@ -1287,7 +1287,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character);"); // ']'
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character);"); // ']'
         } else if (!strcmp(key, "shape")) {
-            ARRAY_CHECK_NEXT_EXISTS(reader, "parse graphAttr shape fail"); // '['
+            ARRAY_CHECK_NEXT_EXISTS(reader, "parse graphAttr shape fail");        // '['
 
             int str_len = TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
             if (unlikely(str_len <= 0)) {
@@ -1397,3 +1397,14 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, T
     ARRAY_CHECK_NEXT_NON_EXISTS(reader, "node_row_ptr len expect %zu", ptr_size);
     return 0;
 }
+
+// used for js api
+#if USE_WEBGPU && defined(__EMSCRIPTEN__) // USE_WEBGPU = 1 && defined(__EMSCRIPTEN__)
+
+TVM_DLL const char *TVM_RT_WASM_JS_GraphExecutorGetNodeName(const TVM_RT_WASM_GraphExecutor g, uint32_t nid) {
+    char *res = NULL;
+    TVM_RT_WASM_GraphExecutorGetNodeName(g, nid, &res);
+    return res;
+}
+
+#endif // USE_WEBGPU = 1 && defined(__EMSCRIPTEN__)

@@ -8,9 +8,19 @@
 </div>
 <hr/>
 
-A High performance and tiny tvm graph executor library written in C which can enable cuda and compile to WebAssembly.
+A High performance and tiny [TVM] graph executor library written in C which can compile to WebAssembly and use CUDA/WebGPU as the backend.
 
-implement the api for ```tvm/runtime/c_runtime_api.h``` and ```tvm/runtime/c_backend_api.h```.
+## Support Matrix
+
+| Toolchain  | Target                      | Backend    | Runtime                                    |
+| ---------- | --------------------------- | ---------- | ------------------------------------------ |
+| wasi-sdk   | WebAssembly                 | CPU        | wasmer, WasmEdge, wasmtime, etc.           |
+| wasi-sdk   | WebAssembly                 | **CUDA**   | wasmer-gpu (not open-sourced now)          |
+| emscripten | WebAssembly                 | CPU        | browser, nodejs                            |
+| emscripten | WebAssembly                 | **WebGPU** | **browser**, **nodejs** (need `dawn.node`) |
+| clang/gcc  | native(x86_64,aarch64,etc.) | CPU        | /                                          |
+| clang/gcc  | native(x86_64,aarch64,etc.) | CUDA       | /                                          |
+| clang/gcc  | native(x86_64,aarch64,etc.) | WebGPU     | link with use [dawn] or [webgpu-native]    |
 
 ## Build the library
 
@@ -24,7 +34,7 @@ WebAssembly target toolchain download: [wasi-sdk github repo], [emsdk github rep
 ### Available Options in cmake
 
 | Variable        | Default       | Description                                                          |
-|-----------------|---------------|----------------------------------------------------------------------|
+| --------------- | ------------- | -------------------------------------------------------------------- |
 | USE_EMSDK       | OFF           | Use emsdk toolchain and compile to target ```(wasm32-emscription)``` |
 | USE_WASI_SDK    | OFF           | Use wasi-sdk toolchain and compile to target ```(wasm32-wasi)```     |
 | USE_CUDA        | OFF           | Use CUDA support                                                     |
@@ -43,7 +53,7 @@ cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=ON -DUSE_WASI_SDK=ON
 ninja
 ```
 
-## Use the library
+## Use the library in C
 
 See the [examples](./examples)
 
@@ -54,10 +64,14 @@ See the [examples](./examples)
 
 [tvm install tutorial]: https://tvm.apache.org/docs/tutorial/install.html#installing-from-binary-packages
 
-[tvm github repo]: https://github.com/apache/tvm/
+[TVM]: https://github.com/apache/tvm/
 
 [**```wasmer-gpu```**]: https://github.com/yanghaku/wasmer-gpu
 
 [```tlcpack```]: https://tlcpack.ai/
 
 [emsdk github repo]: https://github.com/emscripten-core/emsdk
+
+[dawn]: https://dawn.googlesource.com/dawn
+
+[webgpu-native]: https://github.com/gfx-rs/wgpu-native
