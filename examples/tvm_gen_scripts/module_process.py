@@ -37,6 +37,10 @@ def save_module(opts, executor_factory_module):
 
 
 def build_module(opts, mod, params, target):
+    if opts.dso:
+        syslib = False
+    else:
+        syslib = True
     executor = relay.backend.Executor(opts.executor)
     if opts.tune:
         tasks = autotvm.task.extract_from_program(mod, target=target, params=params)
@@ -49,11 +53,11 @@ def build_module(opts, mod, params, target):
         with autotvm.apply_history_best(log_file):
             with PassContext(opt_level=3):
                 return relay.build(mod, target=target, params=params, executor=executor,
-                                   runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": True}))
+                                   runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": syslib}))
     else:
         with PassContext(opt_level=3):
             return relay.build(mod, target=target, params=params, executor=executor,
-                               runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": True}))
+                               runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": syslib}))
 
 
 def tune_module(opts, log_file, tasks):
