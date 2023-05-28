@@ -153,7 +153,7 @@ function(custom_tvm_executable target_name source_files tvm_gens model out_lib_d
     add_executable(${target_name} ${source_files} ${tvm_gens})
     string(REPLACE "-" "_" target_define ${target_name})    # '-' replace to '_'
     target_compile_definitions(${target_name} PUBLIC -D${target_define})
-    target_link_libraries(${target_name} tvm-rt)
+    target_link_libraries(${target_name} "-Wl,--whole-archive" tvm-rt "-Wl,--no-whole-archive")
     target_link_directories(${target_name} PRIVATE ${out_lib_dir})
     # whole-archive ensure to force link the libgraph
     target_link_options(${target_name} PRIVATE -Wl,--whole-archive -lgraph -Wl,--no-whole-archive)
@@ -233,3 +233,11 @@ set(vgg-16-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16-int8)
 set(vgg-16-int8_tvm_gen ${vgg-16-int8_lib_dir}/graph.json.c)
 set(vgg-16-int8_sources vgg/vgg.c)
 custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} ${vgg-16-int8_tvm_gen} "vgg-16-int8" ${vgg-16-int8_lib_dir})
+
+
+## dso library test
+if(NOT ${USE_WASI_SDK} AND NOT ${USE_EMSDK})
+    add_executable(mobilenet-dso mobilenet/mobilenet.c)
+    target_link_libraries(mobilenet-dso tvm-rt)
+    target_compile_definitions(mobilenet-dso PRIVATE -DDSO_TEST)
+endif()

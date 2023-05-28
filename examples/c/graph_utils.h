@@ -8,10 +8,9 @@
 
 typedef TVM_RT_WASM_GraphExecutor GraphHandle;
 
-int init_graph_with_syslib(const char *graph_param_path, const char *graph_json, GraphHandle *graph_handle_ptr) {
-    TVMModuleHandle syslib = NULL;
-    int status;
-
+int init_graph(TVMModuleHandle module, const char *graph_param_path, const char *graph_json,
+               GraphHandle *graph_handle_ptr) {
+    int status = 0;
     SET_TIME(t0) // init graph start
 
 #if EXAMPLE_USE_CUDA
@@ -21,7 +20,7 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
 #else
     DLDevice graph_device = {kDLCPU, 0};
 #endif
-    *graph_handle_ptr = TVM_RT_WASM_GraphExecutorCreate(graph_json, syslib, &graph_device, 1);
+    *graph_handle_ptr = TVM_RT_WASM_GraphExecutorCreate(graph_json, module, &graph_device, 1);
 
     if (!*graph_handle_ptr) {
         return -1;
@@ -35,6 +34,21 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
 
     printf("Create graph time: %lf ms\nLoad graph params time: %lf ms\n\n", GET_DURING(t1, t0), GET_DURING(t2, t1));
     return status;
+}
+
+int init_graph_with_dso_lib(const char *module_filename, const char *graph_param_path, const char *graph_json,
+                            GraphHandle *graph_handle_ptr) {
+    TVMModuleHandle module = NULL;
+    int status = TVMModLoadFromFile(module_filename, "so", &module);
+    if (status) {
+        return status;
+    }
+    return init_graph(module, graph_param_path, graph_json, graph_handle_ptr);
+}
+
+int init_graph_with_syslib(const char *graph_param_path, const char *graph_json, GraphHandle *graph_handle_ptr) {
+    TVMModuleHandle syslib = NULL;
+    return init_graph(syslib, graph_param_path, graph_json, graph_handle_ptr);
 }
 
 int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **input_names, int input_num,

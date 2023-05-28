@@ -9,6 +9,7 @@
 
 #include <device/cpu_memory.h>
 #include <module/cuda_module.h>
+#include <module/dso_module.h>
 #include <module/webgpu_module.h>
 
 /*!
@@ -46,11 +47,18 @@ TVM_DLL int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
     return TVM_RT_WASM_TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
 }
 
-/*! \brief the simple release function for system_lib_module and dso_lib_module */
-static int TVM_RT_WASM_DefaultModuleReleaseFunc(Module *self) {
-    MODULE_BASE_MEMBER_FREE(self);
-    TVM_RT_WASM_HeapMemoryFree(self);
-    return 0;
+/*! \brief Default function for module get function. */
+int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports,
+                                         TVMFunctionHandle *out) {
+    int status = TVM_RT_WASM_TrieQuery(mod->module_funcs_map, (const uint8_t *)func_name, out);
+    if (likely(status != TRIE_NOT_FOUND)) {
+        return status;
+    }
+
+    if (query_imports) {
+        status = TVM_RT_WASM_TrieQuery(mod->env_funcs_map, (const uint8_t *)func_name, out);
+    }
+    return status;
 }
 
 /*!
@@ -59,7 +67,7 @@ static int TVM_RT_WASM_DefaultModuleReleaseFunc(Module *self) {
  * @param lib_module the root module handle
  * @return 0 if successful
  */
-static int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
+int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
     //    uint64_t blob_size = *(uint64_t *)blob;
     blob += sizeof(uint64_t);
 
@@ -152,6 +160,14 @@ static int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_modul
     return 0;
 }
 
+/*! \brief the release function for system_lib_module */
+static int TVM_RT_WASM_SysLibModuleReleaseFunc(Module *self) {
+    MODULE_BASE_MEMBER_FREE(self);
+    TVM_RT_WASM_HeapMemoryFree(self->packed_functions);
+    TVM_RT_WASM_HeapMemoryFree(self);
+    return 0;
+}
+
 static void visit_symbol_change_to_func(char c, void **data_ptr, void *source_handle) {
     static int now_functions = 0;
     PackedFunction *pf = (PackedFunction *)source_handle;
@@ -179,7 +195,8 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     *libraryModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module));
     memset(*libraryModule, 0, sizeof(Module));
 
-    (*libraryModule)->Release = TVM_RT_WASM_DefaultModuleReleaseFunc;
+    (*libraryModule)->Release = TVM_RT_WASM_SysLibModuleReleaseFunc;
+    (*libraryModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     (*libraryModule)->module_funcs_map = system_lib_symbol;
     TVM_RT_WASM_TrieCreate(&(*libraryModule)->env_funcs_map);
 
@@ -198,6 +215,8 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_MODULE_CTX,
                                               (void **)&module_context)) {
         *module_context = *libraryModule;
+    } else {
+        SET_ERROR_RETURN(-1, "Cannot find module context symbol `%s` from syslib\n", TVM_MODULE_CTX);
     }
 
     /** init packed function */
@@ -208,17 +227,6 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     sys_lib_module = *libraryModule;
     return 0;
-}
-
-/*!
- * \brief create a library module from the dynamic shared library
- * @param filename the filename
- * @param libraryModule the out handle
- * @return 0 if successful
- */
-static int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **libraryModule) {
-    // todo: implement it
-    SET_ERROR_RETURN(-1, "now it's unimplemented yet");
 }
 
 /*!

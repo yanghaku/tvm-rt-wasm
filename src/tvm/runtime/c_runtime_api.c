@@ -86,15 +86,7 @@ int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
  */
 int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_imports, TVMFunctionHandle *out) {
     Module *m = (Module *)mod;
-    int status = TVM_RT_WASM_TrieQuery(m->module_funcs_map, (const uint8_t *)func_name, out);
-    if (likely(status != TRIE_NOT_FOUND)) {
-        return status;
-    }
-
-    if (query_imports) {
-        status = TVM_RT_WASM_TrieQuery(m->env_funcs_map, (const uint8_t *)func_name, out);
-    }
-    return status;
+    return m->GetFunction(m, func_name, query_imports, out);
 }
 
 /*!

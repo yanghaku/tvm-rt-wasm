@@ -34,7 +34,16 @@ typedef struct PackedFunction {
      * \brief Release the resource for this module                                                                     \
      * \return 0 if successful                                                                                         \
      */                                                                                                                \
-    int (*Release)(Module * self);
+    int (*Release)(Module * self);                                                                                     \
+    /*!                                                                                                                \
+     * \brief Find function from module                                                                                \
+     * \param mod The module handle.                                                                                   \
+     * \param func_name The name of the function.                                                                      \
+     * \param query_imports Whether to query imported modules                                                          \
+     * \param out The result function, can be NULL if it is not available.                                             \
+     * \return 0 when no error is thrown, nonzero when failure happens                                                 \
+     */                                                                                                                \
+    int (*GetFunction)(Module * mod, const char *func_name, int query_imports, TVMFunctionHandle *out);
 
 /*! \brief the base member in module */
 #define MODULE_BASE_MEMBER                                                                                             \
@@ -94,6 +103,17 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
             TVM_RT_WASM_TrieRelease(module->env_funcs_map);                                                            \
         }                                                                                                              \
     } while (0)
+
+/*! \brief Default function for module get function. */
+int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports, TVMFunctionHandle *out);
+
+/*!
+ * \brief Load from binary blob
+ * @param blob the dev_blob binary
+ * @param lib_module the root module handle
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module);
 
 #ifdef __cplusplus
 } // extern "C"

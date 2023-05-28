@@ -70,6 +70,7 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num
     *cudaModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAModule));
     memset(*cudaModule, 0, sizeof(CUDAModule));
     (*cudaModule)->Release = TVM_RT_WASM_CUDAModuleReleaseFunc;
+    (*cudaModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
     (*cudaModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);

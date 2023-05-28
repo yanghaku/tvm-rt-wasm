@@ -65,6 +65,7 @@ static void TVM_RT_WASM_WebGPUModuleAllocate(WebGPUModule **webgpuModule, uint32
     *webgpuModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(WebGPUModule));
     memset(*webgpuModule, 0, sizeof(WebGPUModule));
     (*webgpuModule)->Release = TVM_RT_WASM_WebGPUModuleReleaseFunc;
+    (*webgpuModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     TVM_RT_WASM_TrieCreate(&((*webgpuModule)->module_funcs_map));
     (*webgpuModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*webgpuModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(WebGPUFunctionInfo) * num_func);
