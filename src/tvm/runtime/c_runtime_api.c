@@ -60,7 +60,7 @@ const char *TVMGetLastError(void) { return global_buf; }
  *  It can be reconstructed by TVMModImport.
  */
 int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandle *out) {
-    return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)&out);
+    return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)out);
 }
 
 /*!

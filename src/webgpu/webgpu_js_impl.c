@@ -37,7 +37,7 @@ EM_ASYNC_JS(int, WGPU_DeviceGet, (WGPU_Device * dev_id_ptr), {
     if (globalThis.TVM_RT_WASM_WEBGPU_CTX == undefined) {
         const err_f = function(msg) {
             console.error(msg);
-            _TVMAPISetLastError(stringToUTF8OnStack(msg));
+            Module._TVMAPISetLastError(stringToUTF8OnStack(msg));
         };
         globalThis.TVM_RT_WASM_WEBGPU_CTX = {
             dev_ids : 0,
@@ -286,8 +286,6 @@ EM_JS(int, WGPU_FunctionFree, (WGPU_Function func_id), {
     const func = funcs.get(func_id);
     if (func != undefined) {
         funcs.delete(func_id);
-        func.bind_group_layout.destroy();
-        func.pipeline.destroy();
     }
     return 0;
 });

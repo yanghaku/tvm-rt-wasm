@@ -11,9 +11,6 @@ def get_tvm_target(opts):
     elif opts.host_target == 'wasm32-emscripten':
         host += ' -mtriple=wasm32-emscripten -mattr=+bulk-memory'
 
-    if opts.dso: # the llvm module has no PIC flags. todo: delete this patch
-        host = "c"
-
     if opts.device_target == "cpu":
         t = Target(host, host=host)
     else:

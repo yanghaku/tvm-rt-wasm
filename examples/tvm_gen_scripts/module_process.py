@@ -17,7 +17,10 @@ def save_module(opts, executor_factory_module):
         os.mkdir(opts.out_dir)
 
     lib_src_path = os.path.join(opts.out_dir, "graph.ll")
-    lib_path = os.path.join(opts.out_dir, "graph.tar")
+    if opts.dso:
+        lib_path = os.path.join(opts.out_dir, "graph.so")
+    else:
+        lib_path = os.path.join(opts.out_dir, "graph.tar")
     params_path = os.path.join(opts.out_dir, "graph.params")
     json_path = os.path.join(opts.out_dir, "graph.json")
     json_c_path = os.path.join(opts.out_dir, "graph.json.c")

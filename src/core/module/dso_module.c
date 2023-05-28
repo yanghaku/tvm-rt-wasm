@@ -36,13 +36,16 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
     // create the packed function and insert to module_funcs_map
     TVM_RT_LIB_NATIVE_HANDLE native_handle = (TVM_RT_LIB_NATIVE_HANDLE)mod->packed_functions;
     if (native_handle) {
-        PackedFunction *pf = (PackedFunction *)TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction));
-        pf->module = mod;
-        pf->reserved = 0;
-        pf->exec = (TVMBackendPackedCFunc)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, func_name);
-        TVM_RT_WASM_TrieInsert(mod->module_funcs_map, func_name, (void *)pf);
-        *out = (TVMFunctionHandle)pf;
-        return 0;
+        TVMBackendPackedCFunc symbol = (TVMBackendPackedCFunc)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, func_name);
+        if (symbol) {
+            PackedFunction *pf = (PackedFunction *)TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction));
+            pf->module = mod;
+            pf->reserved = 0;
+            pf->exec = symbol;
+            TVM_RT_WASM_TrieInsert(mod->module_funcs_map, func_name, (void *)pf);
+            *out = (TVMFunctionHandle)pf;
+            return 0;
+        }
     }
 
     if (query_imports) {
@@ -86,8 +89,6 @@ int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule)
     void **module_context = (void **)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, TVM_MODULE_CTX);
     if (likely(module_context)) {
         *module_context = *dsoModule;
-    } else {
-        SET_ERROR_RETURN(-1, "Cannot find module context symbol `%s` from `%s`\n", TVM_MODULE_CTX, filename);
     }
 
 #define TVM_RT_WASM_INIT_CONTEXT_FUNC(name)                                                                            \
