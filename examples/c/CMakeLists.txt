@@ -22,7 +22,7 @@ endif ()
 
 # set the ar path
 if (NOT DEFINED CMAKE_AR)
-    set (CMAKE_AR llvm-ar)
+    set(CMAKE_AR llvm-ar)
 endif ()
 
 option(USE_WASI_SDK "USE WASI SDK" OFF)
@@ -101,8 +101,8 @@ if (${EXAMPLE_USE_WEBGPU})
         endif ()
     else ()
         # emsdk + webgpu, run in nodejs. (the c examples cannot run in browser)
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
     endif ()
     if (NOT DEFINED TVM_DEVICE_TARGET)
         set(TVM_DEVICE_TARGET webgpu) # default device target for webgpu
@@ -221,7 +221,6 @@ set(bert-base-uncased_sources bert-uncased/bert-uncased.c)
 custom_tvm_executable(bert-base-uncased ${bert-base-uncased_sources} ${bert-base-uncased_tvm_gen} "bert-base-uncased" ${bert-base-uncased_lib_dir})
 
 
-
 ## resnet-50-int8
 set(resnet-50-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50-int8)
 set(resnet-50-int8_tvm_gen ${resnet-50-int8_lib_dir}/graph.json.c)
@@ -236,11 +235,11 @@ custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} ${vgg-16-int8_tvm_gen} 
 
 
 ## dso library test
-if(NOT ${USE_WASI_SDK} AND NOT ${USE_EMSDK})
+if (NOT ${USE_WASI_SDK} AND NOT ${USE_EMSDK})
     add_executable(mobilenet-dso mobilenet/mobilenet.c)
     target_link_libraries(mobilenet-dso tvm-rt)
     target_compile_definitions(mobilenet-dso PRIVATE -DDSO_TEST)
-    if(${USE_EMSDK})
+    if (${USE_EMSDK})
         target_link_options(mobilenet-dso -sMAIN_MODULE=1)
-    endif()
-endif()
+    endif ()
+endif ()

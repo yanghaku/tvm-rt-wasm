@@ -8,12 +8,13 @@
 </div>
 <hr/>
 
-A High performance and tiny [TVM] graph executor library written in C which can compile to WebAssembly and use CUDA/WebGPU as the backend.
+A High performance and tiny [TVM] graph executor library written in C which can compile to WebAssembly and use
+CUDA/WebGPU as the backend.
 
 ## Support Matrix
 
 | Toolchain  | Target                      | Backend    | Runtime                                    |
-| ---------- | --------------------------- | ---------- | ------------------------------------------ |
+|------------|-----------------------------|------------|--------------------------------------------|
 | wasi-sdk   | WebAssembly                 | CPU        | wasmer, WasmEdge, wasmtime, etc.           |
 | wasi-sdk   | WebAssembly                 | **CUDA**   | wasmer-gpu (not open-sourced now)          |
 | emscripten | WebAssembly                 | CPU        | browser, nodejs                            |
@@ -34,7 +35,7 @@ WebAssembly target toolchain download: [wasi-sdk github repo], [emsdk github rep
 ### Available Options in cmake
 
 | Variable        | Default       | Description                                                          |
-| --------------- | ------------- | -------------------------------------------------------------------- |
+|-----------------|---------------|----------------------------------------------------------------------|
 | USE_EMSDK       | OFF           | Use emsdk toolchain and compile to target ```(wasm32-emscription)``` |
 | USE_WASI_SDK    | OFF           | Use wasi-sdk toolchain and compile to target ```(wasm32-wasi)```     |
 | USE_CUDA        | OFF           | Use CUDA support                                                     |

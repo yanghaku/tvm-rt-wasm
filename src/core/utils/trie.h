@@ -12,6 +12,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <string.h>
 
 #include <device/cpu_memory.h>
@@ -35,6 +36,7 @@ extern const char index2char[];
 struct Trie {
     Trie *son[CHAR_SET_SIZE];
     void *data;
+    bool has_value;
 };
 
 /**------------------------------------------public functions---------------------------------------------------------*/
@@ -67,6 +69,7 @@ INLINE int TVM_RT_WASM_TrieInsert(Trie *trie, const uint8_t *name, void *data) {
         ++name;
     }
     trie->data = data;
+    trie->has_value = true;
     return TRIE_SUCCESS;
 }
 
@@ -91,6 +94,7 @@ INLINE int TVM_RT_WASM_TrieInsertWithLen(Trie *trie, const uint8_t *name, size_t
         ++name;
     }
     trie->data = data;
+    trie->has_value = true;
     return TRIE_SUCCESS;
 }
 
@@ -115,8 +119,12 @@ INLINE int TVM_RT_WASM_TrieQuery(Trie *trie, const uint8_t *name, void **data) {
             return TRIE_NOT_FOUND;
         }
     }
-    *data = trie->data;
-    return TRIE_SUCCESS;
+    if (likely(trie->has_value)) {
+        *data = trie->data;
+        return TRIE_SUCCESS;
+    } else {
+        return TRIE_NOT_FOUND;
+    }
 }
 
 /*!
@@ -141,8 +149,12 @@ INLINE int TVM_RT_WASM_TrieQueryWithLen(Trie *trie, const uint8_t *name, size_t 
             return TRIE_NOT_FOUND;
         }
     }
-    *data = trie->data;
-    return TRIE_SUCCESS;
+    if (likely(trie->has_value)) {
+        *data = trie->data;
+        return TRIE_SUCCESS;
+    } else {
+        return TRIE_NOT_FOUND;
+    }
 }
 
 /*!

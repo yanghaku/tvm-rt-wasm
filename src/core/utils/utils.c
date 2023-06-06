@@ -218,8 +218,9 @@ int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
             TVM_RT_WASM_TrieInsertAll(dst->son[i], src->son[i]);
         }
     }
-    if (dst->data == NULL) {
+    if (!dst->has_value) {
         dst->data = src->data;
+        dst->has_value = true;
     }
     return 0;
 }
@@ -227,7 +228,7 @@ int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
 void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char, void **, void *), void *source_handle) {
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {
         if (trie->son[i]) {
-            if (trie->son[i]->data) {
+            if (trie->son[i]->has_value) {
                 visit(index2char[i], &trie->son[i]->data, source_handle);
             }
             TVM_RT_WASM_TrieVisit(trie->son[i], visit, source_handle);

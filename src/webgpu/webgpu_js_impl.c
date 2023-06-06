@@ -7,7 +7,6 @@
 #if USE_WEBGPU && defined(__EMSCRIPTEN__) // USE_WEBGPU = 1 && defined(__EMSCRIPTEN__)
 
 #include <emscripten.h>
-#include <tvm/runtime/c_runtime_api.h>
 #include <webgpu/webgpu_c_api.h>
 
 struct WGPU_Device_st {};

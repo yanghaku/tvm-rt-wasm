@@ -42,6 +42,7 @@ def get_arg_parser():
     parser.add_argument("--executor", default="graph", help="executor type", choices=("graph", "aot"))
     parser.add_argument("--emit-llvm", default=True, type=bool, help="generate the llvm-ir")
     parser.add_argument("--dso", default=False, type=bool, help="create dynamic library")
+    parser.add_argument("--dso-only", default=False, type=bool, help="create dynamic library only, (no params,json)")
 
     parser.add_argument("--tune", default=False, type=bool, help="tune module before build")
     parser.add_argument("--tune-log-file", default="tune.log", help="tune log file")

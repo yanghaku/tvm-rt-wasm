@@ -61,8 +61,8 @@ if (${USE_WEBGPU})
     if (NOT ${USE_EMSDK})
         include_directories(3rdparty/webgpu-headers)
     else ()
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
     endif ()
     add_definitions(-DUSE_WEBGPU=1)
 else ()
@@ -72,11 +72,11 @@ endif ()
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm)
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti \
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti \
             -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args \
             -Wno-error=unused-function -fvisibility=hidden")
 if (NOT ${USE_EMSDK})
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 endif ()
 
 include_directories(include 3rdparty/dlpack/include src src/core)

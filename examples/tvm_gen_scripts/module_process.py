@@ -25,6 +25,8 @@ def save_module(opts, executor_factory_module):
     json_path = os.path.join(opts.out_dir, "graph.json")
     json_c_path = os.path.join(opts.out_dir, "graph.json.c")
     executor_factory_module.get_lib().export_library(lib_path)
+    if opts.dso_only:
+        return
 
     with open(params_path, "wb") as f:
         f.write(runtime.save_param_dict(executor_factory_module.get_params()))
