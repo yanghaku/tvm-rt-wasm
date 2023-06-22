@@ -21,17 +21,23 @@ if (NOT DEFINED TVM_RT_WASM_ROOT)
 endif ()
 
 # set the ar path
-set(AR_EXEC llvm-ar)
+if (NOT DEFINED CMAKE_AR)
+    set(CMAKE_AR llvm-ar)
+endif ()
 
 option(USE_WASI_SDK "USE WASI SDK" OFF)
 option(USE_EMSDK "USE emscripten toolchain" OFF)
-option(EXAMPLE_USE_CUDA "example use cuda" ON)
+option(EXAMPLE_USE_CUDA "example use cuda" OFF)
+option(EXAMPLE_USE_WEBGPU "example use webgpu" OFF)
 
 if (${USE_EMSDK} AND ${USE_WASI_SDK})
     message(FATAL_ERROR "Cannot use wasi-sdk and emscripten at the same time!")
 endif ()
 if (${USE_EMSDK} AND ${EXAMPLE_USE_CUDA})
-    message(FATAL_ERROR "Emscripten target cannot support using cuda !")
+    message(FATAL_ERROR "Emscripten cannot support using cuda!")
+endif ()
+if (${USE_WASI_SDK} AND ${EXAMPLE_USE_WEBGPU})
+    message(FATAL_ERROR "Wasi-sdk cannot support useing webgpu now!")
 endif ()
 
 
@@ -51,8 +57,8 @@ else ()
         message("example EMSDK path=${EMSDK_PREFIX}")
         set(CMAKE_TOOLCHAIN_FILE ${EMSDK_PREFIX}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake)
         set(TVM_HOST_TARGET "wasm32-emscripten")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory -sNODERAWFS=1 -sTOTAL_MEMORY=1689976832")
-        add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mbulk-memory")
+        add_link_options(-flto -Wl,--allow-undefined,--lto-O3,--gc-sections -sWASM_BIGINT=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB -sERROR_ON_UNDEFINED_SYMBOLS=1 -sNODERAWFS=1 -sSINGLE_FILE=1)
     else () # native toolchain
         link_libraries(m)
     endif ()
@@ -80,6 +86,29 @@ if (${EXAMPLE_USE_CUDA})
     endif ()
 endif ()
 
+message("examples EXAMPLE_USE_WEBGPU = ${EXAMPLE_USE_WEBGPU}")
+if (${EXAMPLE_USE_WEBGPU})
+    add_definitions(-DEXAMPLE_USE_WEBGPU=1)
+    if (NOT ${USE_EMSDK})
+        # native webgpu, should link native webgpu library, such dawn
+        if (NOT DEFINED WEBGPU_NATIVE_LIB)
+            message(FATAL_ERROR "Must set WEBGPU_NATIVE_LIB to link with native webgpu library!.")
+        else ()
+            link_libraries(${WEBGPU_NATIVE_LIB})
+            link_libraries(dl pthread)
+            # must use lld to link the libwgpu_native or libdawn
+            add_link_options("-fuse-ld=lld")
+        endif ()
+    else ()
+        # emsdk + webgpu, run in nodejs. (the c examples cannot run in browser)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
+    endif ()
+    if (NOT DEFINED TVM_DEVICE_TARGET)
+        set(TVM_DEVICE_TARGET webgpu) # default device target for webgpu
+    endif ()
+endif ()
+
 if (NOT DEFINED TVM_DEVICE_TARGET)
     set(TVM_DEVICE_TARGET "cpu") # if not use cuda, default device target is cpu
 endif ()
@@ -89,7 +118,7 @@ endif ()
 message("TVM build target: host=${TVM_HOST_TARGET}, device=${TVM_DEVICE_TARGET}")
 
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti -fPIC \
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti \
                 -w -Wextra -Werror -Wl,--gc-sections")
 
 include_directories(common_headers .)
@@ -117,14 +146,14 @@ function(custom_tvm_executable target_name source_files tvm_gens model out_lib_d
             OUTPUT ${tvm_gens}
             COMMAND python ${tvm_build_script} --model ${model} --host-target ${TVM_HOST_TARGET} --device-target ${TVM_DEVICE_TARGET} -o ${out_lib_dir}
             COMMAND tar -xf ${out_lib_dir}/graph.tar -C ${out_lib_dir}
-            COMMAND ${AR_EXEC} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
+            COMMAND ${CMAKE_AR} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
             DEPENDS ${tvm_build_script}
             WORKING_DIRECTORY ${tvm_build_script_dir}
     )
     add_executable(${target_name} ${source_files} ${tvm_gens})
     string(REPLACE "-" "_" target_define ${target_name})    # '-' replace to '_'
     target_compile_definitions(${target_name} PUBLIC -D${target_define})
-    target_link_libraries(${target_name} tvm-rt)
+    target_link_libraries(${target_name} "-Wl,--whole-archive" tvm-rt "-Wl,--no-whole-archive")
     target_link_directories(${target_name} PRIVATE ${out_lib_dir})
     # whole-archive ensure to force link the libgraph
     target_link_options(${target_name} PRIVATE -Wl,--whole-archive -lgraph -Wl,--no-whole-archive)
@@ -192,7 +221,6 @@ set(bert-base-uncased_sources bert-uncased/bert-uncased.c)
 custom_tvm_executable(bert-base-uncased ${bert-base-uncased_sources} ${bert-base-uncased_tvm_gen} "bert-base-uncased" ${bert-base-uncased_lib_dir})
 
 
-
 ## resnet-50-int8
 set(resnet-50-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50-int8)
 set(resnet-50-int8_tvm_gen ${resnet-50-int8_lib_dir}/graph.json.c)
@@ -204,3 +232,14 @@ set(vgg-16-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16-int8)
 set(vgg-16-int8_tvm_gen ${vgg-16-int8_lib_dir}/graph.json.c)
 set(vgg-16-int8_sources vgg/vgg.c)
 custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} ${vgg-16-int8_tvm_gen} "vgg-16-int8" ${vgg-16-int8_lib_dir})
+
+
+## dso library test
+if (NOT ${USE_WASI_SDK} AND NOT ${USE_EMSDK})
+    add_executable(mobilenet-dso mobilenet/mobilenet.c)
+    target_link_libraries(mobilenet-dso tvm-rt)
+    target_compile_definitions(mobilenet-dso PRIVATE -DDSO_TEST)
+    if (${USE_EMSDK})
+        target_link_options(mobilenet-dso -sMAIN_MODULE=1)
+    endif ()
+endif ()

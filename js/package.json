@@ -1,0 +1,33 @@
+{
+    "name": "tvm-rt-wasm",
+    "version": "0.0.1",
+    "description": "A High performance and tiny tvm runtime library written in C. (backend: cpu, webgpu)",
+    "repository": "https://github.com/yanghaku/tvm-rt-wasm.git",
+    "author": "yanghaku",
+    "license": "Apache-2.0",
+    "private": false,
+    "keywords": [
+        "TVM",
+        "TVM Runtime",
+        "Deep Learning",
+        "WebGPU"
+    ],
+    "types": "dist/tvm-rt-wasm.d.ts",
+    "scripts": {
+        "build-c": "mkdir -p build && cd build && cmake ../.. -DEMSDK_PREFIX=$EMSDK_PREFIX -DCMAKE_BUILD_TYPE=Release -DUSE_EMSDK=ON -DUSE_WEBGPU=ON -DBUILD_EXAMPLES=OFF && cmake --build . --target tvm-rt-module -j && cd ..",
+        "build": "yarn build-c && yarn rollup --environment NODE_ENV:production -c rollup.config.mjs"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^25.0.0",
+        "@rollup/plugin-node-resolve": "^15.0.2",
+        "@rollup/plugin-terser": "^0.4.2",
+        "@types/emscripten": "^1.39.6",
+        "rollup": "^3.21.8",
+        "rollup-plugin-dts": "^5.3.0",
+        "rollup-plugin-polyfill-node": "^0.12.0",
+        "rollup-plugin-typescript2": "^0.34.1",
+        "tslib": "^2.5.0",
+        "typescript": "^5.0.4",
+        "yarn": "^1.22.19"
+    }
+}

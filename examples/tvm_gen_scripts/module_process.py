@@ -17,11 +17,16 @@ def save_module(opts, executor_factory_module):
         os.mkdir(opts.out_dir)
 
     lib_src_path = os.path.join(opts.out_dir, "graph.ll")
-    lib_path = os.path.join(opts.out_dir, "graph.tar")
+    if opts.dso:
+        lib_path = os.path.join(opts.out_dir, "graph.so")
+    else:
+        lib_path = os.path.join(opts.out_dir, "graph.tar")
     params_path = os.path.join(opts.out_dir, "graph.params")
     json_path = os.path.join(opts.out_dir, "graph.json")
     json_c_path = os.path.join(opts.out_dir, "graph.json.c")
     executor_factory_module.get_lib().export_library(lib_path)
+    if opts.dso_only:
+        return
 
     with open(params_path, "wb") as f:
         f.write(runtime.save_param_dict(executor_factory_module.get_params()))
@@ -37,6 +42,10 @@ def save_module(opts, executor_factory_module):
 
 
 def build_module(opts, mod, params, target):
+    if opts.dso:
+        syslib = False
+    else:
+        syslib = True
     executor = relay.backend.Executor(opts.executor)
     if opts.tune:
         tasks = autotvm.task.extract_from_program(mod, target=target, params=params)
@@ -49,11 +58,11 @@ def build_module(opts, mod, params, target):
         with autotvm.apply_history_best(log_file):
             with PassContext(opt_level=3):
                 return relay.build(mod, target=target, params=params, executor=executor,
-                                   runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": True}))
+                                   runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": syslib}))
     else:
         with PassContext(opt_level=3):
             return relay.build(mod, target=target, params=params, executor=executor,
-                               runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": True}))
+                               runtime=tvm.relay.backend.Runtime("cpp", {"system-lib": syslib}))
 
 
 def tune_module(opts, log_file, tasks):

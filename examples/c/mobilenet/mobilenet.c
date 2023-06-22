@@ -7,15 +7,35 @@
 #define TOSTRING(x) STRINGIFY(x)
 #define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
 
+#ifndef DSO_TEST
 extern const unsigned char graph_json[];
+#else
+#define GRAPH_JSON_MAX_LEN 80000
+static char graph_json[GRAPH_JSON_MAX_LEN];
+#endif // !DSO_TEST
 
 int main(int argc, char **argv) {
     SET_TIME(start_time)
 
+#ifdef DSO_TEST
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s <graph.so> <graph.params> <graph.json>\n", argv[0]);
+        return -1;
+    }
+    FILE *j = fopen(argv[3], "r");
+    if (!j) {
+        fprintf(stderr, "Cannot open graph json file `%s`\n", argv[3]);
+        return -2;
+    }
+    size_t graph_json_len = fread(graph_json, 1, GRAPH_JSON_MAX_LEN, j);
+    fclose(j);
+    graph_json[graph_json_len] = '\0';
+#else
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <graph.params>\n", __FILE__);
         return -1;
     }
+#endif // DSO_TEST
 
     // static array storage
     static float input_storage[INPUT_SHAPE];
@@ -49,7 +69,11 @@ int main(int argc, char **argv) {
 
     int status;
     GraphHandle graph_handle = NULL;
+#ifdef DSO_TEST
+    RUN(init_graph_with_dso_lib(argv[1], argv[2], (const char *)graph_json, &graph_handle));
+#else
     RUN(init_graph_with_syslib(argv[1], (const char *)graph_json, &graph_handle));
+#endif // DSO_TEST
 
     while (1) {
         // load input from file

@@ -29,7 +29,7 @@ set(TVM_HOST_TARGET "native")
 set(TVM_DEVICE_TARGET cuda) # default device target for cuda
 message("Native TVM build target: host=${TVM_HOST_TARGET}, device=${TVM_DEVICE_TARGET}")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti -fPIC \
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti \
                 -w -Wextra -Werror -Wl,--gc-sections")
 set(EXAMPLE_PATH "../c")
 include_directories(${EXAMPLE_PATH}/common_headers)

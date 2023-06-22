@@ -1,3 +1,6 @@
 [submodule "3rdparty/dlpack"]
 	path = 3rdparty/dlpack
 	url = https://github.com/dmlc/dlpack.git
+[submodule "3rdparty/webgpu-headers"]
+	path = 3rdparty/webgpu-headers
+	url = https://github.com/webgpu-native/webgpu-headers.git
