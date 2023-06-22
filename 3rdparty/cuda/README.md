@@ -1,3 +1,3 @@
-The file ```include/cuda.h``` is copied from cudatookit.
+The file ```include/cuda.h``` is copied from [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit-archive).
 
-now version: 11.8.89
+now version: 12.1.1
