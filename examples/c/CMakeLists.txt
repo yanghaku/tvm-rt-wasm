@@ -101,8 +101,7 @@ if (${EXAMPLE_USE_WEBGPU})
         endif ()
     else ()
         # emsdk + webgpu, run in nodejs. (the c examples cannot run in browser)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sASYNCIFY")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sASYNCIFY")
+        add_link_options(-sASYNCIFY)
     endif ()
     if (NOT DEFINED TVM_DEVICE_TARGET)
         set(TVM_DEVICE_TARGET webgpu) # default device target for webgpu
@@ -235,11 +234,12 @@ custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} ${vgg-16-int8_tvm_gen} 
 
 
 ## dso library test
-if (NOT ${USE_WASI_SDK} AND NOT ${USE_EMSDK})
+if (NOT ${USE_WASI_SDK})
     add_executable(mobilenet-dso mobilenet/mobilenet.c)
     target_link_libraries(mobilenet-dso tvm-rt)
     target_compile_definitions(mobilenet-dso PRIVATE -DDSO_TEST)
     if (${USE_EMSDK})
-        target_link_options(mobilenet-dso -sMAIN_MODULE=1)
+        target_link_options(mobilenet-dso PRIVATE -sMAIN_MODULE=1)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     endif ()
 endif ()
