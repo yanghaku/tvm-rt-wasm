@@ -54,7 +54,11 @@ INLINE int TVM_RT_WASM_DLDataType_ParseFromString(const char *str, DLDataType *o
         out_type->bits = 64;
         str += 6;
     } else {
-        SET_ERROR_RETURN(-1, "unsupported DLDateType: %s", str);
+        char *tmp_str = TVM_RT_WASM_WorkplaceMemoryAlloc(strlen(str) + 1);
+        strcpy(tmp_str, str);
+        TVM_RT_SET_ERROR("Unsupported DLDateType: %s", tmp_str);
+        TVM_RT_WASM_WorkplaceMemoryFree(tmp_str);
+        return -1;
     }
     if (isdigit1to9(*str)) {
         int num = 0;

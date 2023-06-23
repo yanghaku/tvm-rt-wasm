@@ -32,7 +32,7 @@
      */                                                                                                                \
     uint32_t num_func_arg_map;
 
-#define PARSE_FUNC_INFO(moduleInstance)                                                                                \
+#define PARSE_FUNC_INFO(moduleInstance, fail_label)                                                                    \
     /* key: name */                                                                                                    \
     uint32_t name_size = (uint32_t) * (uint64_t *)blob;                                                                \
     blob += sizeof(uint64_t); /* name_size */                                                                          \
@@ -64,7 +64,7 @@
         if (name_size == 24 && memcmp(blob, "tir.use_dyn_shared_memory", name_size) == 0) {                            \
             if (unlikely(i + 1 != mp_size)) {                                                                          \
                 const char *msg = "binary parse error: the tir.use_dyn_shared_memory must in last!\n";                 \
-                SET_ERROR_RETURN(-1, "%s", msg);                                                                       \
+                TVM_RT_SET_ERROR_AND_GOTO(fail_label, "%s", msg);                                                      \
             }                                                                                                          \
             --info->num_func_arg_map;                                                                                  \
             info->use_dyn_mem = 1;                                                                                     \
@@ -76,7 +76,7 @@
             info->func_arg_index_map[i] = (uint8_t)(blob[10] - 'x' + 3);                                               \
         } else {                                                                                                       \
             blob[name_size] = '\0';                                                                                    \
-            SET_ERROR_RETURN(-1, "unknown params Tags: %s\n", blob);                                                   \
+            TVM_RT_SET_ERROR_AND_GOTO(fail_label, "unknown params Tags: %s\n", blob);                                  \
         }                                                                                                              \
                                                                                                                        \
         blob += name_size; /* name string */                                                                           \
@@ -88,17 +88,17 @@
     do {                                                                                                               \
         if (info->use_dyn_mem) {                                                                                       \
             if (unlikely(num_kernel_args + info->num_func_arg_map + 1 != (uint32_t)num_args)) {                        \
-                SET_ERROR_RETURN(-1, "params number error, expect %d, but given %d\n",                                 \
-                                 num_kernel_args + info->num_func_arg_map + 1, num_args);                              \
+                TVM_RT_SET_ERROR_RETURN(-1, "Params number expect %d, but given %d",                                   \
+                                        num_kernel_args + info->num_func_arg_map + 1, num_args);                       \
             }                                                                                                          \
             if (unlikely(*(type_codes + num_args - 1) != kTVMArgInt)) {                                                \
-                SET_ERROR_RETURN(-1, "params type error: expect int type to use dynamic shared memory");               \
+                TVM_RT_SET_ERROR_RETURN(-1, "Expect int type for param %d", num_args - 1);                             \
             }                                                                                                          \
             dyn_shared_mem_size = (size_t)args[num_args - 1].v_int64;                                                  \
         } else {                                                                                                       \
             if (unlikely(num_kernel_args + info->num_func_arg_map != (uint32_t)num_args)) {                            \
-                SET_ERROR_RETURN(-1, "params number error, expect %d, but given %d\n",                                 \
-                                 num_kernel_args + info->num_func_arg_map, num_args);                                  \
+                TVM_RT_SET_ERROR_RETURN(-1, "Params number expect %d, but given %d",                                   \
+                                        num_kernel_args + info->num_func_arg_map, num_args);                           \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
@@ -107,7 +107,7 @@
     do {                                                                                                               \
         for (uint32_t i = 0; i < info->num_func_arg_map; ++i) {                                                        \
             if (unlikely(*(type_codes + i + num_kernel_args) != kTVMArgInt)) {                                         \
-                SET_ERROR_RETURN(-1, "params type error, expect int type");                                            \
+                TVM_RT_SET_ERROR_RETURN(-1, "Expect int type for param %d", i);                                        \
             }                                                                                                          \
             if (info->func_arg_index_map[i] >= 3) {                                                                    \
                 block_dim[info->func_arg_index_map[i] - 3] = args[num_kernel_args + i].v_int64;                        \

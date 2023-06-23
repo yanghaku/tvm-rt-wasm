@@ -10,7 +10,7 @@ typedef TVM_RT_WASM_GraphExecutor GraphHandle;
 
 int init_graph(TVMModuleHandle module, const char *graph_param_path, const char *graph_json,
                GraphHandle *graph_handle_ptr) {
-    int status = 0;
+    int status;
     SET_TIME(t0) // init graph start
 
 #if EXAMPLE_USE_CUDA
@@ -52,7 +52,7 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
 }
 
 int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **input_names, int input_num,
-              const DLTensor *outputs, const int *output_indexes, int output_num) {
+              DLTensor *outputs, const int *output_indexes, int output_num) {
     int status;
 
     SET_TIME(t0) // set input start
@@ -77,6 +77,6 @@ int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **inp
     return status;
 }
 
-inline int delete_graph(GraphHandle graph_handle) { return TVM_RT_WASM_GraphExecutorDestory(&graph_handle); }
+inline int delete_graph(GraphHandle graph_handle) { return TVM_RT_WASM_GraphExecutorFree(graph_handle); }
 
 #endif // TVM_RT_EXAMPLE_WASM_GRAPH_UTILS_H

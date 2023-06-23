@@ -1,7 +1,3 @@
-from tvm import relay
-from tvm.contrib.download import download_testdata
-
-
 class ModelInfo:
     def __init__(self, key, full_name, input_info, url, from_frontend="onnx"):
         self.key = key
@@ -50,10 +46,12 @@ def get_module_frontend(opts):
 
     if model_info.from_frontend == "onnx":
         import onnx
+        from tvm.contrib.download import download_testdata
+        from tvm.relay.frontend import from_onnx
         url = "https://github.com/onnx/models/raw/main/" + model_info.url + "/model/" + model_info.full_name
         model_local_path = download_testdata(url, model_info.full_name, module=model_info.from_frontend)
         onnx_module = onnx.load(model_local_path)
-        mod, params = relay.frontend.from_onnx(onnx_module, shape=model_info.input_info)
+        mod, params = from_onnx(onnx_module, shape=model_info.input_info)
     elif model_info.from_frontend == "pytorch":
         if model_info.full_name[:4] == 'bert':
             from bert import get_bert_frontend

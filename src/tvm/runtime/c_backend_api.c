@@ -27,7 +27,7 @@ int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionH
             TVM_RT_WASM_TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, *out);
         }
         if (unlikely(status == TRIE_NOT_FOUND)) {
-            SET_ERROR_RETURN(status, "Cannot find function '%s' from env", func_name);
+            TVM_RT_SET_ERROR_RETURN(status, "Cannot find function '%s' from env", func_name);
         }
     }
     return status;
@@ -95,6 +95,7 @@ int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {
  * \return 0 when no error is thrown, -1 when failure happens
  */
 int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, int num_task) {
+    (void)num_task;
     // Now WebAssembly does not support threads.
     static TVMParallelGroupEnv parallelGroupEnv = {.num_task = 1, .sync_handle = NULL};
     return flambda(0, &parallelGroupEnv, cdata);
@@ -106,4 +107,8 @@ int TVMBackendParallelLaunch(FTVMParallelLambda flambda, void *cdata, int num_ta
  * \param penv The parallel environment backs the execution.
  * \return 0 when no error is thrown, -1 when failure happens
  */
-int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) { return 0; }
+int TVMBackendParallelBarrier(int task_id, TVMParallelGroupEnv *penv) {
+    (void)task_id;
+    (void)penv;
+    return 0;
+}

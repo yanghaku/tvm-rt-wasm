@@ -30,7 +30,7 @@ declare interface TvmRtWasmModule extends EmscriptenModule {
 
     _TVM_RT_WASM_GraphExecutorRun(graph_handle: GraphHandle): number;
 
-    _TVM_RT_WASM_GraphExecutorDestory(graph_handle: GraphHandle): number;
+    _TVM_RT_WASM_GraphExecutorFree(graph_handle: GraphHandle): number;
 
     _TVMGetLastError(): Pointer;
 

@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
         .strides = NULL,
         .byte_offset = 0,
     }};
-    const DLTensor outputs[] = {{
+    DLTensor outputs[] = {{
         .data = output_storage,
         .device = cpu,
         .ndim = 2,

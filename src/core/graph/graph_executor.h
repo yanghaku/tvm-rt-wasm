@@ -51,7 +51,7 @@ typedef struct GraphExecutorNodeEntry {
     uint32_t node_id;
     /*! \brief an entry that represents output data from a node */
     uint32_t index;
-    /*!\brief the version will not be used in this project */
+    // /*!\brief the version will not be used in this project */
     // uint32_t version;
 } GraphExecutorNodeEntry;
 
@@ -74,7 +74,7 @@ typedef struct GraphExecutorNode {
     const char *func_name;
     /*! \brief the inputs data NodeEntry */
     GraphExecutorNodeEntry *inputs;
-    /*! \brief control_dep, this will not be used in this project */
+    // /*! \brief control_dep, this will not be used in this project */
     // uint32_t *control_dep;
 } GraphExecutorNode;
 
@@ -151,11 +151,11 @@ struct TVM_RT_WASM_GraphExecutor_st {
     int (*Run)(struct TVM_RT_WASM_GraphExecutor_st *g);
 
     /*!
-     * \brief Destory the extension_data.
+     * \brief Free the extension_data.
      * \param extension_data The pointer to extension_data.
      * \return 0 if successful
      */
-    int (*Destory)(void *extension_data);
+    int (*Free)(void *extension_data);
 
     /*!
      * \brief Clone the extension_data.
@@ -169,12 +169,27 @@ struct TVM_RT_WASM_GraphExecutor_st {
     void *extension_data;
 };
 
+/*!
+ * \brief init a new GraphExecutor from graph.json
+ *
+ * \param graph_json JSON-encoded graph.
+ * \param module_handle TVM Module that exposes the functions to call.
+ * \param devices runtime execution device.
+ * \param num_dev the number of devices
+ * \param graph the instance.
+ * \return 0 if successful.
+ */
+int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
+                                  uint32_t num_dev, TVM_RT_WASM_GraphExecutor graph);
+
 /*--------------------------------some definition for graph executor function-----------------------------------------*/
 
-#define CHECK_GraphExecutor(g)                                                                                         \
+#define CHECK_GraphExecutor(g) CHECK_INPUT_POINTER(g, -2, "GraphExecutor")
+#define CHECK_NodeRange(max_r, index)                                                                                  \
     do {                                                                                                               \
-        if (unlikely((g) == NULL)) {                                                                                   \
-            SET_ERROR_RETURN(-1, "invalid argument: GraphExecutor cannot be NULL.");                                   \
+        if (unlikely((index) >= (max_r))) {                                                                            \
+            TVM_RT_SET_ERROR_RETURN(-2, "Invalid argument: expect index in range [0,%d), but got %d", (max_r),         \
+                                    (index));                                                                          \
         }                                                                                                              \
     } while (0)
 

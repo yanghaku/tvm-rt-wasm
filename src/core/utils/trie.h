@@ -60,7 +60,7 @@ INLINE int TVM_RT_WASM_TrieInsert(Trie *trie, const uint8_t *name, void *data) {
     while (*name) {
         uint32_t id = char2index[*name];
         if (unlikely(id == 255)) {
-            SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "charset is invalid: %c(ascii=%d)", *name, *name);
+            TVM_RT_SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "Charset is invalid: %c(ascii=%d)", *name, *name);
         }
         if (trie->son[id] == NULL) {
             TVM_RT_WASM_TrieCreate(&trie->son[id]);
@@ -85,7 +85,7 @@ INLINE int TVM_RT_WASM_TrieInsertWithLen(Trie *trie, const uint8_t *name, size_t
     while (len--) {
         uint32_t id = char2index[*name];
         if (unlikely(id == 255)) {
-            SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "charset is invalid: %c(ascii=%d)", *name, *name);
+            TVM_RT_SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "Charset is invalid: %c(ascii=%d)", *name, *name);
         }
         if (trie->son[id] == NULL) {
             TVM_RT_WASM_TrieCreate(&trie->son[id]);

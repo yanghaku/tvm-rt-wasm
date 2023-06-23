@@ -4,39 +4,57 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <device/cpu_memory.h>
 #include <device/webgpu_device_api.h>
-#include <string.h>
-#include <utils/tensor_helper.h>
 
 #if USE_WEBGPU // USE_WEBGPU = 1
+
+#include <device/cpu_memory.h>
+#include <string.h>
+#include <utils/tensor_helper.h>
 
 /*! \brief the webgpu Device API will be a single static instance */
 static WebGPUDeviceAPI webGPUDeviceAPI;
 
-static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) { return 0; }
+static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) {
+    (void)dev_id;
+    return 0;
+}
 
 static void *TVM_RT_WASM_WebGPU_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
+    (void)dev_id;
+    (void)alignment;
+    (void)type_hint;
+
     void *res = NULL;
-    WGPU_CALL_NULL(WGPU_MemoryAlloc(webGPUDeviceAPI.device, (WGPU_Memory *)&res, nbytes));
+    int status = WGPU_MemoryAlloc(webGPUDeviceAPI.device, (WGPU_Memory *)&res, nbytes);
+    if (unlikely(status)) {
+        return NULL;
+    }
     return res;
 }
 
 static void *TVM_RT_WASM_WebGPU_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype,
                                                     const char *mem_scope) {
-    SET_ERROR_RETURN((void *)-1, "%s is not supported yet\n", __FUNCTION__);
+    (void)dev_id;
+    (void)ndim;
+    (void)shape;
+    (void)dtype;
+    (void)mem_scope;
+    TVM_RT_NOT_IMPLEMENT(NULL);
 }
 
 static int TVM_RT_WASM_WebGPU_FreeDataSpace(int dev_id, void *ptr) {
+    (void)dev_id;
     WGPU_CALL(WGPU_MemoryFree((WGPU_Memory)ptr));
     return 0;
 }
 
 static int TVM_RT_WASM_WebGPU_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
+    (void)stream;
     uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
     uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
     if (unlikely(bytes != byte_check)) {
-        SET_ERROR_RETURN(-1, "Error: data copy size is diff, from=%lld and to=%lld\n", bytes, byte_check);
+        TVM_RT_SET_ERROR_RETURN(-1, "Data copy size is diff, from=%" PRIu64 " and to=%" PRIu64, bytes, byte_check);
     }
     if (from->device.device_type == kDLCPU) {
         if (to->device.device_type == kDLCPU) {
@@ -45,7 +63,7 @@ static int TVM_RT_WASM_WebGPU_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMSt
             WGPU_CALL(
                 WGPU_MemoryCopyHtoD((WGPU_Memory)to->data, to->byte_offset, from->data, from->byte_offset, bytes));
         } else {
-            SET_ERROR_RETURN(-1, "Error: unsupported data copy!\n");
+            TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy!");
         }
     } else if (from->device.device_type == kDLWebGPU) {
         if (to->device.device_type == kDLCPU) {
@@ -55,40 +73,45 @@ static int TVM_RT_WASM_WebGPU_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMSt
             WGPU_CALL(WGPU_MemoryCopyDtoD((WGPU_Memory)to->data, to->byte_offset, (WGPU_Memory)from->data,
                                           from->byte_offset, bytes));
         } else {
-            SET_ERROR_RETURN(-1, "Error: unsupported data copy!\n");
+            TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy!");
         }
     }
     return 0;
 }
 
 static TVMStreamHandle TVM_RT_WASM_WebGPU_CreateStream(int dev_id) {
-    TVMStreamHandle out = NULL;
-    // todo
-    return out;
+    (void)dev_id;
+    TVM_RT_NOT_IMPLEMENT(NULL);
 }
 
 static int TVM_RT_WASM_WebGPU_FreeStream(int dev_id, TVMStreamHandle stream) {
-    // todo
-    return 0;
+    (void)dev_id;
+    (void)stream;
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 static int TVM_RT_WASM_WebGPU_StreamSync(int dev_id, TVMStreamHandle stream) {
-    // todo
-    return 0;
+    (void)dev_id;
+    (void)stream;
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 static int TVM_RT_WASM_WebGPU_SetStream(int dev_id, TVMStreamHandle stream) {
-    // todo
-    return 0;
+    (void)dev_id;
+    (void)stream;
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 static TVMStreamHandle TVM_RT_WASM_WebGPU_GetStream() {
-    // the webgpu has no stream, now it return the current device
+    // the webgpu has no stream, now it returns the current device
     return (TVMStreamHandle)webGPUDeviceAPI.device;
 }
 
 static int TVM_RT_WASM_WebGPU_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {
-    SET_ERROR_RETURN(-1, "%s is not supported yet\n", __FUNCTION__);
+    (void)dev_id;
+    (void)event_dst;
+    (void)event_src;
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 #define MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE 100
@@ -98,18 +121,23 @@ typedef struct {
     uint32_t is_free;
 } CachedWorkspaceMemory;
 static CachedWorkspaceMemory cachedWorkspaceMemory[MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE];
-static uint32_t cachedWorkspaceMemorySize = 0;
+static int cachedWorkspaceMemorySize = 0;
 
 static void *TVM_RT_WASM_WebGPU_AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
+    (void)dev_id;
+    (void)type_hint;
     void *res = NULL;
 
-    for (uint32_t i = 0; i < cachedWorkspaceMemorySize; ++i) {
+    for (int i = 0; i < cachedWorkspaceMemorySize; ++i) {
         if (cachedWorkspaceMemory[i].size == nbytes && cachedWorkspaceMemory[i].is_free) {
             cachedWorkspaceMemory[i].is_free = 0;
             return cachedWorkspaceMemory[i].ptr;
         }
     }
-    WGPU_CALL_NULL(WGPU_MemoryAlloc(webGPUDeviceAPI.device, (WGPU_Memory *)&res, nbytes));
+    int status = WGPU_MemoryAlloc(webGPUDeviceAPI.device, (WGPU_Memory *)&res, nbytes);
+    if (unlikely(status)) {
+        return NULL;
+    }
 
     if (cachedWorkspaceMemorySize < MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE) {
         cachedWorkspaceMemory[cachedWorkspaceMemorySize].is_free = 0;
@@ -121,6 +149,7 @@ static void *TVM_RT_WASM_WebGPU_AllocWorkspace(int dev_id, size_t nbytes, DLData
 }
 
 static int TVM_RT_WASM_WebGPU_FreeWorkspace(int dev_id, void *ptr) {
+    (void)dev_id;
     for (int i = cachedWorkspaceMemorySize - 1; i >= 0; --i) {
         if (cachedWorkspaceMemory[i].ptr == ptr) {
             cachedWorkspaceMemory[i].is_free = 1;
@@ -143,7 +172,7 @@ static int TVM_RT_WASM_WebGPU_Release(DeviceAPI *d) {
     return 0;
 }
 
-#endif // USE_WEBGPU
+#endif // USE_WEBGPU = 1
 
 /*!
  * \brief create a instance of webgpu device api
@@ -183,6 +212,7 @@ int TVM_RT_WASM_WebGPUDeviceAPICreate(WebGPUDeviceAPI **out) {
     return 0;
 
 #else
+    (void)out;
     WebGPU_NOT_SUPPORTED();
-#endif // USE_WEBGPU
+#endif // USE_WEBGPU = 1
 }

@@ -41,6 +41,7 @@ def get_bert_frontend(bert_name: str):
     input_dummy = get_bert_input_dummy(bert_name)
     traced_model = get_traced_model(bert_name, input_dummy)
 
+    # todo: use relax to build
     shape_list = [(i.debugName().split('.')[0], i.type().sizes()) for i in list(traced_model.graph.inputs())[1:]]
     mod_bert, params_bert = relay.frontend.pytorch.from_pytorch(traced_model, shape_list, default_dtype="float32")
     return mod_bert, params_bert

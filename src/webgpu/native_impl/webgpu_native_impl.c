@@ -23,8 +23,6 @@ extern void wgpuShaderModuleDrop(WGPUShaderModule shader_module);
 extern void wgpuComputePipelineDrop(WGPUComputePipeline compute_pipeline);
 extern void wgpuAddTasksToQueue(WGPUDevice device);
 
-typedef struct WGPUDeviceImpl WGPU_Device_st;
-
 struct WGPU_Memory_st {
     WGPU_Device device;
     WGPUBuffer buffer;
@@ -55,6 +53,7 @@ static __attribute__((destructor)) void adapter_destructor() {
 
 static void adapter_request_callback(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const *message,
                                      void *userdata) {
+    (void)userdata;
     webGPU_Adapter.adapter = adapter;
     webGPU_Adapter.status = status;
     if (unlikely(status)) {
@@ -92,15 +91,21 @@ static void device_request_callback(WGPURequestDeviceStatus status, WGPUDevice d
 }
 
 static void device_lost_callback(WGPUDeviceLostReason reason, char const *message, void *userdata) {
+    (void)reason;
+    (void)userdata;
     TVMAPISetLastError(message);
 }
 
 static void uncaptured_error_callback(WGPUErrorType type, char const *message, void *userdata) {
+    (void)type;
+    (void)userdata;
     fprintf(stderr, "WebGPU: %s\n", message);
     TVMAPISetLastError(message);
 }
 
 static void buffer_map_callback(WGPUBufferMapAsyncStatus status, void *userdata) {
+    (void)status;
+    (void)userdata;
     // do nothing
 }
 
@@ -112,32 +117,33 @@ int WGPU_DeviceGet(WGPU_Device *device_ptr) {
 
     *device_ptr = NULL;
     if (unlikely(webGPU_Adapter.status != WGPURequestAdapterStatus_Success)) {
-        SET_ERROR_RETURN((int)webGPU_Adapter.status, "Cannot get GPU Adapters\n");
+        TVM_RT_SET_ERROR_RETURN((int)webGPU_Adapter.status, "Cannot get GPU Adapters\n");
     }
 
-    WGPURequiredLimits limits;
+    WGPUSupportedLimits limits;
     // use the adapter limits as requested limits.
     wgpuAdapterGetLimits(webGPU_Adapter.adapter, &limits);
+    limits.nextInChain = NULL;
     // todo: check limits.
 
     WGPUDeviceDescriptor device_desc;
     memset(&device_desc, 0, sizeof(WGPUDeviceDescriptor));
-    device_desc.requiredLimits = &limits;
+    device_desc.requiredLimits = (WGPURequiredLimits *)&limits;
     wgpuAdapterRequestDevice(webGPU_Adapter.adapter, &device_desc, device_request_callback, (void *)device_ptr);
     if (unlikely(!*device_ptr)) {
         return -1;
     }
 
     // if use the dawn, set the submit done callback function.
-    wgpuDevicePoll(*device_ptr, true, NULL);
+    wgpuDevicePoll((WGPUDevice)*device_ptr, true, NULL);
 
-    wgpuDeviceSetUncapturedErrorCallback(*device_ptr, uncaptured_error_callback, NULL);
-    wgpuDeviceSetDeviceLostCallback(*device_ptr, device_lost_callback, NULL);
+    wgpuDeviceSetUncapturedErrorCallback((WGPUDevice)*device_ptr, uncaptured_error_callback, NULL);
+    wgpuDeviceSetDeviceLostCallback((WGPUDevice)*device_ptr, device_lost_callback, NULL);
     return 0;
 }
 
 inline int WGPU_DeviceFree(WGPU_Device device) {
-    wgpuDeviceDestroy(device);
+    wgpuDeviceDestroy((WGPUDevice)device);
     return 0;
 }
 
@@ -150,7 +156,7 @@ int WGPU_MemoryAlloc(WGPU_Device device, WGPU_Memory *memory_ptr, size_t nbytes)
         .mappedAtCreation = false,
     };
 
-    WGPU_Memory ptr = wgpuDeviceCreateBuffer(device, &desc);
+    WGPUBuffer ptr = wgpuDeviceCreateBuffer((WGPUDevice)device, &desc);
     if (unlikely(!ptr)) {
         return -1;
     }
@@ -169,7 +175,7 @@ inline int WGPU_MemoryFree(WGPU_Memory memory) {
 }
 
 int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset, size_t nbytes) {
-    WGPUQueue q = wgpuDeviceGetQueue(dst->device);
+    WGPUQueue q = wgpuDeviceGetQueue((WGPUDevice)dst->device);
     wgpuQueueWriteBuffer(q, dst->buffer, dst_byte_offset, src + src_byte_offset, nbytes);
     return 0;
 }
@@ -182,23 +188,24 @@ int WGPU_MemoryCopyDtoH(void *dst, size_t dst_byte_offset, WGPU_Memory src, size
         .size = (uint64_t)nbytes,
         .mappedAtCreation = false,
     };
-    WGPU_Memory dst_gpu = wgpuDeviceCreateBuffer(src->device, &desc);
+    WGPUDevice src_dev = (WGPUDevice)src->device;
+    WGPUBuffer dst_gpu = wgpuDeviceCreateBuffer(src_dev, &desc);
     if (unlikely(!dst_gpu)) {
         return -1;
     }
 
-    WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(src->device, NULL);
+    WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(src_dev, NULL);
     wgpuCommandEncoderCopyBufferToBuffer(command_encoder, src->buffer, src_byte_offset, dst_gpu, 0, nbytes);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
 
-    wgpuAddTasksToQueue(src->device);
-    WGPUQueue q = wgpuDeviceGetQueue(src->device);
+    wgpuAddTasksToQueue(src_dev);
+    WGPUQueue q = wgpuDeviceGetQueue(src_dev);
     wgpuQueueSubmit(q, 1, &command_buffer);
 
     wgpuBufferMapAsync(dst_gpu, WGPUMapMode_Read, 0, nbytes, buffer_map_callback, NULL);
 
     /*  wait for tasks done.  */
-    wgpuDevicePoll(src->device, true, NULL);
+    wgpuDevicePoll(src_dev, true, NULL);
 
     const void *dst_cpu = wgpuBufferGetConstMappedRange(dst_gpu, 0, nbytes);
     memcpy(dst + dst_byte_offset, dst_cpu, nbytes);
@@ -209,19 +216,22 @@ int WGPU_MemoryCopyDtoH(void *dst, size_t dst_byte_offset, WGPU_Memory src, size
 
 int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset,
                         size_t nbytes) {
-    WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(src->device, NULL);
+    WGPUDevice src_dev = (WGPUDevice)src->device;
+    WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(src_dev, NULL);
     wgpuCommandEncoderCopyBufferToBuffer(command_encoder, src->buffer, src_byte_offset, dst->buffer, dst_byte_offset,
                                          nbytes);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
 
-    wgpuAddTasksToQueue(src->device);
-    WGPUQueue q = wgpuDeviceGetQueue(src->device);
+    wgpuAddTasksToQueue(src_dev);
+    WGPUQueue q = wgpuDeviceGetQueue(src_dev);
     wgpuQueueSubmit(q, 1, &command_buffer);
     return 0;
 }
 
 int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char *source, uint32_t source_len,
                         const char *entry_name, uint32_t entry_name_len, uint32_t num_kernel_args) {
+    (void)entry_name;
+    (void)entry_name_len;
     // todo: avoid copy
     char *source_code = (char *)TVM_RT_WASM_WorkplaceMemoryAlloc(source_len + 1);
     memcpy(source_code, source, source_len);
@@ -242,7 +252,7 @@ int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char 
         .hintCount = 0,
         .hints = NULL,
     };
-    WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(device, &shader_module_desc);
+    WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule((WGPUDevice)device, &shader_module_desc);
     // TVM_RT_WASM_WorkplaceMemoryFree(source_code);
     if (unlikely(!shader_module)) {
         return -1;
@@ -262,7 +272,7 @@ int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char 
         .layout = NULL,
         .compute = compute_desc,
     };
-    WGPUComputePipeline compute_pipeline = wgpuDeviceCreateComputePipeline(device, &pipeline_desc);
+    WGPUComputePipeline compute_pipeline = wgpuDeviceCreateComputePipeline((WGPUDevice)device, &pipeline_desc);
     if (unlikely(!compute_pipeline)) {
         wgpuShaderModuleDrop(shader_module);
         return -1;
@@ -303,9 +313,10 @@ int WGPU_FunctionRun(WGPU_Function function, const WGPU_Memory *kernel_args, uin
         .entryCount = num_kernel_args,
         .entries = function->bind_group_entries,
     };
-    WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(function->device, &bind_group_desc);
+    WGPUDevice dev = (WGPUDevice)function->device;
+    WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(dev, &bind_group_desc);
 
-    WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(function->device, NULL);
+    WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(dev, NULL);
     WGPUComputePassEncoder compute_pass_encoder = wgpuCommandEncoderBeginComputePass(command_encoder, NULL);
     wgpuComputePassEncoderSetPipeline(compute_pass_encoder, function->compute_pipeline);
     wgpuComputePassEncoderSetBindGroup(compute_pass_encoder, 0, bind_group, 0, NULL);
@@ -313,8 +324,8 @@ int WGPU_FunctionRun(WGPU_Function function, const WGPU_Memory *kernel_args, uin
     wgpuComputePassEncoderEnd(compute_pass_encoder);
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(command_encoder, NULL);
 
-    wgpuAddTasksToQueue(function->device);
-    WGPUQueue q = wgpuDeviceGetQueue(function->device);
+    wgpuAddTasksToQueue(dev);
+    WGPUQueue q = wgpuDeviceGetQueue(dev);
     wgpuQueueSubmit(q, 1, &command_buffer);
 
     wgpuBindGroupDrop(bind_group);

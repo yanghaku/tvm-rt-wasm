@@ -60,6 +60,9 @@ const char *TVMGetLastError(void) { return global_buf; }
  *  It can be reconstructed by TVMModImport.
  */
 int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandle *out) {
+    CHECK_INPUT_POINTER(file_name, -2, "Filename");
+    CHECK_INPUT_POINTER(format, -2, "Format");
+    CHECK_INPUT_POINTER(out, -2, "TVMModuleHandle pointer");
     return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)out);
 }
 
@@ -72,8 +75,9 @@ int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandl
  * \return 0 when success, nonzero when failure happens
  */
 int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
-    // todo: implement it
-    return -1;
+    CHECK_INPUT_POINTER(mod, -2, "Module handle");
+    CHECK_INPUT_POINTER(dep, -2, "Dependent module");
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 /*!
@@ -85,6 +89,10 @@ int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
  * \return 0 when no error is thrown, nonzero when failure happens
  */
 int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_imports, TVMFunctionHandle *out) {
+    CHECK_INPUT_POINTER(mod, -2, "Module handle");
+    CHECK_INPUT_POINTER(func_name, -2, "Function Name");
+    CHECK_INPUT_POINTER(out, -2, "Out FunctionHandle pointer");
+
     Module *m = (Module *)mod;
     return m->GetFunction(m, func_name, query_imports, out);
 }
@@ -101,6 +109,7 @@ int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_impo
  * \return 0 when success, nonzero when failure happens
  */
 int TVMModFree(TVMModuleHandle mod) {
+    CHECK_INPUT_POINTER(mod, -2, "Module handle");
     // todo: Prevent being free when it is still being used
     return ((Module *)mod)->Release((Module *)mod);
 }
@@ -110,7 +119,10 @@ int TVMModFree(TVMModuleHandle mod) {
  * \param func The function handle
  * \return 0
  */
-int TVMFuncFree(TVMFunctionHandle func) { return 0; }
+int TVMFuncFree(TVMFunctionHandle func) {
+    (void)func;
+    return 0;
+}
 
 /*!
  * \brief Call a Packed TVM Function.
@@ -128,6 +140,12 @@ int TVMFuncFree(TVMFunctionHandle func) { return 0; }
  */
 int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_codes, int num_args, TVMValue *ret_val,
                 int *ret_type_code) {
+    CHECK_INPUT_POINTER(func, -2, "TVMFunctionHandle");
+    CHECK_INPUT_POINTER(arg_values, -2, "TVM argument values");
+    CHECK_INPUT_POINTER(type_codes, -2, "TVM argument types");
+    CHECK_INPUT_POINTER(ret_val, -2, "TVM return values");
+    CHECK_INPUT_POINTER(ret_type_code, -2, "TVM return types");
+
     PackedFunction *pf = (PackedFunction *)func;
     return pf->exec(arg_values, type_codes, num_args, ret_val, ret_type_code, func);
 }
@@ -142,6 +160,8 @@ int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_codes, i
  * \param override Whether allow override already registered function.
  */
 int TVMFuncRegisterGlobal(const char *name, TVMFunctionHandle f, int override) {
+    CHECK_INPUT_POINTER(name, -2, "Name");
+    CHECK_INPUT_POINTER(f, -2, "TVMFunctionHandle");
     if (override) {
         return TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)name, f);
     } else {
@@ -164,6 +184,8 @@ int TVMFuncRegisterGlobal(const char *name, TVMFunctionHandle f, int override) {
  *  So TVMFuncFree is should not be called when it get deleted.
  */
 int TVMFuncGetGlobal(const char *name, TVMFunctionHandle *out) {
+    CHECK_INPUT_POINTER(name, -2, "Function name");
+    CHECK_INPUT_POINTER(out, -2, "TVMFunctionHandle pointer");
     return TVM_RT_WASM_TrieQuery(global_functions, (const uint8_t *)name, out);
 }
 
@@ -174,8 +196,10 @@ int TVMFuncGetGlobal(const char *name, TVMFunctionHandle *out) {
  * \return 0 when success, nonzero when failure happens
  */
 int TVMFuncListGlobalNames(int *out_size, const char ***out_array) {
-    // todo: implement this api
-    SET_ERROR_RETURN(-1, "This API has not yet been implemented");
+    CHECK_INPUT_POINTER(out_size, -2, "The number of functions");
+    CHECK_INPUT_POINTER(out_array, -2, "Function array");
+    *out_size = 0;
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 /*!
@@ -184,7 +208,186 @@ int TVMFuncListGlobalNames(int *out_size, const char ***out_array) {
  * \param name The name of the function.
  */
 int TVMFuncRemoveGlobal(const char *name) {
+    CHECK_INPUT_POINTER(name, -2, "Function name");
     return TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)name, NULL);
+}
+
+/*!
+ * \brief Allocate a nd-array's memory,
+ *  including space of shape, of given spec.
+ *
+ * \param shape The shape of the array, the data content will be copied to out
+ * \param ndim The number of dimension of the array.
+ * \param dtype_code The type code of the dtype
+ * \param dtype_bits The number of bits of dtype
+ * \param dtype_lanes The number of lanes in the dtype.
+ * \param device_type The device type.
+ * \param device_id The device id.
+ * \param out The output handle.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_bits, int dtype_lanes, int device_type,
+                  int device_id, TVMArrayHandle *out) {
+    CHECK_INPUT_POINTER(shape, -2, "Shape");
+    CHECK_INPUT_POINTER(out, -2, "TVMArrayHandle pointer");
+
+    DLDevice d = {
+        .device_id = device_id,
+        .device_type = device_type,
+    };
+    DLDataType tp = {
+        .code = dtype_code,
+        .bits = dtype_bits,
+        .lanes = dtype_lanes,
+    };
+    size_t bytes = 1;
+    for (int i = 0; i < ndim; ++i) {
+        bytes *= shape[i];
+    }
+    void *data = NULL;
+    int status = TVMDeviceAllocDataSpace(d, bytes, 0, tp, &data);
+    if (unlikely(status)) {
+        return status;
+    }
+
+    DLTensor *t = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLTensor));
+    t->device = d;
+    t->dtype = tp;
+    t->data = data;
+    t->byte_offset = 0;
+    t->strides = NULL;
+    t->ndim = ndim;
+    t->shape = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int64_t) * ndim);
+    for (int i = 0; i < ndim; ++i) {
+        t->shape[i] = shape[i];
+    }
+
+    *out = t;
+    return 0;
+}
+
+/*!
+ * \brief Free the TVM Array.
+ * \param handle The array handle to be freed.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayFree(TVMArrayHandle handle) {
+    CHECK_INPUT_POINTER(handle, -2, "TVMArrayHandle");
+    int status = TVMDeviceFreeDataSpace(handle->device, handle->data);
+    TVM_RT_WASM_HeapMemoryFree(handle->shape);
+    TVM_RT_WASM_HeapMemoryFree(handle);
+    return status;
+}
+
+/*!
+ * \brief Copy array data from CPU byte array.
+ * \param handle The array handle.
+ * \param data the data pointer
+ * \param nbytes The number of bytes to copy.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayCopyFromBytes(TVMArrayHandle handle, void *data, size_t nbytes) {
+    CHECK_INPUT_POINTER(handle, -2, "TVMArrayHandle");
+    CHECK_INPUT_POINTER(data, -2, "CPU Data pointer");
+
+    if (handle->device.device_type == kDLCPU) {
+        uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(handle);
+        memcpy(handle->data, data, MIN(bytes, nbytes));
+        return 0;
+    } else {
+        DeviceAPI *deviceApi;
+        int status = TVM_RT_WASM_DeviceAPIGet(handle->device.device_type, &deviceApi);
+        if (unlikely(status)) {
+            return status;
+        }
+        int64_t shape[] = {(int64_t)nbytes};
+        DLTensor from = {
+            .device = {.device_type = kDLCPU},
+            .dtype = handle->dtype,
+            .shape = shape,
+            .ndim = 1,
+        };
+        return deviceApi->CopyDataFromTo(&from, handle, NULL);
+    }
+}
+
+/*!
+ * \brief Copy array data to CPU byte array.
+ * \param handle The array handle.
+ * \param data the data pointer
+ * \param nbytes The number of bytes to copy.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayCopyToBytes(TVMArrayHandle handle, void *data, size_t nbytes) {
+    CHECK_INPUT_POINTER(handle, -2, "TVMArrayHandle");
+    CHECK_INPUT_POINTER(data, -2, "CPU Data pointer");
+
+    if (handle->device.device_type == kDLCPU) {
+        uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(handle);
+        memcpy(data, handle->data, MIN(bytes, nbytes));
+        return 0;
+    } else {
+        DeviceAPI *deviceApi;
+        int status = TVM_RT_WASM_DeviceAPIGet(handle->device.device_type, &deviceApi);
+        if (unlikely(status)) {
+            return status;
+        }
+        int64_t shape[] = {(int64_t)nbytes};
+        DLTensor to = {
+            .device = {.device_type = kDLCPU},
+            .dtype = handle->dtype,
+            .shape = shape,
+            .ndim = 1,
+        };
+        return deviceApi->CopyDataFromTo(handle, &to, NULL);
+    }
+}
+
+/*!
+ * \brief Copy the array, both from and to must be valid during the copy.
+ * \param from The array to be copied from.
+ * \param to The target space.
+ * \param stream The stream where the copy happens, can be NULL.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayCopyFromTo(TVMArrayHandle from, TVMArrayHandle to, TVMStreamHandle stream) {
+    return TVMDeviceCopyDataFromTo(from, to, stream);
+}
+
+/*!
+ * \brief Produce an array from the DLManagedTensor that shares data memory
+ * with the DLManagedTensor.
+ * \param from The source DLManagedTensor.
+ * \param out The output array handle.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayFromDLPack(DLManagedTensor *from, TVMArrayHandle *out) {
+    CHECK_INPUT_POINTER(from, -2, "From DLManagedTensor");
+    CHECK_INPUT_POINTER(out, -2, "TVMArrayHandle pointer");
+    TVM_RT_NOT_IMPLEMENT(-1);
+}
+
+/*!
+ * \brief Produce a DLMangedTensor from the array that shares data memory with
+ * the array.
+ * \param from The source array.
+ * \param out The DLManagedTensor handle.
+ * \return 0 when success, nonzero when failure happens
+ */
+int TVMArrayToDLPack(TVMArrayHandle from, DLManagedTensor **out) {
+    CHECK_INPUT_POINTER(from, -2, "From TVMArrayHandle");
+    CHECK_INPUT_POINTER(out, -2, "DLManagedTensor pointer");
+    TVM_RT_NOT_IMPLEMENT(-1);
+}
+
+/*!
+ * \brief Delete (free) a DLManagedTensor's data.
+ * \param dltensor Pointer to the DLManagedTensor.
+ */
+void TVMDLManagedTensorCallDeleter(DLManagedTensor *dltensor) {
+    if (dltensor) {
+        (*(dltensor->deleter))(dltensor);
+    }
 }
 
 /*!
@@ -195,6 +398,7 @@ int TVMFuncRemoveGlobal(const char *name) {
  * \return 0 when success, nonzero when failure happens
  */
 int TVMStreamCreate(int device_type, int device_id, TVMStreamHandle *out) {
+    CHECK_INPUT_POINTER(out, -2, "TVMStreamHandle pointer");
     if (device_type == kDLCPU) {
         *out = NULL;
         return 0;
@@ -295,6 +499,7 @@ int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle s
  * \return 0 when success, nonzero when failure happens
  */
 int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint, void **out_data) {
+    CHECK_INPUT_POINTER(out_data, -2, "Output data pointer");
     if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
         *out_data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
         return 0;
@@ -320,7 +525,13 @@ int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDat
  */
 int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64_t *shape, DLDataType dtype,
                                      const char *mem_scope, void **out_data) {
-    SET_ERROR_RETURN(-1, "unsupported yet");
+    (void)dev;
+    (void)ndim;
+    (void)shape;
+    (void)dtype;
+    CHECK_INPUT_POINTER(mem_scope, -2, "Memory scope");
+    CHECK_INPUT_POINTER(out_data, -2, "Out data pointer");
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 /*!
@@ -350,6 +561,8 @@ int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
  * \return 0 when success, nonzero when failure happens.
  */
 int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
+    CHECK_INPUT_POINTER(from, -2, "From DLTensor");
+    CHECK_INPUT_POINTER(to, -2, "To DLTensor");
     DLDeviceType type;
     DeviceAPI *deviceApi;
 
@@ -362,8 +575,8 @@ int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream
                (from->device.device_type == kDLCUDAHost && to->device.device_type == kDLCUDA)) {
         type = kDLCUDA;
     } else {
-        SET_ERROR_RETURN(-1, "unsupported operator: copy data from device_type(%d) to device_typ(%d)\n",
-                         from->device.device_type, to->device.device_type);
+        TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy: from device_type(%d) to device_type(%d)",
+                                from->device.device_type, to->device.device_type);
     }
 
     if (type == kDLCPU) {
@@ -379,17 +592,23 @@ int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream
     return deviceApi->CopyDataFromTo(from, to, stream);
 }
 
-int TVM_RT_WASM_SetDevice(TVMValue *args, int *_tc, int _n, TVMValue *_rv, int *_rt, void *_h) {
+int TVM_RT_WASM_SetDevice(TVMValue *args, const int *_tc, int _n, TVMValue *_rv, const int *_rt, void *_h) {
+    (void)_tc;
+    (void)_n;
+    (void)_rv;
+    (void)_rt;
+    (void)_h;
     if (args->v_device.device_type == kDLCPU) {
         return 0;
     }
-    DeviceAPI *api;
+    DeviceAPI *api = NULL;
     TVM_RT_WASM_DeviceAPIGet(args->v_device.device_type, &api);
     return api->SetDevice(args->v_device.device_id);
 }
 
 static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor() {
-    static PackedFunction pf[1] = {{.exec = TVM_RT_WASM_SetDevice, .module = NULL, .reserved = 0}};
+    static PackedFunction pf[] = {
+        {.exec = (TVMBackendPackedCFunc)TVM_RT_WASM_SetDevice, .module = NULL, .reserved = 0}};
 
     TVM_RT_WASM_TrieCreate(&global_functions);
     if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION, pf)) != 0) {
@@ -415,14 +634,6 @@ int TVMCFuncSetReturn(TVMRetValueHandle ret, TVMValue *value, int *type_code, in
 int TVMCbArgToReturn(TVMValue *value, int *code);
 int TVMFuncCreateFromCFunc(TVMPackedCFunc func, void *resource_handle, TVMPackedCFuncFinalizer fin,
                            TVMFunctionHandle *out);
-int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_bits, int dtype_lanes, int device_type,
-                  int device_id, TVMArrayHandle *out);
-int TVMArrayFree(TVMArrayHandle handle);
-int TVMArrayCopyFromBytes(TVMArrayHandle handle, void *data, size_t nbytes);
-int TVMArrayCopyToBytes(TVMArrayHandle handle, void *data, size_t nbytes);
-int TVMArrayCopyFromTo(TVMArrayHandle from, TVMArrayHandle to, TVMStreamHandle stream);
-int TVMArrayFromDLPack(DLManagedTensor *from, TVMArrayHandle *out);
-int TVMArrayToDLPack(TVMArrayHandle from, DLManagedTensor **out);
 void TVMDLManagedTensorCallDeleter(DLManagedTensor *dltensor) {}
 int TVMObjectGetTypeIndex(TVMObjectHandle obj, unsigned *out_type_index);
 int TVMObjectTypeKey2Index(const char *type_key, unsigned *out_type_index);

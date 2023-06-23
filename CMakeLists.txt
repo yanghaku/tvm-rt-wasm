@@ -71,9 +71,13 @@ endif ()
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti \
-            -w -Wextra -Werror -Wno-error=unused-parameter -Wno-error=format-extra-args \
-            -Wno-error=unused-function -fvisibility=hidden")
+# used to check
+if (CHECK_MEMORY)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+endif ()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections\
+            -Wall -Wextra -Werror -Wno-error=unused-function -fvisibility=hidden")
 if (NOT ${USE_EMSDK})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 else ()
@@ -88,12 +92,31 @@ set(LIB_SRC)
 file(GLOB_RECURSE LIB_SRC src/*.c)
 add_library(tvm-rt STATIC ${LIB_SRC})
 
-if (${USE_WEBGPU} AND ${USE_EMSDK})
-    add_executable(tvm-rt-module ${LIB_SRC})
+# js module
+if (${USE_EMSDK})
+    add_executable(tvm-rt-module EXCLUDE_FROM_ALL ${LIB_SRC})
     target_link_options(tvm-rt-module PRIVATE --no-entry -O3 -flto -fno-exceptions -fno-rtti -Wl,--gc-sections
             -sMAIN_MODULE=1 -sWASM_BIGINT=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB
             -sERROR_ON_UNDEFINED_SYMBOLS=1 -sMODULARIZE=1 -sSINGLE_FILE=1 -sEXPORT_NAME="tvm_rt_module_create"
-            -sEXTRA_EXPORTED_RUNTIME_METHODS=["FS","stackAlloc","stackSave","stackRestore","stringToUTF8","UTF8ToString","stringToNewUTF8","stringToUTF8OnStack"])
+            -sEXPORTED_RUNTIME_METHODS=["FS","stackAlloc","stackSave","stackRestore","stringToUTF8","UTF8ToString","stringToNewUTF8","stringToUTF8OnStack"])
+endif ()
+
+# native shared library
+if (NOT ${USE_WASI_SDK} AND NOT ${USE_EMSDK})
+    add_library(tvm-rt-shared SHARED EXCLUDE_FROM_ALL ${LIB_SRC})
+    set_target_properties(tvm-rt-shared PROPERTIES OUTPUT_NAME tvm-rt)
+    target_compile_options(tvm-rt-shared PRIVATE -fPIC -O3 -flto)
+    target_link_options(tvm-rt-shared PRIVATE -fPIC -O3 -flto -s)
+    if (${USE_CUDA})
+        # cuda toolkit path
+        find_package(CUDAToolkit)
+        target_link_libraries(tvm-rt-shared PRIVATE CUDA::cuda_driver)
+    endif ()
+    if (${USE_WEBGPU})
+        # todo: native webgpu shared library support
+    endif ()
+
+    install(TARGETS tvm-rt-shared ${CMAKE_INSTALL_LIBDIR})
 endif ()
 
 # set default install path

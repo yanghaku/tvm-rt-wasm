@@ -24,27 +24,23 @@ extern "C" {
         if (unlikely(result != CUDA_SUCCESS)) {                                                                        \
             const char *msg;                                                                                           \
             cuGetErrorString(result, &msg);                                                                            \
-            SET_ERROR_RETURN(-1, "CUDA Driver Call Error: %s", msg);                                                   \
+            TVM_RT_SET_ERROR_RETURN(-1, "CUDA Driver Call Error: %s", msg);                                            \
         }                                                                                                              \
     } while (0)
 
-#define CUDA_DRIVER_CALL_NULL(x)                                                                                       \
+#define CUDA_DRIVER_CALL_OR_GOTO(x, label)                                                                             \
     do {                                                                                                               \
         CUresult result = (x);                                                                                         \
         if (unlikely(result != CUDA_SUCCESS)) {                                                                        \
             const char *msg;                                                                                           \
             cuGetErrorString(result, &msg);                                                                            \
-            SET_ERROR_RETURN(NULL, "CUDA Driver Call Error: %s", msg);                                                 \
+            TVM_RT_SET_ERROR_AND_GOTO(label, "CUDA Driver Call Error: %s", msg);                                       \
         }                                                                                                              \
     } while (0)
 
 #else
 
-#define CUDA_NOT_SUPPORTED()                                                                                           \
-    do {                                                                                                               \
-        fprintf(stderr, "CUDA library is not supported! you can recompile from source and set USE_CUDA option ON\n");  \
-        exit(-1);                                                                                                      \
-    } while (0)
+#define CUDA_NOT_SUPPORTED() TVM_RT_FEATURE_NOT_ON("CUDA device", "USE_CUDA")
 
 #endif
 

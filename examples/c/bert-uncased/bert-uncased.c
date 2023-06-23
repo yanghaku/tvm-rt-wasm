@@ -5,9 +5,9 @@
 #define TOSTRING(x) STRINGIFY(x)
 #define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
 
-#ifdef bert_large_uncased
+#if defined(bert_large_uncased)
 #define HIDDEN_SHAPE 1024
-#elifdef bert_base_uncased
+#elif defined(bert_base_uncased)
 #define HIDDEN_SHAPE 768
 #else
 #error "Unknown Model"
@@ -37,10 +37,10 @@ int main(int argc, char **argv) {
     const DLDevice cpu = {kDLCPU, 0};
     const DLDataType float32 = {kDLFloat, 32, 1};
     const DLDataType int64 = {kDLInt, 64, 1};
-    const int64_t input_shape_0[] = {1, 14};
-    const int64_t input_shape_1[] = {1, 14};
-    const int64_t out_shape_0[] = {1, 14, HIDDEN_SHAPE};
-    const int64_t out_shape_1[] = {1, HIDDEN_SHAPE};
+    int64_t input_shape_0[] = {1, 14};
+    int64_t input_shape_1[] = {1, 14};
+    int64_t out_shape_0[] = {1, 14, HIDDEN_SHAPE};
+    int64_t out_shape_1[] = {1, HIDDEN_SHAPE};
     const DLTensor inputs[] = {{
                                    .data = input_storage,
                                    .device = cpu,
@@ -59,24 +59,24 @@ int main(int argc, char **argv) {
                                    .strides = NULL,
                                    .byte_offset = 0,
                                }};
-    const DLTensor outputs[] = {{
-                                    .data = output_storage_0,
-                                    .device = cpu,
-                                    .ndim = 3,
-                                    .dtype = float32,
-                                    .shape = out_shape_0,
-                                    .strides = NULL,
-                                    .byte_offset = 0,
-                                },
-                                {
-                                    .data = output_storage_1,
-                                    .device = cpu,
-                                    .ndim = 2,
-                                    .dtype = float32,
-                                    .shape = out_shape_1,
-                                    .strides = NULL,
-                                    .byte_offset = 0,
-                                }};
+    DLTensor outputs[] = {{
+                              .data = output_storage_0,
+                              .device = cpu,
+                              .ndim = 3,
+                              .dtype = float32,
+                              .shape = out_shape_0,
+                              .strides = NULL,
+                              .byte_offset = 0,
+                          },
+                          {
+                              .data = output_storage_1,
+                              .device = cpu,
+                              .ndim = 2,
+                              .dtype = float32,
+                              .shape = out_shape_1,
+                              .strides = NULL,
+                              .byte_offset = 0,
+                          }};
 
     const char *input_names[] = {"input_ids", "attention_mask"};
     const int output_indexes[] = {0, 1};

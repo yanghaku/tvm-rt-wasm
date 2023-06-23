@@ -4,12 +4,12 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <device/device_api.h>
 #include <module/cuda_module.h>
-#include <module/metadata.h>
-#include <stdint.h>
 
 #if USE_CUDA // USE_CUDA = 1
+
+#include <device/device_api.h>
+#include <module/metadata.h>
 
 struct CUDAFunctionInfo {
     /*! \brief base information */
@@ -20,7 +20,10 @@ struct CUDAFunctionInfo {
 };
 
 static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
-                                           int *ret_type_codes, void *resource_handle) {
+                                           const int *ret_type_codes, void *resource_handle) {
+    (void)ret_val;
+    (void)ret_type_codes;
+
     PackedFunction *pf = (PackedFunction *)resource_handle;
     int func_id = (int)pf->reserved;
     size_t block_dim[] = {1, 1, 1};
@@ -54,8 +57,12 @@ static int TVM_RT_WASM_CUDAModuleReleaseFunc(Module *self) {
     MODULE_BASE_MEMBER_FREE(c);
 
     for (uint32_t i = 0; i < c->num_functions; ++i) {
-        TVM_RT_WASM_HeapMemoryFree(c->functions[i].func_arg_index_map);
-        TVM_RT_WASM_HeapMemoryFree(c->functions[i].kernel_arg_storages);
+        if (c->functions[i].func_arg_index_map) {
+            TVM_RT_WASM_HeapMemoryFree(c->functions[i].func_arg_index_map);
+        }
+        if (c->functions[i].kernel_arg_storages) {
+            TVM_RT_WASM_HeapMemoryFree(c->functions[i].kernel_arg_storages);
+        }
     }
     TVM_RT_WASM_HeapMemoryFree(c->functions);
     TVM_RT_WASM_HeapMemoryFree(c->packed_functions);
@@ -74,9 +81,10 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num
     TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
     (*cudaModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);
+    memset((*cudaModule)->functions, 0, sizeof(CUDAFunctionInfo) * num_func);
     (*cudaModule)->num_functions = num_func;
     for (uint32_t fid = 0; fid < num_func; ++fid) {
-        (*cudaModule)->packed_functions[fid].module = (*cudaModule);
+        (*cudaModule)->packed_functions[fid].module = (Module *)(*cudaModule);
         (*cudaModule)->packed_functions[fid].exec = (TVMBackendPackedCFunc)TVM_RT_WASM_CUDAWrappedFunction;
         (*cudaModule)->packed_functions[fid].reserved = fid;
     }
@@ -95,8 +103,9 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
 #if USE_CUDA // USE_CUDA = 1
 
     if (resource_type == MODULE_FACTORY_RESOURCE_FILE) {
-        SET_ERROR_RETURN(-1, "creating from file is unsupported yet");
+        TVM_RT_NOT_IMPLEMENT(-2);
     } else if (resource_type == MODULE_FACTORY_RESOURCE_BINARY) {
+        *cudaModule = NULL;
         char *blob = (char *)resource;
 
         // parse format
@@ -105,7 +114,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         if (!((fmt_size == 5 && memcmp(blob, "cubin", fmt_size) == 0) ||
               (fmt_size == 3 && memcmp(blob, "ptx", fmt_size) == 0))) {
             blob[fmt_size] = 0;
-            SET_ERROR_RETURN(-1, "unsupported binary format %s\n", blob);
+            TVM_RT_SET_ERROR_RETURN(-1, "Unsupported binary format %s", blob);
         }
         blob += fmt_size; // fmt
 
@@ -117,7 +126,7 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         char *names = blob; // for init functions from cu_module
         for (uint32_t fid = 0; fid < func_map_size; ++fid) {
             CUDAFunctionInfo *info = (*cudaModule)->functions + fid;
-            PARSE_FUNC_INFO(cudaModule);
+            PARSE_FUNC_INFO(cudaModule, fail);
         }
 
         // parse data
@@ -128,11 +137,11 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         DeviceAPI *cuda_dev_api;
         int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &cuda_dev_api);
         if (unlikely(status)) {
-            return status;
+            goto fail;
         }
         cuda_dev_api->SetDevice(0);
 
-        CUDA_DRIVER_CALL(cuModuleLoadData(&(*cudaModule)->cu_module, blob));
+        CUDA_DRIVER_CALL_OR_GOTO(cuModuleLoadData(&(*cudaModule)->cu_module, blob), fail);
 
         blob += source_len;
 
@@ -142,8 +151,8 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
             uint32_t name_size = (uint32_t) * (uint64_t *)names;
             names += sizeof(uint64_t); // name_size
 
-            CUDA_DRIVER_CALL(
-                cuModuleGetFunction(&(*cudaModule)->functions[fid].cu_function, (*cudaModule)->cu_module, names));
+            CUDA_DRIVER_CALL_OR_GOTO(
+                cuModuleGetFunction(&(*cudaModule)->functions[fid].cu_function, (*cudaModule)->cu_module, names), fail);
 
             names += name_size; // name string
 
@@ -162,11 +171,20 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, CUDAMo
         }
 
         return (int)(blob - resource);
+
+    fail:
+        if (*cudaModule) {
+            TVM_RT_WASM_CUDAModuleReleaseFunc((Module *)(*cudaModule));
+        }
+        return -1;
     } else {
-        SET_ERROR_RETURN(-1, "unknown resource type %d\n", resource_type);
+        TVM_RT_SET_ERROR_RETURN(-1, "Unknown resource type %d", resource_type);
     }
 
 #else
+    (void)resource;
+    (void)resource_type;
+    (void)cudaModule;
     CUDA_NOT_SUPPORTED();
 #endif
 }

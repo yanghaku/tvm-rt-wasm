@@ -117,8 +117,8 @@ endif ()
 message("TVM build target: host=${TVM_HOST_TARGET}, device=${TVM_DEVICE_TARGET}")
 
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections -fno-rtti \
-                -w -Wextra -Werror -Wl,--gc-sections")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -O3 -ffunction-sections -fdata-sections")
+add_link_options(-Wl,--gc-sections)
 
 include_directories(common_headers .)
 

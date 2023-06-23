@@ -10,6 +10,8 @@
 
 /*! \brief Free all packed functions for dso module. */
 static void visit_dso_funcs_free(char c, void **data_ptr, void *_) {
+    (void)c;
+    (void)_;
     if (*data_ptr != NULL) {
         TVM_RT_WASM_HeapMemoryFree(*data_ptr);
     }
@@ -42,7 +44,7 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
             pf->module = mod;
             pf->reserved = 0;
             pf->exec = symbol;
-            TVM_RT_WASM_TrieInsert(mod->module_funcs_map, func_name, (void *)pf);
+            TVM_RT_WASM_TrieInsert(mod->module_funcs_map, (const uint8_t *)func_name, (void *)pf);
             *out = (TVMFunctionHandle)pf;
             return 0;
         }
@@ -63,7 +65,7 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
 int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule) {
     TVM_RT_LIB_NATIVE_HANDLE native_handle = TVM_RT_WASM_OPEN_LIB(filename, RTLD_LAZY);
     if (unlikely(native_handle == NULL)) {
-        SET_ERROR_RETURN(-1, "Cannot load shared library %s", filename);
+        TVM_RT_SET_ERROR_RETURN(-1, "Cannot load shared library %s", filename);
     }
 
     *dsoModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module));
@@ -81,6 +83,7 @@ int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule)
     if (blob) {
         int status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, dsoModule);
         if (unlikely(status)) {
+            TVM_RT_WASM_HeapMemoryFree(*dsoModule);
             return status;
         }
     }
@@ -117,6 +120,8 @@ int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule)
 #include <stdlib.h>
 
 int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule) {
+    (void)filename;
+    (void)dsoModule;
     fprintf(stderr, "Cannot load dynamic shared library in this platform!\n");
     exit(-1);
 }

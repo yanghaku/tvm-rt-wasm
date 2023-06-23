@@ -4,13 +4,13 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <device/device_api.h>
-#include <module/metadata.h>
 #include <module/webgpu_module.h>
-#include <stdint.h>
 #include <utils/webgpu_common.h>
 
 #if USE_WEBGPU // USE_WEBGPU = 1
+
+#include <device/device_api.h>
+#include <module/metadata.h>
 
 struct WebGPUFunctionInfo {
     BASE_FUNCTION_INFO
@@ -19,7 +19,9 @@ struct WebGPUFunctionInfo {
 };
 
 static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
-                                             int *ret_type_codes, void *resource_handle) {
+                                             const int *ret_type_codes, void *resource_handle) {
+    (void)ret_val;
+    (void)ret_type_codes;
     PackedFunction *pf = (PackedFunction *)resource_handle;
     int func_id = (int)pf->reserved;
     size_t block_dim[] = {1, 1, 1};
@@ -30,7 +32,8 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
     uint32_t num_kernel_args = info->num_kernel_args;
     CHECK_DYN_MEM();
     if (dyn_shared_mem_size != 0) {
-        SET_ERROR_RETURN(-1, "WebGPU cannot support dynamic shared memory, but got size %d.", dyn_shared_mem_size);
+        TVM_RT_SET_ERROR_RETURN(-1, "WebGPU cannot support dynamic shared memory, but got size %zu.",
+                                dyn_shared_mem_size);
     }
 
     CHECK_AND_GET_DIM();
@@ -38,6 +41,7 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
         info->kernel_arg_storages[i] = args[i].v_handle;
     }
 
+    (void)block_dim;
     int status = WGPU_FunctionRun(info->device_func, (WGPU_Memory *)info->kernel_arg_storages, num_kernel_args,
                                   grid_dim[0], grid_dim[1], grid_dim[2]);
 
@@ -49,9 +53,15 @@ static int TVM_RT_WASM_WebGPUModuleReleaseFunc(Module *self) {
     MODULE_BASE_MEMBER_FREE(w);
 
     for (uint32_t i = 0; i < w->num_functions; ++i) {
-        TVM_RT_WASM_HeapMemoryFree(w->functions[i].func_arg_index_map);
-        TVM_RT_WASM_HeapMemoryFree(w->functions[i].kernel_arg_storages);
-        WGPU_FunctionFree(w->functions[i].device_func);
+        if (w->functions[i].func_arg_index_map) {
+            TVM_RT_WASM_HeapMemoryFree(w->functions[i].func_arg_index_map);
+        }
+        if (w->functions[i].kernel_arg_storages) {
+            TVM_RT_WASM_HeapMemoryFree(w->functions[i].kernel_arg_storages);
+        }
+        if (w->functions[i].device_func) {
+            WGPU_FunctionFree(w->functions[i].device_func);
+        }
     }
     TVM_RT_WASM_HeapMemoryFree(w->functions);
     TVM_RT_WASM_HeapMemoryFree(w->packed_functions);
@@ -69,9 +79,10 @@ static void TVM_RT_WASM_WebGPUModuleAllocate(WebGPUModule **webgpuModule, uint32
     TVM_RT_WASM_TrieCreate(&((*webgpuModule)->module_funcs_map));
     (*webgpuModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*webgpuModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(WebGPUFunctionInfo) * num_func);
+    memset((*webgpuModule)->functions, 0, sizeof(WebGPUFunctionInfo) * num_func);
     (*webgpuModule)->num_functions = num_func;
     for (uint32_t fid = 0; fid < num_func; ++fid) {
-        (*webgpuModule)->packed_functions[fid].module = (*webgpuModule);
+        (*webgpuModule)->packed_functions[fid].module = (Module *)(*webgpuModule);
         (*webgpuModule)->packed_functions[fid].exec = (TVMBackendPackedCFunc)TVM_RT_WASM_WebGPUWrappedFunction;
         (*webgpuModule)->packed_functions[fid].reserved = fid;
     }
@@ -90,8 +101,9 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, WebG
 #if USE_WEBGPU // USE_WEBGPU = 1
 
     if (resource_type == MODULE_FACTORY_RESOURCE_FILE) {
-        SET_ERROR_RETURN(-1, "creating from file is unsupported yet");
+        TVM_RT_NOT_IMPLEMENT(-2);
     } else if (resource_type == MODULE_FACTORY_RESOURCE_BINARY) {
+        *webGPUModule = NULL;
         char *blob = (char *)resource;
 
         // parse function map: <string, FunctionInfo{name, arg_types, launch_params_tags} >
@@ -99,25 +111,24 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, WebG
         blob += sizeof(uint64_t); // func_map_size
 
         TVM_RT_WASM_WebGPUModuleAllocate(webGPUModule, func_map_size);
-        char *names = blob;
 
         WebGPUFunctionInfo *func_info_list = (*webGPUModule)->functions;
         for (uint32_t fid = 0; fid < func_map_size; ++fid) {
             WebGPUFunctionInfo *info = func_info_list + fid;
-            PARSE_FUNC_INFO(webGPUModule);
+            PARSE_FUNC_INFO(webGPUModule, fail);
         }
 
         // parse source map <string, string>
         uint32_t source_map_size = (uint32_t) * (uint64_t *)blob;
         if (source_map_size != func_map_size) {
-            SET_ERROR_RETURN(-1, "Invalid module: function size (%d) != source size (%d)\n", func_map_size,
-                             source_map_size);
+            TVM_RT_SET_ERROR_AND_GOTO(fail, "Invalid module: function size (%d) != source size (%d)\n", func_map_size,
+                                      source_map_size);
         }
 
         DeviceAPI *webgpu_dev_api = NULL;
         int status = TVM_RT_WASM_DeviceAPIGet(kDLWebGPU, &webgpu_dev_api);
         if (unlikely(status)) {
-            return status;
+            goto fail;
         }
         // get the device
         WGPU_Device gpu_device = (WGPU_Device)webgpu_dev_api->GetStream();
@@ -134,17 +145,29 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, WebG
             uint32_t src_size = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t); // src_size
 
-            WGPU_CALL(WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob, src_size, NULL, 0,
-                                          func_info_list[fid].num_kernel_args));
+            status = WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob, src_size, NULL, 0,
+                                         func_info_list[fid].num_kernel_args);
+            if (unlikely(status)) {
+                goto fail;
+            }
 
             blob += src_size; // source string
         }
 
         return (int)(blob - resource);
+
+    fail:
+        if (*webGPUModule) {
+            TVM_RT_WASM_WebGPUModuleReleaseFunc((Module *)*webGPUModule);
+        }
+        return -1;
     } else {
-        SET_ERROR_RETURN(-1, "unknown resource type %d\n", resource_type);
+        TVM_RT_SET_ERROR_RETURN(-1, "Unknown resource type %d", resource_type);
     }
 #else
+    (void)resource;
+    (void)resource_type;
+    (void)webGPUModule;
     WebGPU_NOT_SUPPORTED();
 #endif // USE_WEBGPU
 }

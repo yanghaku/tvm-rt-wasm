@@ -94,14 +94,19 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
 
             num_import_tree_row_ptr = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t);
-            import_tree_row_ptr = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * num_import_tree_row_ptr);
-            memcpy(import_tree_row_ptr, blob, sizeof(uint64_t) * num_import_tree_row_ptr);
+            if (import_tree_row_ptr == NULL) {
+                import_tree_row_ptr = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * num_import_tree_row_ptr);
+                memcpy(import_tree_row_ptr, blob, sizeof(uint64_t) * num_import_tree_row_ptr);
+            }
             blob += sizeof(uint64_t) * num_import_tree_row_ptr;
 
             num_import_tree_child_indices = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t);
-            import_tree_child_indices = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * num_import_tree_child_indices);
-            memcpy(import_tree_child_indices, blob, sizeof(uint64_t) * num_import_tree_child_indices);
+            if (import_tree_child_indices == NULL) {
+                import_tree_child_indices =
+                    TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint64_t) * num_import_tree_child_indices);
+                memcpy(import_tree_child_indices, blob, sizeof(uint64_t) * num_import_tree_child_indices);
+            }
             blob += sizeof(uint64_t) * num_import_tree_child_indices;
 
         } else {
@@ -109,6 +114,15 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
             blob += mod_type_key_size;
             status = TVM_RT_WASM_ModuleFactory(key, blob, MODULE_FACTORY_RESOURCE_BINARY, &modules[num_modules]);
             if (unlikely(status <= 0)) { // ModuleFactory will return offset
+                if (modules) {
+                    TVM_RT_WASM_HeapMemoryFree(modules);
+                }
+                if (import_tree_row_ptr) {
+                    TVM_RT_WASM_HeapMemoryFree(import_tree_row_ptr);
+                }
+                if (import_tree_child_indices) {
+                    TVM_RT_WASM_HeapMemoryFree(import_tree_child_indices);
+                }
                 return -1;
             }
             blob += status;
@@ -169,6 +183,7 @@ static int TVM_RT_WASM_SysLibModuleReleaseFunc(Module *self) {
 }
 
 static void visit_symbol_change_to_func(char c, void **data_ptr, void *source_handle) {
+    (void)c;
     static int now_functions = 0;
     PackedFunction *pf = (PackedFunction *)source_handle;
     if (*data_ptr != NULL) {
@@ -189,9 +204,10 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
         return 0;
     }
     if (unlikely(system_lib_symbol == NULL)) {
-        SET_ERROR_RETURN(-1, "no symbol in system library!");
+        TVM_RT_SET_ERROR_RETURN(-1, "No symbol in system library!");
     }
 
+    int status;
     *libraryModule = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module));
     memset(*libraryModule, 0, sizeof(Module));
 
@@ -204,9 +220,9 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     const char *blob = NULL;
     if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB,
                                               (void **)&blob)) {
-        int status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
+        status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
         if (unlikely(status)) {
-            return status;
+            goto syslib_fail;
         }
     }
 
@@ -216,7 +232,9 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
                                               (void **)&module_context)) {
         *module_context = *libraryModule;
     } else {
-        SET_ERROR_RETURN(-1, "Cannot find module context symbol `%s` from syslib\n", TVM_MODULE_CTX);
+        status = -1;
+        TVM_RT_SET_ERROR_AND_GOTO(syslib_fail, "Cannot find module context symbol `%s` from system library",
+                                  TVM_MODULE_CTX);
     }
 
     /** init packed function */
@@ -227,6 +245,10 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     sys_lib_module = *libraryModule;
     return 0;
+
+syslib_fail:
+    TVM_RT_WASM_SysLibModuleReleaseFunc(*libraryModule);
+    return status;
 }
 
 /*!
@@ -243,7 +265,7 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
     }
     if (!memcmp(type, "so", 2) || !memcmp(type, "dll", 3) || !memcmp(type, "dylib", 5)) {
         if (unlikely(resource_type != MODULE_FACTORY_RESOURCE_FILE)) {
-            SET_ERROR_RETURN(-1, "the dso library can only be load from file");
+            TVM_RT_SET_ERROR_RETURN(-1, "The dso library can only be load from file");
         }
         return TVM_RT_WASM_DSOLibraryModuleCreate(resource, out);
     }
@@ -253,5 +275,5 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
     if (!memcmp(type, "webgpu", 6)) {
         return TVM_RT_WASM_WebGPUModuleCreate(resource, resource_type, (WebGPUModule **)out);
     }
-    SET_ERROR_RETURN(-1, "unsupported module type %s\n", type);
+    TVM_RT_SET_ERROR_RETURN(-1, "Unsupported module type %s", type);
 }

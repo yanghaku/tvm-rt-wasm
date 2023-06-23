@@ -12,18 +12,24 @@
 extern "C" {
 #endif
 
+#include <utils/common.h>
+
 #if USE_WEBGPU // USE_WEBGPU = 1
 
 #include <webgpu/webgpu_c_api.h>
 
+// the error string can be got using `TVMGetLastError`
+#define WGPU_CALL(x)                                                                                                   \
+    do {                                                                                                               \
+        int result = (x);                                                                                              \
+        if (unlikely(result)) {                                                                                        \
+            return -1;                                                                                                 \
+        }                                                                                                              \
+    } while (0)
+
 #else // USE_WEBGPU = 0
 
-#include <stdio.h>
-#define WebGPU_NOT_SUPPORTED()                                                                                         \
-    do {                                                                                                               \
-        fprintf(stderr, "WebGPU is not supported! you can recompile from source and set USE_WEBGPU option ON\n");      \
-        exit(-1);                                                                                                      \
-    } while (0)
+#define WebGPU_NOT_SUPPORTED() TVM_RT_FEATURE_NOT_ON("WebGPU", "USE_WEBGPU")
 
 #endif // USE_WEBGPU
 

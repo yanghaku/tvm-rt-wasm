@@ -10,25 +10,7 @@
 
 #if USE_WEBGPU // USE_WEBGPU = 1
 
-#include <stdio.h>
-
-// the error string can be got using `TVMGetLastError`
-#define WGPU_CALL(x)                                                                                                   \
-    do {                                                                                                               \
-        int result = (x);                                                                                              \
-        if (unlikely(result)) {                                                                                        \
-            return -1;                                                                                                 \
-        }                                                                                                              \
-    } while (0)
-
-// the error string can be got using `TVMGetLastError`
-#define WGPU_CALL_NULL(x)                                                                                              \
-    do {                                                                                                               \
-        int result = (x);                                                                                              \
-        if (unlikely(result)) {                                                                                        \
-            return NULL;                                                                                               \
-        }                                                                                                              \
-    } while (0)
+#include <stdint.h>
 
 typedef struct WGPU_Device_st *WGPU_Device;
 

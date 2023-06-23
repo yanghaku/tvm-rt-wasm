@@ -8,6 +8,7 @@
 #ifndef TVM_RT_WASM_COMMON_H
 #define TVM_RT_WASM_COMMON_H
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,12 +74,6 @@ extern char global_buf[];
 
 #ifdef NDEBUG // release
 
-#define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
-    do {                                                                                                               \
-        sprintf(global_buf, fmt, ##__VA_ARGS__);                                                                       \
-        return (err);                                                                                                  \
-    } while (0)
-
 #define DBG(fmt, ...)                                                                                                  \
     do {                                                                                                               \
     } while (0)
@@ -87,18 +82,47 @@ extern char global_buf[];
 
 #define DBG(fmt, ...)                                                                                                  \
     do {                                                                                                               \
-        fprintf(stderr, "function[%s]-line[%d]: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);                         \
-    } while (0)
-
-#define SET_ERROR_RETURN(err, fmt, ...)                                                                                \
-    do {                                                                                                               \
-        sprintf(global_buf, "function[%s]-line[%d]: " fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);                     \
-        return (err);                                                                                                  \
+        fprintf(stderr, "function[%s]-line[%d]: " fmt "\n", __FUNCTION__, __LINE__, ##__VA_ARGS__);                    \
     } while (0)
 
 #endif // NDEBUG
 
+#define TVM_RT_SET_ERROR(fmt, ...)                                                                                     \
+    do {                                                                                                               \
+        DBG(fmt, ##__VA_ARGS__);                                                                                       \
+        sprintf(global_buf, fmt "\n", ##__VA_ARGS__);                                                                  \
+    } while (0)
+
+#define TVM_RT_SET_ERROR_AND_GOTO(label, fmt, ...)                                                                     \
+    do {                                                                                                               \
+        TVM_RT_SET_ERROR(fmt, ##__VA_ARGS__);                                                                          \
+        goto label;                                                                                                    \
+    } while (0)
+
+#define TVM_RT_SET_ERROR_RETURN(err, fmt, ...)                                                                         \
+    do {                                                                                                               \
+        TVM_RT_SET_ERROR(fmt, ##__VA_ARGS__);                                                                          \
+        return (err);                                                                                                  \
+    } while (0)
+
+#define TVM_RT_NOT_IMPLEMENT(err) TVM_RT_SET_ERROR_RETURN(err, "%s is not implemented yet.\n", __FUNCTION__)
+
+#define TVM_RT_FEATURE_NOT_ON(feature, option)                                                                         \
+    do {                                                                                                               \
+        fprintf(stderr, "%s is not supported! You can recompile library from source with `%s`=`ON`\n", feature,        \
+                option);                                                                                               \
+        exit(-1);                                                                                                      \
+    } while (0)
+
+#define CHECK_INPUT_POINTER(p, ret, var)                                                                               \
+    do {                                                                                                               \
+        if (unlikely((p) == NULL)) {                                                                                   \
+            TVM_RT_SET_ERROR_RETURN(ret, "Invalid argument: %s cannot be NULL.", var);                                 \
+        }                                                                                                              \
+    } while (0)
+
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 #ifdef __STDC_VERSION__
 

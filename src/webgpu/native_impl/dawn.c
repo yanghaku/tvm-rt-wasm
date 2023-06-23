@@ -65,6 +65,7 @@ static __attribute__((destructor)) void dawn_device_callback_destructor() {
 }
 
 static void queue_submit_done_callback(WGPUQueueWorkDoneStatus status, void *userdata) {
+    (void)status;
     DeviceSyncData *data = (DeviceSyncData *)userdata;
     pthread_mutex_lock(&data->ready_mutex);
     data->is_ready = 1;
@@ -74,6 +75,8 @@ static void queue_submit_done_callback(WGPUQueueWorkDoneStatus status, void *use
 
 #pragma weak wgpuDevicePoll
 bool wgpuDevicePoll(WGPUDevice device, bool wait, WGPUWrappedSubmissionIndex const *wrappedSubmissionIndex) {
+    (void)wait;
+    (void)wrappedSubmissionIndex;
     uint32_t device_id = 0;
     while (device_id < currentNumDevices) {
         if (devices[device_id] == device) {
