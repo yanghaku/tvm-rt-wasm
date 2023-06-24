@@ -121,6 +121,14 @@ extern char global_buf[];
         }                                                                                                              \
     } while (0)
 
+#define CHECK_NodeRange(max_r, index)                                                                                  \
+    do {                                                                                                               \
+        if (unlikely((index) >= (max_r))) {                                                                            \
+            TVM_RT_SET_ERROR_RETURN(-2, "Invalid argument: expect index in range [0,%d), but got %d", (max_r),         \
+                                    (index));                                                                          \
+        }                                                                                                              \
+    } while (0)
+
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
@@ -135,6 +143,9 @@ extern char global_buf[];
 #else  // c89 c90
 #define INLINE static inline
 #endif // __STDC_VERSION__
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
 
 #ifdef __cplusplus
 } // extern "C"

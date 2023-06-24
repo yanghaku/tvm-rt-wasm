@@ -87,12 +87,17 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
 #define TVM_MODULE_CTX "__tvm_module_ctx"
 #define TVM_DEV_MODULE_BLOB "__tvm_dev_mblob"
 #define TVM_SET_DEVICE_FUNCTION "__tvm_set_device"
+#define TVM_MODULE_MAIN "__tvm_main__"
+#define TVM_GET_METADATA_FUNC get_c_metadata
+#define TVM_GET_METADATA_FUNC_NAME TOSTRING(TVM_GET_METADATA_FUNC)
 
 #define MODULE_BASE_MEMBER_FREE(module)                                                                                \
     do {                                                                                                               \
         if (module->imports) {                                                                                         \
             for (uint32_t i = 0; i < module->num_imports; ++i) {                                                       \
-                module->imports[i]->Release(module->imports[i]);                                                       \
+                if (module->imports[i]) {                                                                              \
+                    module->imports[i]->Release(module->imports[i]);                                                   \
+                }                                                                                                      \
             }                                                                                                          \
             TVM_RT_WASM_HeapMemoryFree(module->imports);                                                               \
         }                                                                                                              \

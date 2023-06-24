@@ -12,9 +12,8 @@
 #include <utils/common.h>
 #include <webgpu/webgpu_c_api.h>
 
-#define STRINGIFY(a) #a
 #define WGPU_Native_To_Dawn(obj)                                                                                       \
-    _Pragma(STRINGIFY(weak wgpu##obj##Drop));                                                                          \
+    _Pragma(TOSTRING(weak wgpu##obj##Drop));                                                                           \
     typedef struct WGPU##obj##Impl *WGPU##obj;                                                                         \
     extern void wgpu##obj##Release(WGPU##obj);                                                                         \
     void wgpu##obj##Drop(WGPU##obj arg) { wgpu##obj##Release(arg); }

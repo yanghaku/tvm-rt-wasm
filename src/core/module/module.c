@@ -109,6 +109,9 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
             }
             blob += sizeof(uint64_t) * num_import_tree_child_indices;
 
+        } else if (mod_type_key_size == 15 && !memcmp(blob, "metadata_module", mod_type_key_size)) {
+            blob += mod_type_key_size; // empty module
+            modules[num_modules++] = NULL;
         } else {
             const char *key = blob;
             blob += mod_type_key_size;
@@ -146,12 +149,23 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
                 break;
             }
 
-            modules[i]->num_imports = (uint32_t)(import_tree_row_ptr[i + 1] - import_tree_row_ptr[i]);
-            modules[i]->allocated_imports_size = modules[i]->num_imports;
-            if (modules[i]->num_imports == 0) {
+            uint32_t num_imports = (uint32_t)(import_tree_row_ptr[i + 1] - import_tree_row_ptr[i]);
+            if (modules[i] == NULL) { // empty module, such as metadata_module
+                if (num_imports == 1) {
+                    modules[i] = modules[import_tree_child_indices[import_tree_row_ptr[i]]];
+                    continue;
+                } else {
+                    // todo
+                    continue;
+                }
+            }
+            modules[i]->num_imports = num_imports;
+            modules[i]->allocated_imports_size = num_imports;
+            if (num_imports == 0) {
                 continue;
             }
-            modules[i]->imports = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module *) * modules[i]->num_imports);
+            modules[i]->imports = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module *) * num_imports);
+            memset(modules[i]->imports, 0, sizeof(Module *) * num_imports);
 
             for (uint32_t j = import_tree_row_ptr[i], x = 0; j < import_tree_row_ptr[i + 1]; ++j, x++) {
                 if (unlikely(j >= num_import_tree_child_indices)) {
@@ -177,7 +191,9 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
 /*! \brief the release function for system_lib_module */
 static int TVM_RT_WASM_SysLibModuleReleaseFunc(Module *self) {
     MODULE_BASE_MEMBER_FREE(self);
-    TVM_RT_WASM_HeapMemoryFree(self->packed_functions);
+    if (self->packed_functions) {
+        TVM_RT_WASM_HeapMemoryFree(self->packed_functions);
+    }
     TVM_RT_WASM_HeapMemoryFree(self);
     return 0;
 }
@@ -213,13 +229,12 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     (*libraryModule)->Release = TVM_RT_WASM_SysLibModuleReleaseFunc;
     (*libraryModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
-    (*libraryModule)->module_funcs_map = system_lib_symbol;
     TVM_RT_WASM_TrieCreate(&(*libraryModule)->env_funcs_map);
 
     // dev_blob
     const char *blob = NULL;
-    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_DEV_MODULE_BLOB,
-                                              (void **)&blob)) {
+    if (TRIE_SUCCESS ==
+        TVM_RT_WASM_TrieQuery(system_lib_symbol, (const uint8_t *)TVM_DEV_MODULE_BLOB, (void **)&blob)) {
         status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
         if (unlikely(status)) {
             goto syslib_fail;
@@ -228,8 +243,8 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     // module context
     void **module_context = NULL;
-    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery((*libraryModule)->module_funcs_map, (const uint8_t *)TVM_MODULE_CTX,
-                                              (void **)&module_context)) {
+    if (TRIE_SUCCESS ==
+        TVM_RT_WASM_TrieQuery(system_lib_symbol, (const uint8_t *)TVM_MODULE_CTX, (void **)&module_context)) {
         *module_context = *libraryModule;
     } else {
         status = -1;
@@ -241,6 +256,7 @@ static int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
     (*libraryModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_sys_lib_symbol);
     memset((*libraryModule)->packed_functions, 0, sizeof(PackedFunction) * num_sys_lib_symbol);
     TVM_RT_WASM_TrieVisit(system_lib_symbol, visit_symbol_change_to_func, (*libraryModule)->packed_functions);
+    (*libraryModule)->module_funcs_map = system_lib_symbol;
     system_lib_symbol = NULL; // manage this Trie*
 
     sys_lib_module = *libraryModule;

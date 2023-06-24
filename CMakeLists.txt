@@ -84,7 +84,7 @@ else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 endif ()
 
-include_directories(include 3rdparty/dlpack/include src src/core)
+include_directories(include 3rdparty/dlpack/include 3rdparty/tvm/include src src/core)
 add_definitions(-DTVM_EXPORTS)
 
 
@@ -127,6 +127,7 @@ install(TARGETS tvm-rt ${CMAKE_INSTALL_LIBDIR})
 # only contain three public header file
 install(FILES include/tvm/runtime/c_runtime_api.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/tvm/runtime/)
 install(FILES include/graph_executor.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
+install(FILES include/aot_executor.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
 install(FILES 3rdparty/dlpack/include/dlpack/dlpack.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/dlpack/)
 
 if (${BUILD_EXAMPLES})

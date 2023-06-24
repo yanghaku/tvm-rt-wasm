@@ -132,114 +132,125 @@ endif ()
 find_package(Python3 COMPONENTS Interpreter)
 
 
-function(custom_tvm_executable target_name source_files tvm_gens model out_lib_dir)
+# executor: "graph" or "aot"
+function(custom_tvm_executable target_name source_files model out_lib_dir executor)
     set(tvm_build_script_dir ${CMAKE_CURRENT_SOURCE_DIR}/../tvm_gen_scripts)
     set(tvm_build_script ${tvm_build_script_dir}/main.py)
 
-    if (MSVC)
-        set(GRAPH_LIB ${out_lib_dir}/graph.lib)
+    if (${executor} STREQUAL "graph")
+        set(GRAPH_JSON_OUTPUT "${out_lib_dir}/graph.json.c")
+        list(APPEND source_files ${GRAPH_JSON_OUTPUT})
+        set(TVM_GEN_LIB ${out_lib_dir}/libgraph.a)
+    elseif (${executor} STREQUAL "aot")
+        set(TVM_GEN_LIB ${out_lib_dir}/libaot.a)
+        set(GRAPH_JSON_OUTPUT "")
     else ()
-        set(GRAPH_LIB ${out_lib_dir}/libgraph.a)
+        message(FATAL_ERROR "Unsupported executor ${executor}")
     endif ()
     add_custom_command(
-            OUTPUT ${tvm_gens}
-            COMMAND python ${tvm_build_script} --model ${model} --host-target ${TVM_HOST_TARGET} --device-target ${TVM_DEVICE_TARGET} -o ${out_lib_dir}
-            COMMAND tar -xf ${out_lib_dir}/graph.tar -C ${out_lib_dir}
-            COMMAND ${CMAKE_AR} rcs ${GRAPH_LIB} ${out_lib_dir}/*.o
+            OUTPUT ${TVM_GEN_LIB} ${GRAPH_JSON_OUTPUT}
+            COMMAND python ${tvm_build_script} --model ${model} -o ${out_lib_dir}
+            --host-target ${TVM_HOST_TARGET} --device-target ${TVM_DEVICE_TARGET} --executor ${executor}
+            COMMAND tar -xf ${out_lib_dir}/${executor}.tar -C ${out_lib_dir}
+            COMMAND ${CMAKE_AR} rcs ${TVM_GEN_LIB} ${out_lib_dir}/*.o
             DEPENDS ${tvm_build_script}
             WORKING_DIRECTORY ${tvm_build_script_dir}
     )
-    add_executable(${target_name} ${source_files} ${tvm_gens})
+    add_executable(${target_name} ${source_files})
+    add_custom_target("${target_name}_tvm_gen_lib" SOURCES ${TVM_GEN_LIB})
+    add_dependencies(${target_name} "${target_name}_tvm_gen_lib")
+
     string(REPLACE "-" "_" target_define ${target_name})    # '-' replace to '_'
     target_compile_definitions(${target_name} PUBLIC -D${target_define})
     target_link_libraries(${target_name} "-Wl,--whole-archive" tvm-rt "-Wl,--no-whole-archive")
-    target_link_directories(${target_name} PRIVATE ${out_lib_dir})
     # whole-archive ensure to force link the libgraph
-    target_link_options(${target_name} PRIVATE -Wl,--whole-archive -lgraph -Wl,--no-whole-archive)
+    target_link_options(${target_name} PRIVATE -Wl,--whole-archive ${TVM_GEN_LIB} -Wl,--no-whole-archive)
 endfunction()
 
 
 ## resnet-50
 set(resnet-50_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50)
-set(resnet-50_tvm_gen ${resnet-50_lib_dir}/graph.json.c)
 set(resnet-50_sources resnet/resnet.c)
-custom_tvm_executable(resnet-50 ${resnet-50_sources} ${resnet-50_tvm_gen} "resnet-50" ${resnet-50_lib_dir})
+custom_tvm_executable(resnet-50 ${resnet-50_sources} "resnet-50" ${resnet-50_lib_dir} "graph")
 
 ## vgg-16
 set(vgg-16_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16)
-set(vgg-16_tvm_gen ${vgg-16_lib_dir}/graph.json.c)
 set(vgg-16_sources vgg/vgg.c)
-custom_tvm_executable(vgg-16 ${vgg-16_sources} ${vgg-16_tvm_gen} "vgg-16" ${vgg-16_lib_dir})
+custom_tvm_executable(vgg-16 ${vgg-16_sources} "vgg-16" ${vgg-16_lib_dir} "graph")
 
 ## mobilenet
 set(mobilenet_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet)
-set(mobilenet_tvm_gen "${mobilenet_lib_dir}/graph.json.c")
 set(mobilenet_sources mobilenet/mobilenet.c)
-custom_tvm_executable(mobilenet ${mobilenet_sources} ${mobilenet_tvm_gen} "mobilenet" ${mobilenet_lib_dir})
+custom_tvm_executable(mobilenet ${mobilenet_sources} "mobilenet" ${mobilenet_lib_dir} "graph")
 
 ## bert-large-uncased
 set(bert-large-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-large-uncased)
-set(bert-large-uncased_tvm_gen ${bert-large-uncased_lib_dir}/graph.json.c)
 set(bert-large-uncased_sources bert-uncased/bert-uncased.c)
-custom_tvm_executable(bert-large-uncased ${bert-large-uncased_sources} ${bert-large-uncased_tvm_gen} "bert-large-uncased" ${bert-large-uncased_lib_dir})
+custom_tvm_executable(bert-large-uncased ${bert-large-uncased_sources} "bert-large-uncased" ${bert-large-uncased_lib_dir} "graph")
 
 ## resnet-18
 set(resnet-18_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-18)
-set(resnet-18_tvm_gen ${resnet-18_lib_dir}/graph.json.c)
 set(resnet-18_sources resnet/resnet.c)
-custom_tvm_executable(resnet-18 ${resnet-18_sources} ${resnet-18_tvm_gen} "resnet-18" ${resnet-18_lib_dir})
+custom_tvm_executable(resnet-18 ${resnet-18_sources} "resnet-18" ${resnet-18_lib_dir} "graph")
 
 ## resnet-34
 set(resnet-34_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-34)
-set(resnet-34_tvm_gen ${resnet-34_lib_dir}/graph.json.c)
 set(resnet-34_sources resnet/resnet.c)
-custom_tvm_executable(resnet-34 ${resnet-34_sources} ${resnet-34_tvm_gen} "resnet-34" ${resnet-34_lib_dir})
+custom_tvm_executable(resnet-34 ${resnet-34_sources} "resnet-34" ${resnet-34_lib_dir} "graph")
 
 ## resnet-101
 set(resnet-101_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-101)
-set(resnet-101_tvm_gen ${resnet-101_lib_dir}/graph.json.c)
 set(resnet-101_sources resnet/resnet.c)
-custom_tvm_executable(resnet-101 ${resnet-101_sources} ${resnet-101_tvm_gen} "resnet-101" ${resnet-101_lib_dir})
+custom_tvm_executable(resnet-101 ${resnet-101_sources} "resnet-101" ${resnet-101_lib_dir} "graph")
 
 ## resnet-152
 set(resnet-152_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-152)
-set(resnet-152_tvm_gen ${resnet-152_lib_dir}/graph.json.c)
 set(resnet-152_sources resnet/resnet.c)
-custom_tvm_executable(resnet-152 ${resnet-152_sources} ${resnet-152_tvm_gen} "resnet-152" ${resnet-152_lib_dir})
+custom_tvm_executable(resnet-152 ${resnet-152_sources} "resnet-152" ${resnet-152_lib_dir} "graph")
 
 ## vgg-19
 set(vgg-19_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-19)
-set(vgg-19_tvm_gen ${vgg-19_lib_dir}/graph.json.c)
 set(vgg-19_sources vgg/vgg.c)
-custom_tvm_executable(vgg-19 ${vgg-19_sources} ${vgg-19_tvm_gen} "vgg-19" ${vgg-19_lib_dir})
+custom_tvm_executable(vgg-19 ${vgg-19_sources} "vgg-19" ${vgg-19_lib_dir} "graph")
 
 ## bert-base-uncased
 set(bert-base-uncased_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/bert-base-uncased)
-set(bert-base-uncased_tvm_gen ${bert-base-uncased_lib_dir}/graph.json.c)
 set(bert-base-uncased_sources bert-uncased/bert-uncased.c)
-custom_tvm_executable(bert-base-uncased ${bert-base-uncased_sources} ${bert-base-uncased_tvm_gen} "bert-base-uncased" ${bert-base-uncased_lib_dir})
+custom_tvm_executable(bert-base-uncased ${bert-base-uncased_sources} "bert-base-uncased" ${bert-base-uncased_lib_dir} "graph")
 
 
 ## resnet-50-int8
 set(resnet-50-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/resnet-50-int8)
-set(resnet-50-int8_tvm_gen ${resnet-50-int8_lib_dir}/graph.json.c)
 set(resnet-50-int8_sources resnet/resnet.c)
-custom_tvm_executable(resnet-50-int8 ${resnet-50-int8_sources} ${resnet-50-int8_tvm_gen} "resnet-50-int8" ${resnet-50-int8_lib_dir})
+custom_tvm_executable(resnet-50-int8 ${resnet-50-int8_sources} "resnet-50-int8" ${resnet-50-int8_lib_dir} "graph")
 
 ## vgg-16-int8
 set(vgg-16-int8_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/vgg-16-int8)
-set(vgg-16-int8_tvm_gen ${vgg-16-int8_lib_dir}/graph.json.c)
 set(vgg-16-int8_sources vgg/vgg.c)
-custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} ${vgg-16-int8_tvm_gen} "vgg-16-int8" ${vgg-16-int8_lib_dir})
+custom_tvm_executable(vgg-16-int8 ${vgg-16-int8_sources} "vgg-16-int8" ${vgg-16-int8_lib_dir} "graph")
 
+## add mobilenet aot target
+set(mobilenet-aot_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet-aot)
+set(mobilenet-aot_sources mobilenet-aot/mobilenet-aot.c)
+custom_tvm_executable(mobilenet-aot ${mobilenet-aot_sources} "mobilenet" ${mobilenet-aot_lib_dir} "aot")
 
 ## dso library test
 if (NOT ${USE_WASI_SDK})
+    # for graph executor
     add_executable(mobilenet-dso mobilenet/mobilenet.c)
     target_link_libraries(mobilenet-dso tvm-rt)
     target_compile_definitions(mobilenet-dso PRIVATE -DDSO_TEST)
     if (${USE_EMSDK})
-        target_link_options(mobilenet-dso PRIVATE -sMAIN_MODULE=1)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+        target_compile_options(mobilenet-dso PRIVATE -fPIC)
+        target_link_options(mobilenet-dso PRIVATE -fPIC -sMAIN_MODULE=1)
+    endif ()
+
+    # for aot executor
+    add_executable(mobilenet-aot-dso mobilenet-aot/mobilenet-aot.c)
+    target_link_libraries(mobilenet-aot-dso tvm-rt)
+    target_compile_definitions(mobilenet-aot-dso PRIVATE -DDSO_TEST)
+    if (${USE_EMSDK})
+        target_compile_options(mobilenet-aot-dso PRIVATE -fPIC)
+        target_link_options(mobilenet-aot-dso PRIVATE -fPIC -sMAIN_MODULE=1)
     endif ()
 endif ()

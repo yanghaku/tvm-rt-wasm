@@ -4,7 +4,8 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <graph/graph_executor.h>
+#include <module/module.h>
+#include <relay_vm/graph/graph_executor.h>
 #include <utils/json.h>
 #include <utils/tensor_helper.h>
 
@@ -197,15 +198,16 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
 
     // find linked param
     static const char *lookup_linked_param_func_name = "_lookup_linked_param";
-    TVMFunctionHandle func;
-    status = TVMModGetFunction(graph->module_handle, lookup_linked_param_func_name, 1, &func);
+    Module *graph_lib_mod = (Module *)graph->module_handle;
+    PackedFunction *func;
+    status = graph_lib_mod->GetFunction(graph_lib_mod, lookup_linked_param_func_name, 1, (TVMFunctionHandle *)&func);
     if (status == 0) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
         arg_type = kTVMArgInt;
         for (uint32_t i = 0; i < num_storage; ++i) {
             arg_val.v_int64 = i;
-            status = TVMFuncCall(func, &arg_val, &arg_type, 1, &ret_val, &ret_type);
+            status = func->exec(&arg_val, &arg_type, 1, &ret_val, &ret_type, func);
             if (likely(status == 0 && ret_val.v_handle != NULL)) {
                 graph->storages[i].is_linked_param = 1;
                 graph->storages[i].storage = ret_val.v_handle;
@@ -259,6 +261,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
     TVMValue *alloc_value = graph->node_op_arg_value_storage;
     int *alloc_type = graph->node_op_arg_type_storage;
 
+    Module *graph_lib_mod = (Module *)graph->module_handle;
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
         GraphExecutorNode *node = graph->nodes + nid;
         if (strcmp(node->op_type, "tvm_op") == 0) {
@@ -283,7 +286,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
                 nodeOp->exec = NULL;
                 continue;
             }
-            int status = TVMModGetFunction(graph->module_handle, node->func_name, 1, &nodeOp->exec);
+
+            int status = graph_lib_mod->GetFunction(graph_lib_mod, node->func_name, 1, &nodeOp->exec);
             if (unlikely(status)) {
                 TVM_RT_SET_ERROR_RETURN(-1, "Cannot find function name `%s`", node->func_name);
             }

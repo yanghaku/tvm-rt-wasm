@@ -201,11 +201,22 @@
    limitations under the License.
 
 ===========================================================================
-TVM-RT-WASM project bundles various tvm and other thirty-party components.
+TVM-RT-WASM project bundles various thirty-party components.
 
 Apache Software Foundation Licence 2.0
 --------------------------------------
 
 3rdparty/dlpack
-include/tvm/runtime/c_runtime_api.h
-include/tvm/runtime/c_backend_api.h
+3rdparty/tvm/include/tvm/runtime/c_runtime_api.h
+3rdparty/tvm/include/tvm/runtime/c_backend_api.h
+3rdparty/tvm/include/tvm/runtime/metadata_types.h
+
+BSD 3-Clause License
+--------------------------------------
+
+3rdparty/webgpu-headers
+
+NVIDIA SOFTWARE LICENSE
+--------------------------------------
+
+3rdparty/cuda/include/cuda.h

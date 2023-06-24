@@ -185,13 +185,6 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
 /*--------------------------------some definition for graph executor function-----------------------------------------*/
 
 #define CHECK_GraphExecutor(g) CHECK_INPUT_POINTER(g, -2, "GraphExecutor")
-#define CHECK_NodeRange(max_r, index)                                                                                  \
-    do {                                                                                                               \
-        if (unlikely((index) >= (max_r))) {                                                                            \
-            TVM_RT_SET_ERROR_RETURN(-2, "Invalid argument: expect index in range [0,%d), but got %d", (max_r),         \
-                                    (index));                                                                          \
-        }                                                                                                              \
-    } while (0)
 
 /*! \brief GetEntryId for GraphExecutor */
 #define DATA_ENTRY_ID(graph, nid, index) ((graph)->nodes[(nid)].row_ptr + (index))

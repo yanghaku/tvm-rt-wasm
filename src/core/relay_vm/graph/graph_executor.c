@@ -5,9 +5,9 @@
  */
 
 #include <device/cpu_memory.h>
-#include <graph/cuda_extension.h>
-#include <graph/graph_executor.h>
 #include <module/module.h>
+#include <relay_vm/graph/cuda_extension.h>
+#include <relay_vm/graph/graph_executor.h>
 #include <string.h>
 #include <utils/tensor_helper.h>
 
@@ -189,7 +189,7 @@ int TVM_RT_WASM_GraphExecutorGetOutput(TVM_RT_WASM_GraphExecutor g, uint32_t ind
 
 int TVM_RT_WASM_GraphExecutorGetOutputByName(TVM_RT_WASM_GraphExecutor g, const char *name, DLTensor *data_out) {
     CHECK_INPUT_POINTER(data_out, -2, "DLTensor");
-    int index = TVM_RT_WASM_GraphExecutorGetInputIndex(g, name);
+    int index = TVM_RT_WASM_GraphExecutorGetOutputIndex(g, name);
     if (unlikely(index == -1)) {
         return index;
     }

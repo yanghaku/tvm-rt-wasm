@@ -12,10 +12,7 @@ from tvm.runtime.executor.aot_executor import AotModule
 import utils
 
 
-def save_module(opts, executor_factory_module):
-    if not os.path.exists(opts.out_dir):
-        os.mkdir(opts.out_dir)
-
+def _save_graph_executor_module(opts, graph_executor_factory_module):
     lib_src_path = os.path.join(opts.out_dir, "graph.ll")
     if opts.dso:
         lib_path = os.path.join(opts.out_dir, "graph.so")
@@ -24,21 +21,39 @@ def save_module(opts, executor_factory_module):
     params_path = os.path.join(opts.out_dir, "graph.params")
     json_path = os.path.join(opts.out_dir, "graph.json")
     json_c_path = os.path.join(opts.out_dir, "graph.json.c")
-    executor_factory_module.get_lib().export_library(lib_path)
+    graph_executor_factory_module.get_lib().export_library(lib_path)
     if opts.dso_only:
         return
 
     with open(params_path, "wb") as f:
-        f.write(runtime.save_param_dict(executor_factory_module.get_params()))
+        f.write(runtime.save_param_dict(graph_executor_factory_module.get_params()))
+
+    json = graph_executor_factory_module.get_graph_json()
+    with open(json_path, "w") as f:
+        f.write(json)
+    utils.data2c(json, json_c_path, "graph_json")
 
     if opts.emit_llvm:
         with open(lib_src_path, "w") as f:
-            f.write(executor_factory_module.get_lib().get_source())
+            f.write(graph_executor_factory_module.get_lib().get_source())
+
+
+def _save_aot_executor_module(opts, aot_executor_factory_module):
+    if opts.dso:
+        lib_path = os.path.join(opts.out_dir, "aot.so")
+    else:
+        lib_path = os.path.join(opts.out_dir, "aot.tar")
+    aot_executor_factory_module.get_lib().export_library(lib_path)
+
+
+def save_module(opts, executor_factory_module):
+    if not os.path.exists(opts.out_dir):
+        os.mkdir(opts.out_dir)
+
     if opts.executor == "graph":
-        json = executor_factory_module.get_graph_json()
-        with open(json_path, "w") as f:
-            f.write(json)
-        utils.data2c(json, json_c_path, "graph_json")
+        return _save_graph_executor_module(opts, executor_factory_module)
+    elif opts.executor == "aot":
+        return _save_aot_executor_module(opts, executor_factory_module)
 
 
 def build_module(opts, mod, params, target):
