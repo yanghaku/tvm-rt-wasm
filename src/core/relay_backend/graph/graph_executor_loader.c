@@ -5,7 +5,7 @@
  */
 
 #include <module/module.h>
-#include <relay_vm/graph/graph_executor.h>
+#include <relay_backend/graph/graph_executor.h>
 #include <utils/json.h>
 #include <utils/tensor_helper.h>
 

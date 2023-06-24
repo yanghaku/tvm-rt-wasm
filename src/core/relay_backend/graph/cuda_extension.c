@@ -4,7 +4,7 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <relay_vm/graph/cuda_extension.h>
+#include <relay_backend/graph/cuda_extension.h>
 #include <utils/cuda_common.h>
 
 #if USE_CUDA && !defined(CUDA_10_ONLY) // USE_CUDA = 1

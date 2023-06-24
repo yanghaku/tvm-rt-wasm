@@ -1,6 +1,6 @@
 #include <aot_executor.h>
 #include <module/module.h>
-#include <relay_vm/aot/aot_executor.h>
+#include <relay_backend/aot/aot_executor.h>
 #include <string.h>
 #include <utils/tensor_helper.h>
 

@@ -6,8 +6,8 @@
 
 #include <device/cpu_memory.h>
 #include <module/module.h>
-#include <relay_vm/graph/cuda_extension.h>
-#include <relay_vm/graph/graph_executor.h>
+#include <relay_backend/graph/cuda_extension.h>
+#include <relay_backend/graph/graph_executor.h>
 #include <string.h>
 #include <utils/tensor_helper.h>
 
