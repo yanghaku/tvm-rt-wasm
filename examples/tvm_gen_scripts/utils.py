@@ -39,7 +39,8 @@ def get_arg_parser():
     parser.add_argument("--device-target", default="cpu", help="device target")
     parser.add_argument("--host-target", default="native",
                         help="host runtime target, e.g. native,wasm32-wasi,wasm32-emscripten")
-    parser.add_argument("--executor", default="graph", help="executor type", choices=("graph", "aot"))
+    parser.add_argument("--executor", default="graph", help="executor type",
+                        choices=("graph", "aot", "relay_vm", "relax_vm"))
     parser.add_argument("--emit-llvm", default=False, type=bool, help="generate the llvm-ir")
     parser.add_argument("--dso", default=False, type=bool, help="create dynamic library")
     parser.add_argument("--dso-only", default=False, type=bool, help="create dynamic library only, (no params,json)")

@@ -5,8 +5,8 @@ from tvm.contrib.download import download_testdata
 import numpy as np
 from PIL import Image
 
-from module_process import build_module, run_module
-from model_info import get_module_frontend, get_model_info
+from module_process import build_ir_module, run_module
+from model_info import get_ir_module_from_frontend, get_model_info
 from utils import get_arg_parser, get_tvm_target
 
 
@@ -38,17 +38,17 @@ def get_classification_inputs(opts):
 
 
 def validate_model(opts):
-    mod, params = get_module_frontend(opts)
+    ir_module, params = get_ir_module_from_frontend(opts)
     target = get_tvm_target(opts)
-    m = build_module(opts, mod, params, target)
+    m = build_ir_module(opts, ir_module, params, target)
 
     module_info = get_model_info(opts.model)
     inputs = tvm.runtime.ndarray.array(get_classification_inputs(opts))
     input_dict = {list(module_info.input_info.keys())[0]: inputs}
 
-    executor = run_module(opts, m, input_dict)
+    outputs = run_module(opts, m, input_dict)
 
-    output = executor.get_output(0).numpy().reshape(1000)
+    output = outputs[0].reshape(1000)
     arg_max = np.argmax(output)
 
     print("max = out[", arg_max, "] = ", np.max(output))

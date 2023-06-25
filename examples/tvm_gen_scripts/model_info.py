@@ -41,25 +41,39 @@ def get_model_info(name):
     raise "unsupported module name"
 
 
-def get_module_frontend(opts):
+def _load_ir_module_from_onnx(opts, model_info):
+    import onnx
+    from tvm.contrib.download import download_testdata
+
+    url = "https://github.com/onnx/models/raw/main/" + model_info.url + "/model/" + model_info.full_name
+    model_local_path = download_testdata(url, model_info.full_name, module=model_info.from_frontend)
+    onnx_module = onnx.load(model_local_path)
+
+    if opts.executor == "relax_vm":
+        from tvm import relax
+        from tvm.relax.frontend.onnx import from_onnx
+        ir_module = from_onnx(onnx_module, shape_dict=model_info.input_info)
+        ir_module = relax.transform.DecomposeOpsForInference()(ir_module)
+        ir_module = relax.transform.LegalizeOps()(ir_module)
+        return relax.frontend.detach_params(ir_module)
+    elif opts.executor == "relay_vm" or opts.executor == "graph" or opts.executor == "aot":
+        from tvm.relay.frontend import from_onnx
+        return from_onnx(onnx_module, shape=model_info.input_info)
+    else:
+        raise Exception('unsupported backend type: ' + opts.executor)
+
+
+def get_ir_module_from_frontend(opts):
     model_info = get_model_info(opts.model)
 
     if model_info.from_frontend == "onnx":
-        import onnx
-        from tvm.contrib.download import download_testdata
-        from tvm.relay.frontend import from_onnx
-        url = "https://github.com/onnx/models/raw/main/" + model_info.url + "/model/" + model_info.full_name
-        model_local_path = download_testdata(url, model_info.full_name, module=model_info.from_frontend)
-        onnx_module = onnx.load(model_local_path)
-        mod, params = from_onnx(onnx_module, shape=model_info.input_info)
+        return _load_ir_module_from_onnx(opts, model_info)
     elif model_info.from_frontend == "pytorch":
         if model_info.full_name[:4] == 'bert':
-            from bert import get_bert_frontend
-            (mod, params) = get_bert_frontend(model_info.full_name)
+            from bert import get_bert_ir_module
+            return get_bert_ir_module(model_info.full_name)
         else:
-            raise "unsupported model for pytorch"
+            raise Exception("unsupported model for pytorch")
     else:
         # todo: add new frontend such as tf,pytorch,mxnet
-        raise "unsupported frontend"
-
-    return mod, params
+        raise Exception("unsupported frontend")
