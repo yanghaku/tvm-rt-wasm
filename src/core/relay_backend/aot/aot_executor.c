@@ -1,3 +1,9 @@
+/*!
+ * \file aot/aot_executor.c
+ * \brief the implementation for aot_executor public api.
+ * \author YangBo MG21330067@smail.nju.edu.cn
+ */
+
 #include <aot_executor.h>
 #include <module/module.h>
 #include <relay_backend/aot/aot_executor.h>

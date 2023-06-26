@@ -57,7 +57,7 @@ def save_module(opts, module):
         lib.export_library(lib_path)
         if opts.dso_only:
             return
-        with open("relay_vm.ro", "wb") as f:
+        with open(os.path.join(opts.out_dir, "relay_vm.ro"), "wb") as f:
             f.write(code)
     elif isinstance(module, tvm.relax.Executable):  # relax vm
         if opts.dso:
