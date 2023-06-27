@@ -9,7 +9,7 @@
 <hr/>
 
 A High performance and tiny [TVM] graph executor library written in C which can compile to WebAssembly and use
-CUDA/WebGPU as the backend.
+CUDA/WebGPU as the accelerator.
 
 ## Support Matrix
 
@@ -23,7 +23,7 @@ CUDA/WebGPU as the backend.
 | clang/gcc  | native(x86_64,aarch64,etc.) | CUDA       | /                                          |
 | clang/gcc  | native(x86_64,aarch64,etc.) | WebGPU     | link with use [dawn] or [webgpu-native]    |
 
-## Build the library
+## Build from source.
 
 ### Requirements:
 
@@ -34,14 +34,10 @@ WebAssembly target toolchain download: [wasi-sdk github repo], [emsdk github rep
 
 ### Available Options in cmake
 
-| Variable        | Default       | Description                                                          |
-|-----------------|---------------|----------------------------------------------------------------------|
-| USE_EMSDK       | OFF           | Use emsdk toolchain and compile to target ```(wasm32-emscription)``` |
-| USE_WASI_SDK    | OFF           | Use wasi-sdk toolchain and compile to target ```(wasm32-wasi)```     |
-| USE_CUDA        | OFF           | Use CUDA support                                                     |
-| USE_WEBGPU      | OFF           | Use WebGPU support                                                   |
-| WASI_SDK_PREFIX | /opt/wasi-sdk | The path to wasi-sdk                                                 |
-| EMSDK_PREFIX    | /opt/emsdk    | The path to emsdk                                                    |
+## Project options:
+
+* `USE_WASI_SDK`: If use the wasi-sdk, set `/path/to/wasi-sdk` or set `ON`/`AUTO`/`TRUE` to use default `/opt/wasi-sdk`.
+* `USE_EMSDK`: If use the emscripten, set `/path/to/emsdk` or set `ON`/`AUTO`TRUE` to use default `/opt/emsdk`.
 
 ### Do build
 
@@ -50,7 +46,7 @@ Sample: build the ```wasm32-wasi``` target with CUDA support, the target can run
 ```shell
 mkdir -p build
 cd build
-cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DUSE_CUDA=ON -DUSE_WASI_SDK=ON
+cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_WASI_SDK=ON
 ninja
 ```
 

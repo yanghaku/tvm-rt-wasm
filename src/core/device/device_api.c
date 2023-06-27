@@ -4,9 +4,19 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#include <device/cuda_device_api.h>
-#include <device/webgpu_device_api.h>
-#include <tvm/runtime/c_runtime_api.h>
+#include <device/device_api.h>
+#include <utils/common.h>
+
+#define DEVICE_API_CREATE_IF_NO_SUPPORT(dev)                                                                           \
+    _Pragma(TOSTRING(weak TVM_RT_WASM_##dev##DeviceAPICreate));                                                        \
+    int TVM_RT_WASM_##dev##DeviceAPICreate(DeviceAPI **out) {                                                          \
+        *out = NULL;                                                                                                   \
+        TVM_RT_##dev##_NOT_LINK();                                                                                     \
+        return -1;                                                                                                     \
+    }
+
+DEVICE_API_CREATE_IF_NO_SUPPORT(CUDA)
+DEVICE_API_CREATE_IF_NO_SUPPORT(WebGPU)
 
 /*!
  * \brief the device api for every device type
@@ -28,14 +38,16 @@ int TVM_RT_WASM_DeviceAPIGet(DLDeviceType device_type, DeviceAPI **out_device_ap
             TVM_RT_SET_ERROR_RETURN(-1, "CPU device is not used.");
         case kDLCUDA:
         case kDLCUDAHost:
-            status = TVM_RT_WASM_CUDADeviceAPICreate((CUDADeviceAPI **)&g_device_api_instance[device_type]);
+            status = TVM_RT_WASM_CUDADeviceAPICreate(&g_device_api_instance[device_type]);
             if (unlikely(status)) {
+                g_device_api_instance[device_type] = NULL;
                 return status;
             }
             break;
         case kDLWebGPU:
-            status = TVM_RT_WASM_WebGPUDeviceAPICreate((WebGPUDeviceAPI **)&g_device_api_instance[device_type]);
+            status = TVM_RT_WASM_WebGPUDeviceAPICreate(&g_device_api_instance[device_type]);
             if (unlikely(status)) {
+                g_device_api_instance[device_type] = NULL;
                 return status;
             }
             break;

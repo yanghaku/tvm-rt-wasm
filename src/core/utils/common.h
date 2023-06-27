@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_WASM_COMMON_H
-#define TVM_RT_WASM_COMMON_H
+#ifndef TVM_RT_WASM_CORE_UTILS_COMMON_H_INCLUDE_
+#define TVM_RT_WASM_CORE_UTILS_COMMON_H_INCLUDE_
 
 #include <inttypes.h>
 #include <stdint.h>
@@ -107,12 +107,14 @@ extern char global_buf[];
 
 #define TVM_RT_NOT_IMPLEMENT(err) TVM_RT_SET_ERROR_RETURN(err, "%s is not implemented yet.\n", __FUNCTION__)
 
-#define TVM_RT_FEATURE_NOT_ON(feature, option)                                                                         \
+#define TVM_RT_ACCELERATOR_NOT_ON(feature, lib)                                                                        \
     do {                                                                                                               \
-        fprintf(stderr, "%s is not supported! You can recompile library from source with `%s`=`ON`\n", feature,        \
-                option);                                                                                               \
+        fprintf(stderr, "%s accelerator is not supported! You can link with the library `%s`.\n", feature, lib);       \
         exit(-1);                                                                                                      \
     } while (0)
+
+#define TVM_RT_CUDA_NOT_LINK() TVM_RT_ACCELERATOR_NOT_ON("CUDA", "tvm-rt-cuda")
+#define TVM_RT_WebGPU_NOT_LINK() TVM_RT_ACCELERATOR_NOT_ON("WebGPU", "tvm-rt-webgpu")
 
 #define CHECK_INPUT_POINTER(p, ret, var)                                                                               \
     do {                                                                                                               \
@@ -131,6 +133,8 @@ extern char global_buf[];
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define isdigit0to9(ch) ((ch) >= '0' && (ch) <= '9')
+#define isdigit1to9(ch) ((ch) >= '1' && (ch) <= '9')
 
 #ifdef __STDC_VERSION__
 
@@ -151,4 +155,4 @@ extern char global_buf[];
 } // extern "C"
 #endif
 
-#endif // TVM_RT_WASM_COMMON_H
+#endif // TVM_RT_WASM_CORE_UTILS_COMMON_H_INCLUDE_

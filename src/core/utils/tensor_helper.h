@@ -5,17 +5,17 @@
  *
  */
 
-#ifndef TVM_RT_WASM_TENSOR_HELPER_H
-#define TVM_RT_WASM_TENSOR_HELPER_H
+#ifndef TVM_RT_WASM_CORE_UTILS_TENSOR_HELPER_H_INCLUDE_
+#define TVM_RT_WASM_CORE_UTILS_TENSOR_HELPER_H_INCLUDE_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <device/cpu_memory.h>
 #include <string.h>
 #include <tvm/runtime/c_runtime_api.h>
 #include <utils/common.h>
-#include <utils/json.h>
 
 /*! \brief Magic number for NDArray file */
 extern const uint64_t kTVMNDArrayMagic;
@@ -118,4 +118,4 @@ int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp);
 } // extern "C"
 #endif
 
-#endif // TVM_RT_WASM_TENSOR_HELPER_H
+#endif // TVM_RT_WASM_CORE_UTILS_TENSOR_HELPER_H_INCLUDE_

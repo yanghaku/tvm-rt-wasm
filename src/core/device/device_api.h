@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_WASM_DEVICE_API_H
-#define TVM_RT_WASM_DEVICE_API_H
+#ifndef TVM_RT_WASM_CORE_DEVICE_DEVICE_API_H_INCLUDE_
+#define TVM_RT_WASM_CORE_DEVICE_DEVICE_API_H_INCLUDE_
 
 #ifdef __cplusplus
 extern "C" {
@@ -157,8 +157,22 @@ int TVM_RT_WASM_DeviceAPIGet(DLDeviceType deviceType, DeviceAPI **out_device_api
  */
 void TVM_RT_WASM_DeviceReleaseAll();
 
+/*!
+ * \brief create a instance of cuda device api
+ * @param out the pointer to receive instance
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_CUDADeviceAPICreate(DeviceAPI **out);
+
+/*!
+ * \brief create a instance of WebGPU device api
+ * @param out the pointer to receive instance
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_WebGPUDeviceAPICreate(DeviceAPI **out);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_WASM_DEVICE_API_H
+#endif // TVM_RT_WASM_CORE_DEVICE_DEVICE_API_H_INCLUDE_

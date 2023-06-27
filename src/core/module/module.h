@@ -4,8 +4,8 @@
  * \author YangBo MG21330067@smail.nju.edu.cn
  */
 
-#ifndef TVM_RT_WASM_MODULE_H
-#define TVM_RT_WASM_MODULE_H
+#ifndef TVM_RT_WASM_CORE_MODULE_MODULE_H_INCLUDE_
+#define TVM_RT_WASM_CORE_MODULE_MODULE_H_INCLUDE_
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,6 +112,8 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
 /*! \brief Default function for module get function. */
 int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports, TVMFunctionHandle *out);
 
+/*------------------------------- Module create functions ------------------------------------------------------------*/
+
 /*!
  * \brief Load from binary blob
  * @param blob the dev_blob binary
@@ -120,8 +122,41 @@ int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int
  */
 int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module);
 
+/*!
+ * \brief Create a system library module (this will be a single instance)
+ * @param out the out handle
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out);
+
+/*!
+ * \brief Create a library module from the dynamic shared library
+ * @param filename the filename
+ * @param out the out handle
+ * @return 0 if successful
+ */
+int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **out);
+
+/*!
+ * \brief Create a cuda module instance from file or binary
+ * @param resource the file name or binary pointer
+ * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
+ * @param out the out handle
+ * @return >=0 if successful   (if binary type, it should return the binary length it has read)
+ */
+int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, Module **out);
+
+/*!
+ * \brief Create a webgpu module instance from file or binary
+ * @param resource the file name or binary pointer
+ * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
+ * @param out the out handle
+ * @return >=0 if successful  (if binary type, it should return the binary length it has read)
+ */
+int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, Module **out);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif // TVM_RT_WASM_MODULE_H
+#endif // TVM_RT_WASM_CORE_MODULE_MODULE_H_INCLUDE_

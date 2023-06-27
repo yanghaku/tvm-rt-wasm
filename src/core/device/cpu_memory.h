@@ -5,16 +5,16 @@
  *
  */
 
-#ifndef TVM_RT_WASM_CPU_MEMORY_H
-#define TVM_RT_WASM_CPU_MEMORY_H
+#ifndef TVM_RT_WASM_CORE_DEVICE_CPU_MEMORY_H_INCLUDE_
+#define TVM_RT_WASM_CORE_DEVICE_CPU_MEMORY_H_INCLUDE_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <utils/common.h>
-
 #ifdef CPU_STATIC_MEMORY
+
+#include <utils/common.h>
 
 #ifndef HEAP_MEMORY_STATIC_SIZE
 #define HEAP_MEMORY_STATIC_SIZE 602000000
@@ -76,6 +76,8 @@ INLINE void TVM_RT_WASM_WorkplaceMemoryFree(void *ptr) { stack_now_ptr = stack_a
 
 #else // not defined CPU_STATIC_MEMORY
 
+#include <stdlib.h>
+
 #define TVM_RT_WASM_HeapMemoryAlloc malloc
 #define TVM_RT_WASM_HeapMemoryFree free
 #define TVM_RT_WASM_WorkplaceMemoryAlloc malloc
@@ -87,4 +89,4 @@ INLINE void TVM_RT_WASM_WorkplaceMemoryFree(void *ptr) { stack_now_ptr = stack_a
 } // extern "C"
 #endif
 
-#endif // TVM_RT_WASM_CPU_MEMORY_H
+#endif // TVM_RT_WASM_CORE_DEVICE_CPU_MEMORY_H_INCLUDE_

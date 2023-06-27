@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef TVM_RT_WASM_TRIE_H
-#define TVM_RT_WASM_TRIE_H
+#ifndef TVM_RT_WASM_CORE_UTILS_TRIE_H_INCLUDE_
+#define TVM_RT_WASM_CORE_UTILS_TRIE_H_INCLUDE_
 
 #ifdef __cplusplus
 extern "C" {
@@ -191,4 +191,4 @@ void TVM_RT_WASM_TrieRelease(Trie *trie);
 } // extern "C"
 #endif
 
-#endif // TVM_RT_WASM_TRIE_H
+#endif // TVM_RT_WASM_CORE_UTILS_TRIE_H_INCLUDE_
