@@ -19,9 +19,10 @@ typedef struct TVM_RT_WASM_AotExecutor_st *TVM_RT_WASM_AotExecutor;
 /*!
  * \brief Allocate a new TVM_RT_WASM_AotExecutor and initialize it.
  *
- * \param module_handle TVM AOTExecutor library module. If module_handle is NULL, use the system
- * library. \param devices runtime execution device. \param num_dev the number of devices. \return
- * Pointer of TVM_RT_WASM_AotExecutor instance if successful, NULL if fail.
+ * \param module_handle TVM aot executor library module. If NULL, use the system library.
+ * \param devices runtime execution device.
+ * \param num_dev the number of devices.
+ * \return Pointer of TVM_RT_WASM_AotExecutor instance if successful, NULL if fail.
  */
 TVM_DLL TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_handle,
                                                               const DLDevice *devices,

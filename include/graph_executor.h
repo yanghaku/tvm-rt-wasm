@@ -20,9 +20,10 @@ typedef struct TVM_RT_WASM_GraphExecutor_st *TVM_RT_WASM_GraphExecutor;
  * \brief Allocate a new TVM_RT_WASM_GraphExecutor and initialize it.
  *
  * \param graph_json JSON-encoded TVM graph.
- * \param module_handle TVM Module that exposes the functions to call. If module_handle is NULL, use
- * the system library. \param devices runtime execution device. \param num_dev the number of
- * devices. \return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
+ * \param module_handle TVM graph executor library module. If NULL, use the system library.
+ * \param devices runtime execution device.
+ * \param num_dev the number of devices.
+ * \return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
  */
 TVM_DLL TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json,
                                                                   TVMModuleHandle module_handle,
