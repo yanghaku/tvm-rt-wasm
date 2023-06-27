@@ -19,12 +19,12 @@ typedef struct TVM_RT_WASM_AotExecutor_st *TVM_RT_WASM_AotExecutor;
 /*!
  * \brief Allocate a new TVM_RT_WASM_AotExecutor and initialize it.
  *
- * \param module_handle TVM AOTExecutor library module. If module_handle is NULL, use the system library.
- * \param devices runtime execution device.
- * \param num_dev the number of devices.
- * \return Pointer of TVM_RT_WASM_AotExecutor instance if successful, NULL if fail.
+ * \param module_handle TVM AOTExecutor library module. If module_handle is NULL, use the system
+ * library. \param devices runtime execution device. \param num_dev the number of devices. \return
+ * Pointer of TVM_RT_WASM_AotExecutor instance if successful, NULL if fail.
  */
-TVM_DLL TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_handle, const DLDevice *devices,
+TVM_DLL TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_handle,
+                                                              const DLDevice *devices,
                                                               uint32_t num_dev);
 
 /*!
@@ -48,7 +48,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorRun(TVM_RT_WASM_AotExecutor a);
  * \param data_in The input data. The function will copy `data_in` to Aot input tensor.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorSetInput(TVM_RT_WASM_AotExecutor a, uint32_t index, const DLTensor *data_in);
+TVM_DLL int TVM_RT_WASM_AotExecutorSetInput(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                            const DLTensor *data_in);
 
 /*!
  * \brief Set input to the Aot based on name.
@@ -57,7 +58,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorSetInput(TVM_RT_WASM_AotExecutor a, uint32_t 
  * \param data_in The input data. The function will copy `data_in` to Aot input tensor.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorSetInputByName(TVM_RT_WASM_AotExecutor a, const char *name, const DLTensor *data_in);
+TVM_DLL int TVM_RT_WASM_AotExecutorSetInputByName(TVM_RT_WASM_AotExecutor a, const char *name,
+                                                  const DLTensor *data_in);
 
 /*!
  * \brief Get output data for given output index.
@@ -66,7 +68,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorSetInputByName(TVM_RT_WASM_AotExecutor a, con
  * \param data_out The point to DLTensor. The function will copy Aot output tensor to `data_out`.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorGetOutput(TVM_RT_WASM_AotExecutor a, uint32_t index, DLTensor *data_out);
+TVM_DLL int TVM_RT_WASM_AotExecutorGetOutput(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                             DLTensor *data_out);
 
 /*!
  * \brief Get output data for given output name.
@@ -75,9 +78,10 @@ TVM_DLL int TVM_RT_WASM_AotExecutorGetOutput(TVM_RT_WASM_AotExecutor a, uint32_t
  * \param data_out The point to DLTensor. The function will copy Aot output tensor to `data_out`.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputByName(TVM_RT_WASM_AotExecutor a, const char *name, DLTensor *data_out);
+TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputByName(TVM_RT_WASM_AotExecutor a, const char *name,
+                                                   DLTensor *data_out);
 
-/*-------------------------Functions to get AotExecutor information---------------------------------------------------*/
+/*-----------------Functions to get AotExecutor information---------------------------------------*/
 
 /*!
  * \brief Get the input index given the name of input.
@@ -116,7 +120,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorGetNumOutputs(TVM_RT_WASM_AotExecutor a);
  * \param type_ptr The pointer to receive data type.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index, DLDataType *type_ptr);
+TVM_DLL int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                                    DLDataType *type_ptr);
 
 /*!
  * \brief Get the output DLTensor's data type.
@@ -125,7 +130,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, u
  * \param type_ptr The pointer to receive data type.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index, DLDataType *type_ptr);
+TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                                     DLDataType *type_ptr);
 
 /*!
  * \brief Get the input DLTensor's data shape.
@@ -135,8 +141,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, 
  * \param ndim_ptr The pointer to receive shape array length.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint32_t index, const int64_t **shape_ptr,
-                                                 int32_t *ndim_ptr);
+TVM_DLL int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                                 const int64_t **shape_ptr, int32_t *ndim_ptr);
 
 /*!
  * \brief Get the output DLTensor's data shape.
@@ -146,8 +152,8 @@ TVM_DLL int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint
  * \param ndim_ptr The pointer to receive shape array length.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputShape(TVM_RT_WASM_AotExecutor a, uint32_t index, const int64_t **shape_ptr,
-                                                  int32_t *ndim_ptr);
+TVM_DLL int TVM_RT_WASM_AotExecutorGetOutputShape(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                                  const int64_t **shape_ptr, int32_t *ndim_ptr);
 
 #ifdef __cplusplus
 } // extern "C"

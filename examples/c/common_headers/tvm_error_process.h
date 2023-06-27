@@ -12,13 +12,14 @@ extern "C" {
 #define __FILE_NAME__ __FILE__
 #endif // !__FILE_NAME__
 
-#define RUN(func)                                                                                                      \
-    do {                                                                                                               \
-        status = (func);                                                                                               \
-        if (status) {                                                                                                  \
-            fprintf(stderr, "%s(line:%d) TVM API ERROR: %s\n", __FILE_NAME__, __LINE__, TVMGetLastError());            \
-            return status;                                                                                             \
-        }                                                                                                              \
+#define RUN(func)                                                                                  \
+    do {                                                                                           \
+        status = (func);                                                                           \
+        if (status) {                                                                              \
+            fprintf(stderr, "%s(line:%d) TVM API ERROR: %s\n", __FILE_NAME__, __LINE__,            \
+                    TVMGetLastError());                                                            \
+            return status;                                                                         \
+        }                                                                                          \
     } while (0)
 
 #ifdef __cplusplus

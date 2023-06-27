@@ -56,7 +56,8 @@ int WGPU_MemoryFree(WGPU_Memory memory);
  * \param nbytes the number of bytes to copy.
  * \return 0 if success.
  */
-int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset, size_t nbytes);
+int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset,
+                        size_t nbytes);
 
 /*!
  * \brief Copy memory from device to host.
@@ -67,7 +68,8 @@ int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, void *src, size
  * \param nbytes the number of bytes to copy.
  * \return 0 if success.
  */
-int WGPU_MemoryCopyDtoH(void *dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset, size_t nbytes);
+int WGPU_MemoryCopyDtoH(void *dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset,
+                        size_t nbytes);
 
 /*!
  * \brief Copy memory from device to device.
@@ -78,8 +80,8 @@ int WGPU_MemoryCopyDtoH(void *dst, size_t dst_byte_offset, WGPU_Memory src, size
  * \param nbytes the number of bytes to copy.
  * \return 0 if success.
  */
-int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset,
-                        size_t nbytes);
+int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src,
+                        size_t src_byte_offset, size_t nbytes);
 
 /*!
  * \brief Create device function.
@@ -92,8 +94,9 @@ int WGPU_MemoryCopyDtoD(WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src
  * \param num_kernel_args The number of device function arguments.
  * \return 0 if success.
  */
-int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char *source, uint32_t source_len,
-                        const char *entry_name, uint32_t entry_name_len, uint32_t num_kernel_args);
+int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char *source,
+                        uint32_t source_len, const char *entry_name, uint32_t entry_name_len,
+                        uint32_t num_kernel_args);
 
 /*!
  * \brief Submit function to gpu to run.
@@ -105,8 +108,9 @@ int WGPU_FunctionCreate(WGPU_Device device, WGPU_Function *func_ptr, const char 
  * \param grid_dim_z The z dim of compute work groups.
  * \return 0 if success.
  */
-int WGPU_FunctionRun(WGPU_Function function, const WGPU_Memory *kernel_args, uint32_t num_kernel_args,
-                     size_t grid_dim_x, size_t grid_dim_y, size_t grid_dim_z);
+int WGPU_FunctionRun(WGPU_Function function, const WGPU_Memory *kernel_args,
+                     uint32_t num_kernel_args, size_t grid_dim_x, size_t grid_dim_y,
+                     size_t grid_dim_z);
 
 /*!
  * \brief Free the device function.

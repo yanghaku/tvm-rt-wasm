@@ -25,8 +25,8 @@ extern "C" {
 
 #define SET_TIME(t0)
 #define GET_DURING(t1, t0)
-#define DURING_PRINT(t1, t0, msg)                                                                                      \
-    do {                                                                                                               \
+#define DURING_PRINT(t1, t0, msg)                                                                  \
+    do {                                                                                           \
     } while (0)
 
 #else
@@ -35,8 +35,8 @@ extern "C" {
 
 #include <Windows.h>
 
-#define SET_TIME(t0)                                                                                                   \
-    long long(t0);                                                                                                     \
+#define SET_TIME(t0)                                                                               \
+    long long(t0);                                                                                 \
     GetSystemTimePreciseAsFileTime(&(t0));
 
 #define GET_DURING(t1, t0) (((double)((t1) - (t0))) / 10000.0)
@@ -45,17 +45,18 @@ extern "C" {
 
 #include <sys/time.h>
 
-#define SET_TIME(t0)                                                                                                   \
-    struct timeval(t0);                                                                                                \
+#define SET_TIME(t0)                                                                               \
+    struct timeval(t0);                                                                            \
     gettimeofday(&(t0), NULL);
 
-#define GET_DURING(t1, t0) ((double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.0)
+#define GET_DURING(t1, t0)                                                                         \
+    ((double)((t1).tv_sec - (t0).tv_sec) * 1000 + (double)((t1).tv_usec - (t0).tv_usec) / 1000.0)
 
 #endif
 
-#define DURING_PRINT(t1, t0, msg)                                                                                      \
-    do {                                                                                                               \
-        fprintf(stderr, "%s: %lf ms\n", msg, GET_DURING(t1, t0));                                                      \
+#define DURING_PRINT(t1, t0, msg)                                                                  \
+    do {                                                                                           \
+        fprintf(stderr, "%s: %lf ms\n", msg, GET_DURING(t1, t0));                                  \
     } while (0)
 
 #endif // NDEBUG
@@ -74,61 +75,65 @@ extern char global_buf[];
 
 #ifdef NDEBUG // release
 
-#define DBG(fmt, ...)                                                                                                  \
-    do {                                                                                                               \
+#define DBG(fmt, ...)                                                                              \
+    do {                                                                                           \
     } while (0)
 
 #else
 
-#define DBG(fmt, ...)                                                                                                  \
-    do {                                                                                                               \
-        fprintf(stderr, "function[%s]-line[%d]: " fmt "\n", __FUNCTION__, __LINE__, ##__VA_ARGS__);                    \
+#define DBG(fmt, ...)                                                                              \
+    do {                                                                                           \
+        fprintf(stderr, "function[%s]-line[%d]: " fmt "\n", __FUNCTION__, __LINE__,                \
+                ##__VA_ARGS__);                                                                    \
     } while (0)
 
 #endif // NDEBUG
 
-#define TVM_RT_SET_ERROR(fmt, ...)                                                                                     \
-    do {                                                                                                               \
-        DBG(fmt, ##__VA_ARGS__);                                                                                       \
-        sprintf(global_buf, fmt "\n", ##__VA_ARGS__);                                                                  \
+#define TVM_RT_SET_ERROR(fmt, ...)                                                                 \
+    do {                                                                                           \
+        DBG(fmt, ##__VA_ARGS__);                                                                   \
+        sprintf(global_buf, fmt "\n", ##__VA_ARGS__);                                              \
     } while (0)
 
-#define TVM_RT_SET_ERROR_AND_GOTO(label, fmt, ...)                                                                     \
-    do {                                                                                                               \
-        TVM_RT_SET_ERROR(fmt, ##__VA_ARGS__);                                                                          \
-        goto label;                                                                                                    \
+#define TVM_RT_SET_ERROR_AND_GOTO(label, fmt, ...)                                                 \
+    do {                                                                                           \
+        TVM_RT_SET_ERROR(fmt, ##__VA_ARGS__);                                                      \
+        goto label;                                                                                \
     } while (0)
 
-#define TVM_RT_SET_ERROR_RETURN(err, fmt, ...)                                                                         \
-    do {                                                                                                               \
-        TVM_RT_SET_ERROR(fmt, ##__VA_ARGS__);                                                                          \
-        return (err);                                                                                                  \
+#define TVM_RT_SET_ERROR_RETURN(err, fmt, ...)                                                     \
+    do {                                                                                           \
+        TVM_RT_SET_ERROR(fmt, ##__VA_ARGS__);                                                      \
+        return (err);                                                                              \
     } while (0)
 
-#define TVM_RT_NOT_IMPLEMENT(err) TVM_RT_SET_ERROR_RETURN(err, "%s is not implemented yet.\n", __FUNCTION__)
+#define TVM_RT_NOT_IMPLEMENT(err)                                                                  \
+    TVM_RT_SET_ERROR_RETURN(err, "%s is not implemented yet.\n", __FUNCTION__)
 
-#define TVM_RT_ACCELERATOR_NOT_ON(feature, lib)                                                                        \
-    do {                                                                                                               \
-        fprintf(stderr, "%s accelerator is not supported! You can link with the library `%s`.\n", feature, lib);       \
-        exit(-1);                                                                                                      \
+#define TVM_RT_ACCELERATOR_NOT_ON(feature, lib)                                                    \
+    do {                                                                                           \
+        fprintf(stderr, "%s accelerator is not supported! You can link with the library `%s`.\n",  \
+                feature, lib);                                                                     \
+        exit(-1);                                                                                  \
     } while (0)
 
 #define TVM_RT_CUDA_NOT_LINK() TVM_RT_ACCELERATOR_NOT_ON("CUDA", "tvm-rt-cuda")
 #define TVM_RT_WebGPU_NOT_LINK() TVM_RT_ACCELERATOR_NOT_ON("WebGPU", "tvm-rt-webgpu")
 
-#define CHECK_INPUT_POINTER(p, ret, var)                                                                               \
-    do {                                                                                                               \
-        if (unlikely((p) == NULL)) {                                                                                   \
-            TVM_RT_SET_ERROR_RETURN(ret, "Invalid argument: %s cannot be NULL.", var);                                 \
-        }                                                                                                              \
+#define CHECK_INPUT_POINTER(p, ret, var)                                                           \
+    do {                                                                                           \
+        if (unlikely((p) == NULL)) {                                                               \
+            TVM_RT_SET_ERROR_RETURN(ret, "Invalid argument: %s cannot be NULL.", var);             \
+        }                                                                                          \
     } while (0)
 
-#define CHECK_NodeRange(max_r, index)                                                                                  \
-    do {                                                                                                               \
-        if (unlikely((index) >= (max_r))) {                                                                            \
-            TVM_RT_SET_ERROR_RETURN(-2, "Invalid argument: expect index in range [0,%d), but got %d", (max_r),         \
-                                    (index));                                                                          \
-        }                                                                                                              \
+#define CHECK_NodeRange(max_r, index)                                                              \
+    do {                                                                                           \
+        if (unlikely((index) >= (max_r))) {                                                        \
+            TVM_RT_SET_ERROR_RETURN(-2,                                                            \
+                                    "Invalid argument: expect index in range [0,%d), but got %d",  \
+                                    (max_r), (index));                                             \
+        }                                                                                          \
     } while (0)
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))

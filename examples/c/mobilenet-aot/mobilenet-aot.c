@@ -96,8 +96,8 @@ int main(int argc, char **argv) {
         RUN(TVM_RT_WASM_AotExecutorGetOutput(aot_executor, 0, &output));
 
         SET_TIME(t3) // get output end
-        printf("Set input time: %lf ms\nRun time: %lf ms\nGet output time: %lf ms\n", GET_DURING(t1, t0),
-               GET_DURING(t2, t1), GET_DURING(t3, t2));
+        printf("Set input time: %lf ms\nRun time: %lf ms\nGet output time: %lf ms\n",
+               GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2));
 
         float max_iter = -FLT_MAX;
         int32_t max_index = -1;
@@ -107,7 +107,8 @@ int main(int argc, char **argv) {
                 max_index = i;
             }
         }
-        printf("The maximum position in output vector is: %d, with max-value %f. END\n", max_index, max_iter);
+        printf("The maximum position in output vector is: %d, with max-value %f. END\n", max_index,
+               max_iter);
         fflush(stdout);
     }
 

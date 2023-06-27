@@ -7,12 +7,12 @@
 #include <device/device_api.h>
 #include <utils/common.h>
 
-#define DEVICE_API_CREATE_IF_NO_SUPPORT(dev)                                                                           \
-    _Pragma(TOSTRING(weak TVM_RT_WASM_##dev##DeviceAPICreate));                                                        \
-    int TVM_RT_WASM_##dev##DeviceAPICreate(DeviceAPI **out) {                                                          \
-        *out = NULL;                                                                                                   \
-        TVM_RT_##dev##_NOT_LINK();                                                                                     \
-        return -1;                                                                                                     \
+#define DEVICE_API_CREATE_IF_NO_SUPPORT(dev)                                                       \
+    _Pragma(TOSTRING(weak TVM_RT_WASM_##dev##DeviceAPICreate));                                    \
+    int TVM_RT_WASM_##dev##DeviceAPICreate(DeviceAPI **out) {                                      \
+        *out = NULL;                                                                               \
+        TVM_RT_##dev##_NOT_LINK();                                                                 \
+        return -1;                                                                                 \
     }
 
 DEVICE_API_CREATE_IF_NO_SUPPORT(CUDA)

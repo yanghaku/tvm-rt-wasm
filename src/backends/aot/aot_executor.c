@@ -10,8 +10,9 @@
 #include <utils/tensor_helper.h>
 
 _Pragma(TOSTRING(weak TVM_GET_METADATA_FUNC)) int32_t
-    TVM_GET_METADATA_FUNC(TVMValue *arg_values, const int *arg_type_codes, int num_args, const TVMValue *ret_values,
-                          const int *ret_type_codes, const void *resource_handle) {
+    TVM_GET_METADATA_FUNC(TVMValue *arg_values, const int *arg_type_codes, int num_args,
+                          const TVMValue *ret_values, const int *ret_type_codes,
+                          const void *resource_handle) {
     (void)arg_values;
     (void)arg_type_codes;
     (void)ret_values;
@@ -41,7 +42,8 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
         now_tensor->ndim = (int32_t)metadata->inputs[i].num_shape;
         now_tensor->device = device;
         size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(now_tensor);
-        status = TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
+        status =
+            TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
         if (unlikely(status)) {
             return -1;
         }
@@ -54,7 +56,8 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
         now_tensor->ndim = (int32_t)metadata->outputs[i].num_shape;
         now_tensor->device = device;
         size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(now_tensor);
-        status = TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
+        status =
+            TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
         if (unlikely(status)) {
             return -1;
         }
@@ -74,7 +77,8 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
             now_tensor->ndim = (int32_t)metadata->workspace_pools[i].num_shape;
             now_tensor->device = device;
             size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(now_tensor);
-            status = TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
+            status = TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype,
+                                             &now_tensor->data);
             if (unlikely(status)) {
                 return -1;
             }
@@ -94,12 +98,13 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
     return status;
 }
 
-TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_handle, const DLDevice *devices,
-                                                      uint32_t num_dev) {
+TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_handle,
+                                                      const DLDevice *devices, uint32_t num_dev) {
     // if module_handle is NULL, use the system library.
     if (module_handle == NULL) {
         SET_TIME(t0)
-        int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
+        int status =
+            TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
         if (unlikely(status)) {
             return NULL;
         }
@@ -108,7 +113,8 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
     }
     CHECK_INPUT_POINTER(devices, NULL, "Devices");
     if (unlikely(num_dev == 0)) {
-        TVM_RT_SET_ERROR_RETURN(NULL, "Invalid argument: the number of devices cannot be zero, at least 1.");
+        TVM_RT_SET_ERROR_RETURN(
+            NULL, "Invalid argument: the number of devices cannot be zero, at least 1.");
     }
 
     Module *mod = (Module *)module_handle;
@@ -120,7 +126,8 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
 
         // try to get `get_metadata` function.
         PackedFunction *get_metadata_func;
-        status = mod->GetFunction(mod, TVM_GET_METADATA_FUNC_NAME, 1, (TVMFunctionHandle *)&get_metadata_func);
+        status = mod->GetFunction(mod, TVM_GET_METADATA_FUNC_NAME, 1,
+                                  (TVMFunctionHandle *)&get_metadata_func);
         if (unlikely(status)) {
             TVM_RT_SET_ERROR_RETURN(NULL, "Cannot find function `%s`.", TVM_GET_METADATA_FUNC_NAME);
         }
@@ -130,15 +137,16 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
     }
 
     if (ret_type_code != kTVMOpaqueHandle) {
-        TVM_RT_SET_ERROR_RETURN(NULL, "`%s` should return kTVMOpaqueHandle but got %d", TVM_GET_METADATA_FUNC_NAME,
-                                ret_type_code);
+        TVM_RT_SET_ERROR_RETURN(NULL, "`%s` should return kTVMOpaqueHandle but got %d",
+                                TVM_GET_METADATA_FUNC_NAME, ret_type_code);
     }
     struct TVMMetadata *metadata = (struct TVMMetadata *)ret_value.v_handle;
     if (unlikely(!metadata)) {
         TVM_RT_SET_ERROR_RETURN(NULL, "`%s` cannot return NULL", TVM_GET_METADATA_FUNC_NAME);
     }
 
-    TVM_RT_WASM_AotExecutor a = TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_AotExecutor_st));
+    TVM_RT_WASM_AotExecutor a =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_AotExecutor_st));
     memset(a, 0, sizeof(struct TVM_RT_WASM_AotExecutor_st));
     //    a->module_handle = module_handle;
     a->metadata = metadata;
@@ -199,19 +207,21 @@ int TVM_RT_WASM_AotExecutorRun(TVM_RT_WASM_AotExecutor a) {
     CHECK_AotExecutor(a);
     TVMValue ret_value;
     int ret_type_code;
-    int status =
-        a->main_func->exec(a->tvm_args_value, a->tvm_args_type, a->tvm_args_size, &ret_value, &ret_type_code, NULL);
+    int status = a->main_func->exec(a->tvm_args_value, a->tvm_args_type, a->tvm_args_size,
+                                    &ret_value, &ret_type_code, NULL);
     return status;
 }
 
-int TVM_RT_WASM_AotExecutorSetInput(TVM_RT_WASM_AotExecutor a, uint32_t index, const DLTensor *data_in) {
+int TVM_RT_WASM_AotExecutorSetInput(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                    const DLTensor *data_in) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(data_in, -2, "DLTensor");
     CHECK_NodeRange((uint32_t)a->metadata->num_inputs, index);
     return TVMDeviceCopyDataFromTo((DLTensor *)data_in, &a->tensors[index], NULL);
 }
 
-int TVM_RT_WASM_AotExecutorSetInputByName(TVM_RT_WASM_AotExecutor a, const char *name, const DLTensor *data_in) {
+int TVM_RT_WASM_AotExecutorSetInputByName(TVM_RT_WASM_AotExecutor a, const char *name,
+                                          const DLTensor *data_in) {
     CHECK_INPUT_POINTER(data_in, -2, "DLTensor");
     int index = TVM_RT_WASM_AotExecutorGetInputIndex(a, name);
     if (unlikely(index == -1)) {
@@ -220,14 +230,16 @@ int TVM_RT_WASM_AotExecutorSetInputByName(TVM_RT_WASM_AotExecutor a, const char 
     return TVM_RT_WASM_AotExecutorSetInput(a, index, data_in);
 }
 
-int TVM_RT_WASM_AotExecutorGetOutput(TVM_RT_WASM_AotExecutor a, uint32_t index, DLTensor *data_out) {
+int TVM_RT_WASM_AotExecutorGetOutput(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                     DLTensor *data_out) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(data_out, -2, "DLTensor");
     CHECK_NodeRange((uint32_t)a->metadata->num_outputs, index);
     return TVMDeviceCopyDataFromTo(&a->tensors[a->metadata->num_inputs + index], data_out, NULL);
 }
 
-int TVM_RT_WASM_AotExecutorGetOutputByName(TVM_RT_WASM_AotExecutor a, const char *name, DLTensor *data_out) {
+int TVM_RT_WASM_AotExecutorGetOutputByName(TVM_RT_WASM_AotExecutor a, const char *name,
+                                           DLTensor *data_out) {
     CHECK_INPUT_POINTER(data_out, -2, "DLTensor");
     int index = TVM_RT_WASM_AotExecutorGetOutputIndex(a, name);
     if (unlikely(index == -1)) {
@@ -236,7 +248,7 @@ int TVM_RT_WASM_AotExecutorGetOutputByName(TVM_RT_WASM_AotExecutor a, const char
     return TVM_RT_WASM_AotExecutorGetOutput(a, index, data_out);
 }
 
-/*-------------------------Functions to get AotExecutor information---------------------------------------------------*/
+/*-------------------Functions to get AotExecutor information-------------------------------------*/
 
 int TVM_RT_WASM_AotExecutorGetInputIndex(TVM_RT_WASM_AotExecutor a, const char *name) {
     CHECK_AotExecutor(a);
@@ -272,7 +284,8 @@ int TVM_RT_WASM_AotExecutorGetNumOutputs(TVM_RT_WASM_AotExecutor a) {
     return (int)a->metadata->num_outputs;
 }
 
-int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index, DLDataType *type_ptr) {
+int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                            DLDataType *type_ptr) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(type_ptr, -2, "DLDataType pointer");
     CHECK_NodeRange((uint32_t)a->metadata->num_inputs, index);
@@ -281,7 +294,8 @@ int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, uint32_t 
     return 0;
 }
 
-int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index, DLDataType *type_ptr) {
+int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                             DLDataType *type_ptr) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(type_ptr, -2, "DLDataType pointer");
     CHECK_NodeRange((uint32_t)a->metadata->num_outputs, index);
@@ -290,8 +304,8 @@ int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, uint32_t
     return 0;
 }
 
-int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint32_t index, const int64_t **shape_ptr,
-                                         int32_t *ndim_ptr) {
+int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                         const int64_t **shape_ptr, int32_t *ndim_ptr) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(shape_ptr, -2, "shape pointer");
     CHECK_INPUT_POINTER(ndim_ptr, -2, "ndim pointer");
@@ -303,8 +317,8 @@ int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint32_t ind
     return 0;
 }
 
-int TVM_RT_WASM_AotExecutorGetOutputShape(TVM_RT_WASM_AotExecutor a, uint32_t index, const int64_t **shape_ptr,
-                                          int32_t *ndim_ptr) {
+int TVM_RT_WASM_AotExecutorGetOutputShape(TVM_RT_WASM_AotExecutor a, uint32_t index,
+                                          const int64_t **shape_ptr, int32_t *ndim_ptr) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(shape_ptr, -2, "shape pointer");
     CHECK_INPUT_POINTER(ndim_ptr, -2, "ndim pointer");

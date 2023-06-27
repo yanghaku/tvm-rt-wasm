@@ -10,10 +10,10 @@
 #include <stdbool.h>
 #include <utils/common.h>
 
-#define WGPU_Native_To_Dawn(obj)                                                                                       \
-    _Pragma(TOSTRING(weak wgpu##obj##Drop));                                                                           \
-    typedef struct WGPU##obj##Impl *WGPU##obj;                                                                         \
-    extern void wgpu##obj##Release(WGPU##obj);                                                                         \
+#define WGPU_Native_To_Dawn(obj)                                                                   \
+    _Pragma(TOSTRING(weak wgpu##obj##Drop));                                                       \
+    typedef struct WGPU##obj##Impl *WGPU##obj;                                                     \
+    extern void wgpu##obj##Release(WGPU##obj);                                                     \
     void wgpu##obj##Drop(WGPU##obj arg) { wgpu##obj##Release(arg); }
 
 WGPU_Native_To_Dawn(Instance);
@@ -35,8 +35,8 @@ typedef enum WGPUQueueWorkDoneStatus {
 typedef void (*WGPUQueueWorkDoneCallback)(WGPUQueueWorkDoneStatus status, void *userdata);
 
 // the functions in dawn
-extern void wgpuQueueOnSubmittedWorkDone(WGPUQueue queue, uint64_t signalValue, WGPUQueueWorkDoneCallback callback,
-                                         void *userdata);
+extern void wgpuQueueOnSubmittedWorkDone(WGPUQueue queue, uint64_t signalValue,
+                                         WGPUQueueWorkDoneCallback callback, void *userdata);
 extern WGPUQueue wgpuDeviceGetQueue(WGPUDevice device);
 
 typedef struct {
@@ -71,7 +71,8 @@ static void queue_submit_done_callback(WGPUQueueWorkDoneStatus status, void *use
 }
 
 #pragma weak wgpuDevicePoll
-bool wgpuDevicePoll(WGPUDevice device, bool wait, WGPUWrappedSubmissionIndex const *wrappedSubmissionIndex) {
+bool wgpuDevicePoll(WGPUDevice device, bool wait,
+                    WGPUWrappedSubmissionIndex const *wrappedSubmissionIndex) {
     (void)wait;
     (void)wrappedSubmissionIndex;
     uint32_t device_id = 0;

@@ -20,11 +20,13 @@
  * \return 0 when no error is thrown, -1 when failure happens
  */
 int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
-    int status = TVM_RT_WASM_TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
+    int status =
+        TVM_RT_WASM_TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
     if (unlikely(status == TRIE_NOT_FOUND)) {
         status = TVMFuncGetGlobal(func_name, out);
         if (likely(status == TRIE_SUCCESS)) {
-            TVM_RT_WASM_TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, *out);
+            TVM_RT_WASM_TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name,
+                                   *out);
         }
         if (unlikely(status == TRIE_NOT_FOUND)) {
             TVM_RT_SET_ERROR_RETURN(status, "Cannot find function '%s' from env", func_name);

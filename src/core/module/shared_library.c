@@ -57,9 +57,11 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
     // create the packed function and insert to module_funcs_map
     TVM_RT_LIB_NATIVE_HANDLE native_handle = (TVM_RT_LIB_NATIVE_HANDLE)mod->packed_functions;
     if (native_handle) {
-        TVMBackendPackedCFunc symbol = (TVMBackendPackedCFunc)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, func_name);
+        TVMBackendPackedCFunc symbol =
+            (TVMBackendPackedCFunc)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, func_name);
         if (symbol) {
-            PackedFunction *pf = (PackedFunction *)TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction));
+            PackedFunction *pf =
+                (PackedFunction *)TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction));
             pf->module = mod;
             pf->reserved = 0;
             pf->exec = symbol;
@@ -98,7 +100,8 @@ int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule)
     TVM_RT_WASM_TrieCreate(&(*dsoModule)->env_funcs_map);
 
     // dev_blob
-    const char *blob = (const char *)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, TVM_DEV_MODULE_BLOB);
+    const char *blob =
+        (const char *)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, TVM_DEV_MODULE_BLOB);
     if (blob) {
         int status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, dsoModule);
         if (unlikely(status)) {
@@ -113,12 +116,12 @@ int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule)
         *module_context = *dsoModule;
     }
 
-#define TVM_RT_WASM_INIT_CONTEXT_FUNC(name)                                                                            \
-    do {                                                                                                               \
-        void **symbol = (void **)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, "__" #name);                               \
-        if (symbol) {                                                                                                  \
-            *symbol = name;                                                                                            \
-        }                                                                                                              \
+#define TVM_RT_WASM_INIT_CONTEXT_FUNC(name)                                                        \
+    do {                                                                                           \
+        void **symbol = (void **)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, "__" #name);           \
+        if (symbol) {                                                                              \
+            *symbol = name;                                                                        \
+        }                                                                                          \
     } while (0)
 
     TVM_RT_WASM_INIT_CONTEXT_FUNC(TVMFuncCall);

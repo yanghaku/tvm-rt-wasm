@@ -114,8 +114,10 @@ int main(int argc, char **argv) {
         }
 
         // 7.272131 -4.657999
-        printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index, max_iter);
-        printf("The minimum position in output vector is: %d, with min-value %f. END\n", min_index, min_iter);
+        printf("The maximum position in output vector is: %d, with max-value %f.\n", max_index,
+               max_iter);
+        printf("The minimum position in output vector is: %d, with min-value %f. END\n", min_index,
+               min_iter);
         fflush(stdout);
     }
 

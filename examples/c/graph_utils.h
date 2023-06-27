@@ -32,12 +32,13 @@ int init_graph(TVMModuleHandle module, const char *graph_param_path, const char 
 
     SET_TIME(t2) // load graph end, set input start
 
-    printf("Create graph time: %lf ms\nLoad graph params time: %lf ms\n\n", GET_DURING(t1, t0), GET_DURING(t2, t1));
+    printf("Create graph time: %lf ms\nLoad graph params time: %lf ms\n\n", GET_DURING(t1, t0),
+           GET_DURING(t2, t1));
     return status;
 }
 
-int init_graph_with_dso_lib(const char *module_filename, const char *graph_param_path, const char *graph_json,
-                            GraphHandle *graph_handle_ptr) {
+int init_graph_with_dso_lib(const char *module_filename, const char *graph_param_path,
+                            const char *graph_json, GraphHandle *graph_handle_ptr) {
     TVMModuleHandle module = NULL;
     int status = TVMModLoadFromFile(module_filename, "so", &module);
     if (status) {
@@ -46,13 +47,14 @@ int init_graph_with_dso_lib(const char *module_filename, const char *graph_param
     return init_graph(module, graph_param_path, graph_json, graph_handle_ptr);
 }
 
-int init_graph_with_syslib(const char *graph_param_path, const char *graph_json, GraphHandle *graph_handle_ptr) {
+int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
+                           GraphHandle *graph_handle_ptr) {
     TVMModuleHandle syslib = NULL;
     return init_graph(syslib, graph_param_path, graph_json, graph_handle_ptr);
 }
 
-int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **input_names, int input_num,
-              DLTensor *outputs, const int *output_indexes, int output_num) {
+int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **input_names,
+              int input_num, DLTensor *outputs, const int *output_indexes, int output_num) {
     int status;
 
     SET_TIME(t0) // set input start
@@ -72,11 +74,13 @@ int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **inp
     }
 
     SET_TIME(t3) // get output end
-    printf("Set graph input time: %lf ms\nRun graph time: %lf ms\nGet graph output time: %lf ms\n", GET_DURING(t1, t0),
-           GET_DURING(t2, t1), GET_DURING(t3, t2));
+    printf("Set graph input time: %lf ms\nRun graph time: %lf ms\nGet graph output time: %lf ms\n",
+           GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2));
     return status;
 }
 
-inline int delete_graph(GraphHandle graph_handle) { return TVM_RT_WASM_GraphExecutorFree(graph_handle); }
+inline int delete_graph(GraphHandle graph_handle) {
+    return TVM_RT_WASM_GraphExecutorFree(graph_handle);
+}
 
 #endif // TVM_RT_EXAMPLE_WASM_GRAPH_UTILS_H

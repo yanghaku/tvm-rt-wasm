@@ -26,18 +26,19 @@ typedef TVMModuleHandle GraphHandle;
 #define GRAPH_RUN_NAME "run"
 #define GRAPH_GET_OUTPUT_NAME "get_output"
 
-#define CHECK_FUNC_FROM_MODULE(f, name)                                                                                \
-    do {                                                                                                               \
-        if ((f) == NULL) {                                                                                             \
-            fprintf(stderr, "Cannot get function `%s` from graph\n", (name));                                          \
-            exit(-1);                                                                                                  \
-        }                                                                                                              \
+#define CHECK_FUNC_FROM_MODULE(f, name)                                                            \
+    do {                                                                                           \
+        if ((f) == NULL) {                                                                         \
+            fprintf(stderr, "Cannot get function `%s` from graph\n", (name));                      \
+            exit(-1);                                                                              \
+        }                                                                                          \
     } while (0)
 
 /// use a created stream instead of default stream, avoid block with other instance.
 static TVMStreamHandle cuda_stream = NULL;
 
-int init_graph_with_syslib(const char *graph_param_path, const char *graph_json, GraphHandle *graph_handle_ptr) {
+int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
+                           GraphHandle *graph_handle_ptr) {
     int status;
     if (cuda_stream == NULL) {
         RUN(TVMStreamCreate(kDLCUDA, 0, &cuda_stream));
@@ -68,12 +69,15 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
     TVMFunctionHandle graph_create_func = NULL;
     RUN(TVMFuncGetGlobal(CUDA_GRAPH_CREATE_NAME, &graph_create_func));
     if (graph_create_func == NULL) {
-        fprintf(stderr, "Cannot get `%s` from tvm runtime, you can set `USE_GRAPH_EXECUTOR=ON` to recompile tvm\n",
+        fprintf(stderr,
+                "Cannot get `%s` from tvm runtime, you can set `USE_GRAPH_EXECUTOR=ON` to "
+                "recompile tvm\n",
                 CUDA_GRAPH_CREATE_NAME);
         return -1;
     }
 
-    TVMValue create_args[] = {{.v_str = graph_json}, {.v_handle = sys_lib}, {.v_int64 = kDLCUDA}, {.v_int64 = 0}};
+    TVMValue create_args[] = {
+        {.v_str = graph_json}, {.v_handle = sys_lib}, {.v_int64 = kDLCUDA}, {.v_int64 = 0}};
     TVMArgTypeCode create_type_code[] = {kTVMStr, kTVMModuleHandle, kDLInt, kDLInt};
     tvm_ret.v_handle = NULL;
     tvm_ret_code = 0;
@@ -98,7 +102,8 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
     }
     struct stat file_info;
     stat(graph_param_path, &file_info);
-    char *param_blob = (char *)mmap(NULL, file_info.st_size, PROT_READ, MAP_SHARED | PROT_READ, fd, 0);
+    char *param_blob =
+        (char *)mmap(NULL, file_info.st_size, PROT_READ, MAP_SHARED | PROT_READ, fd, 0);
     if (param_blob == MAP_FAILED) {
         fprintf(stderr, "mmap fail!\n");
         return -1;
@@ -132,13 +137,14 @@ int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,
 
     SET_TIME(t2) // load graph end, set input start
 
-    printf("Create graph time: %lf ms\nLoad graph params time: %lf ms\n\n", GET_DURING(t1, t0), GET_DURING(t2, t1));
+    printf("Create graph time: %lf ms\nLoad graph params time: %lf ms\n\n", GET_DURING(t1, t0),
+           GET_DURING(t2, t1));
     *graph_handle_ptr = graph_handle;
     return status;
 }
 
-int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **input_names, int input_num,
-              const DLTensor *outputs, const int *output_indexes, int output_num) {
+int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **input_names,
+              int input_num, const DLTensor *outputs, const int *output_indexes, int output_num) {
     int status;
     TVMValue tvm_ret;
     TVMArgTypeCode tvm_ret_code;
@@ -183,8 +189,8 @@ int run_graph(GraphHandle graph_handle, const DLTensor *inputs, const char **inp
     }
 
     SET_TIME(t3) // get output end
-    printf("Set graph input time: %lf ms\nRun graph time: %lf ms\nGet graph output time: %lf ms\n", GET_DURING(t1, t0),
-           GET_DURING(t2, t1), GET_DURING(t3, t2));
+    printf("Set graph input time: %lf ms\nRun graph time: %lf ms\nGet graph output time: %lf ms\n",
+           GET_DURING(t1, t0), GET_DURING(t2, t1), GET_DURING(t3, t2));
     return status;
 }
 

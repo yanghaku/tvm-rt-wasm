@@ -72,7 +72,9 @@ INLINE void *TVM_RT_WASM_WorkplaceMemoryAlloc(size_t bytes) {
  * \brief free the temporal memory
  * @param ptr
  */
-INLINE void TVM_RT_WASM_WorkplaceMemoryFree(void *ptr) { stack_now_ptr = stack_alloc_history[--history_size]; }
+INLINE void TVM_RT_WASM_WorkplaceMemoryFree(void *ptr) {
+    stack_now_ptr = stack_alloc_history[--history_size];
+}
 
 #else // not defined CPU_STATIC_MEMORY
 

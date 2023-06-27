@@ -90,8 +90,10 @@ EM_ASYNC_JS(int, WGPU_DeviceGet, (WGPU_Device * dev_id_ptr), {
             maxComputeWorkgroupSizeZ : limits.maxComputeWorkgroupSizeZ,
             maxComputeWorkgroupStorageSize : limits.maxComputeWorkgroupStorageSize,
             maxComputeWorkgroupsPerDimension : limits.maxComputeWorkgroupsPerDimension,
-            maxDynamicStorageBuffersPerPipelineLayout : limits.maxDynamicStorageBuffersPerPipelineLayout,
-            maxDynamicUniformBuffersPerPipelineLayout : limits.maxDynamicUniformBuffersPerPipelineLayout,
+            maxDynamicStorageBuffersPerPipelineLayout :
+                limits.maxDynamicStorageBuffersPerPipelineLayout,
+            maxDynamicUniformBuffersPerPipelineLayout :
+                limits.maxDynamicUniformBuffersPerPipelineLayout,
             maxSamplersPerShaderStage : limits.maxSamplersPerShaderStage,
             maxStorageBufferBindingSize : limits.maxStorageBufferBindingSize,
             maxStorageBuffersPerShaderStage : limits.maxStorageBuffersPerShaderStage,
@@ -153,53 +155,58 @@ EM_JS(int, WGPU_MemoryCopyHtoD,
       (WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset, size_t nbytes), {
           const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
           const dst_mem = ctx.mems.get(dst);
-          dst_mem.dev.queue.writeBuffer(dst_mem.buffer, dst_byte_offset, HEAPU8, src + src_byte_offset, nbytes);
+          dst_mem.dev.queue.writeBuffer(dst_mem.buffer, dst_byte_offset, HEAPU8,
+                                        src + src_byte_offset, nbytes);
           return 0;
       });
 
-EM_ASYNC_JS(int, WGPU_MemoryCopyDtoH,
-            (void *dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset, size_t nbytes), {
-                const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
-                const src_mem = ctx.mems.get(src);
-                const dev = src_mem.dev;
+EM_ASYNC_JS(
+    int, WGPU_MemoryCopyDtoH,
+    (void *dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset, size_t nbytes), {
+        const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
+        const src_mem = ctx.mems.get(src);
+        const dev = src_mem.dev;
 
-                let map_size; /* must %4==0 */
-                if (nbytes & 3 != 0) {
-                    map_size = (nbytes | 3) + 1;
-                } else {
-                    map_size = nbytes;
-                }
-                const dst_gpu = dev.createBuffer({
-                    size : map_size,
-                    usage : GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-                });
+        let map_size; /* must %4==0 */
+        if (nbytes & 3 != 0) {
+            map_size = (nbytes | 3) + 1;
+        } else {
+            map_size = nbytes;
+        }
+        const dst_gpu = dev.createBuffer({
+            size : map_size,
+            usage : GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        });
 
-                const cmd_encoder = dev.createCommandEncoder();
-                cmd_encoder.copyBufferToBuffer(src_mem.buffer, src_byte_offset, dst_gpu, 0, nbytes);
-                dev.queue.submit([cmd_encoder.finish()]);
+        const cmd_encoder = dev.createCommandEncoder();
+        cmd_encoder.copyBufferToBuffer(src_mem.buffer, src_byte_offset, dst_gpu, 0, nbytes);
+        dev.queue.submit([cmd_encoder.finish()]);
 
-                await dst_gpu.mapAsync(GPUMapMode.READ, 0, map_size);
-                HEAPU8.set(new Uint8Array(dst_gpu.getMappedRange(0, map_size)), dst + dst_byte_offset);
-                dst_gpu.unmap();
-                dst_gpu.destroy();
-                return 0;
-            });
+        await dst_gpu.mapAsync(GPUMapMode.READ, 0, map_size);
+        HEAPU8.set(new Uint8Array(dst_gpu.getMappedRange(0, map_size)), dst + dst_byte_offset);
+        dst_gpu.unmap();
+        dst_gpu.destroy();
+        return 0;
+    });
 
 EM_JS(int, WGPU_MemoryCopyDtoD,
-      (WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset, size_t nbytes), {
+      (WGPU_Memory dst, size_t dst_byte_offset, WGPU_Memory src, size_t src_byte_offset,
+       size_t nbytes),
+      {
           const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
           const dst_mem = ctx.mems.get(dst);
           const src_mem = ctx.mems.get(src);
           const dev = dst_mem.dev;
           const cmd_encoder = dev.createCommandEncoder();
-          cmd_encoder.copyBufferToBuffer(src_mem.buffer, src_byte_offset, dst_mem.buffer, dst_byte_offset, nbytes);
+          cmd_encoder.copyBufferToBuffer(src_mem.buffer, src_byte_offset, dst_mem.buffer,
+                                         dst_byte_offset, nbytes);
           dev.queue.submit([cmd_encoder.finish()]);
           return 0;
       });
 
 EM_JS(int, WGPU_FunctionCreate,
-      (WGPU_Device dev_id, WGPU_Function *func_id_ptr, const char *s, uint32_t s_len, const char *e, uint32_t e_len,
-       uint32_t num_args),
+      (WGPU_Device dev_id, WGPU_Function *func_id_ptr, const char *s, uint32_t s_len, const char *e,
+       uint32_t e_len, uint32_t num_args),
       {
           const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
           const dev = ctx.devs.get(dev_id);
@@ -215,7 +222,8 @@ EM_JS(int, WGPU_FunctionCreate,
               });
           }
 
-          const bind_group_layout = dev.createBindGroupLayout({entries : bind_group_layout_entries});
+          const bind_group_layout =
+              dev.createBindGroupLayout({entries : bind_group_layout_entries});
           const layout = dev.createPipelineLayout({bindGroupLayouts : [bind_group_layout]});
 
           const module = dev.createShaderModule({
@@ -252,7 +260,8 @@ EM_JS(int, WGPU_FunctionCreate,
       });
 
 EM_JS(int, WGPU_FunctionRun,
-      (WGPU_Function func_id, const WGPU_Memory *args, uint32_t num_args, size_t grid_x, size_t grid_y, size_t grid_z),
+      (WGPU_Function func_id, const WGPU_Memory *args, uint32_t num_args, size_t grid_x,
+       size_t grid_y, size_t grid_z),
       {
           const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
           const func = ctx.funcs.get(func_id);

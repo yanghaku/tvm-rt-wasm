@@ -179,10 +179,11 @@ struct TVM_RT_WASM_GraphExecutor_st {
  * \param graph the instance.
  * \return 0 if successful.
  */
-int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                                  uint32_t num_dev, TVM_RT_WASM_GraphExecutor graph);
+int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle,
+                                  const DLDevice *devices, uint32_t num_dev,
+                                  TVM_RT_WASM_GraphExecutor graph);
 
-/*--------------------------------some definition for graph executor function-----------------------------------------*/
+/*-------------------some definition for graph executor function----------------------------------*/
 
 #define CHECK_GraphExecutor(g) CHECK_INPUT_POINTER(g, -2, "GraphExecutor")
 

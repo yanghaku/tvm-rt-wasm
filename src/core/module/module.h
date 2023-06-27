@@ -26,40 +26,42 @@ typedef struct PackedFunction {
     uint64_t reserved;
 } PackedFunction;
 
-/*!---------------------------------for the Definition of Module struct-----------------------------------------------*/
+/*-------------------------for the Definition of Module struct------------------------------------*/
 
 /*! \brief the base interface in module */
-#define MODULE_BASE_INTERFACE                                                                                          \
-    /*!                                                                                                                \
-     * \brief Release the resource for this module                                                                     \
-     * \return 0 if successful                                                                                         \
-     */                                                                                                                \
-    int (*Release)(Module * self);                                                                                     \
-    /*!                                                                                                                \
-     * \brief Find function from module                                                                                \
-     * \param mod The module handle.                                                                                   \
-     * \param func_name The name of the function.                                                                      \
-     * \param query_imports Whether to query imported modules                                                          \
-     * \param out The result function, can be NULL if it is not available.                                             \
-     * \return 0 when no error is thrown, nonzero when failure happens                                                 \
-     */                                                                                                                \
-    int (*GetFunction)(Module * mod, const char *func_name, int query_imports, TVMFunctionHandle *out);
+#define MODULE_BASE_INTERFACE                                                                      \
+    /*!                                                                                            \
+     * \brief Release the resource for this module                                                 \
+     * \return 0 if successful                                                                     \
+     */                                                                                            \
+    int (*Release)(Module * self);                                                                 \
+    /*!                                                                                            \
+     * \brief Find function from module                                                            \
+     * \param mod The module handle.                                                               \
+     * \param func_name The name of the function.                                                  \
+     * \param query_imports Whether to query imported modules                                      \
+     * \param out The result function, can be NULL if it is not available.                         \
+     * \return 0 when no error is thrown, nonzero when failure happens                             \
+     */                                                                                            \
+    int (*GetFunction)(Module * mod, const char *func_name, int query_imports,                     \
+                       TVMFunctionHandle *out);
 
 /*! \brief the base member in module */
-#define MODULE_BASE_MEMBER                                                                                             \
-    /*! \brief the allocated size for imports array */                                                                 \
-    uint32_t allocated_imports_size;                                                                                   \
-    /*! \brief the number of imports */                                                                                \
-    uint32_t num_imports;                                                                                              \
-    /*! \brief the depend modules array */                                                                             \
-    Module **imports;                                                                                                  \
-    /*! \brief the cached map <string, PackedFunction*>, for "GetFuncFromEnv", imports + global function */            \
-    Trie *env_funcs_map;                                                                                               \
-    /*! \brief the module functions, map <string, PackedFunction*> */                                                  \
-    Trie *module_funcs_map;                                                                                            \
-    /*! \brief the packed function storage */                                                                          \
-    PackedFunction *packed_functions;                                                                                  \
-    /*! \brief the base interfaces */                                                                                  \
+#define MODULE_BASE_MEMBER                                                                         \
+    /*! \brief the allocated size for imports array */                                             \
+    uint32_t allocated_imports_size;                                                               \
+    /*! \brief the number of imports */                                                            \
+    uint32_t num_imports;                                                                          \
+    /*! \brief the depend modules array */                                                         \
+    Module **imports;                                                                              \
+    /*! \brief the cached map <string, PackedFunction*>, for "GetFuncFromEnv", imports + global    \
+     * function */                                                                                 \
+    Trie *env_funcs_map;                                                                           \
+    /*! \brief the module functions, map <string, PackedFunction*> */                              \
+    Trie *module_funcs_map;                                                                        \
+    /*! \brief the packed function storage */                                                      \
+    PackedFunction *packed_functions;                                                              \
+    /*! \brief the base interfaces */                                                              \
     MODULE_BASE_INTERFACE
 
 /*! \brief the base class Module */
@@ -79,7 +81,8 @@ struct Module {
  */
 #define MODULE_FACTORY_RESOURCE_BINARY 0
 #define MODULE_FACTORY_RESOURCE_FILE 1
-int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type, Module **out);
+int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type,
+                              Module **out);
 
 #define MODULE_SYSTEM_LIB "SystemLibrary"
 
@@ -91,28 +94,29 @@ int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resour
 #define TVM_GET_METADATA_FUNC get_c_metadata
 #define TVM_GET_METADATA_FUNC_NAME TOSTRING(TVM_GET_METADATA_FUNC)
 
-#define MODULE_BASE_MEMBER_FREE(module)                                                                                \
-    do {                                                                                                               \
-        if (module->imports) {                                                                                         \
-            for (uint32_t i = 0; i < module->num_imports; ++i) {                                                       \
-                if (module->imports[i]) {                                                                              \
-                    module->imports[i]->Release(module->imports[i]);                                                   \
-                }                                                                                                      \
-            }                                                                                                          \
-            TVM_RT_WASM_HeapMemoryFree(module->imports);                                                               \
-        }                                                                                                              \
-        if (module->module_funcs_map) {                                                                                \
-            TVM_RT_WASM_TrieRelease(module->module_funcs_map);                                                         \
-        }                                                                                                              \
-        if (module->env_funcs_map) {                                                                                   \
-            TVM_RT_WASM_TrieRelease(module->env_funcs_map);                                                            \
-        }                                                                                                              \
+#define MODULE_BASE_MEMBER_FREE(module)                                                            \
+    do {                                                                                           \
+        if (module->imports) {                                                                     \
+            for (uint32_t i = 0; i < module->num_imports; ++i) {                                   \
+                if (module->imports[i]) {                                                          \
+                    module->imports[i]->Release(module->imports[i]);                               \
+                }                                                                                  \
+            }                                                                                      \
+            TVM_RT_WASM_HeapMemoryFree(module->imports);                                           \
+        }                                                                                          \
+        if (module->module_funcs_map) {                                                            \
+            TVM_RT_WASM_TrieRelease(module->module_funcs_map);                                     \
+        }                                                                                          \
+        if (module->env_funcs_map) {                                                               \
+            TVM_RT_WASM_TrieRelease(module->env_funcs_map);                                        \
+        }                                                                                          \
     } while (0)
 
 /*! \brief Default function for module get function. */
-int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports, TVMFunctionHandle *out);
+int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports,
+                                         TVMFunctionHandle *out);
 
-/*------------------------------- Module create functions ------------------------------------------------------------*/
+/*------------------------------- Module create functions ----------------------------------------*/
 
 /*!
  * \brief Load from binary blob

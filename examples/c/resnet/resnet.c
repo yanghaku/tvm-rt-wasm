@@ -72,7 +72,8 @@ int main(int argc, char **argv) {
                 max_index = i;
             }
         }
-        printf("The maximum position in output vector is: %d, with max-value %f. END\n", max_index, max_iter);
+        printf("The maximum position in output vector is: %d, with max-value %f. END\n", max_index,
+               max_iter);
         fflush(stdout);
     }
 

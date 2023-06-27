@@ -29,8 +29,9 @@ typedef struct CUDAModule {
     uint32_t num_functions;
 } CUDAModule;
 
-static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
-                                           const int *ret_type_codes, void *resource_handle) {
+static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes, int num_args,
+                                           TVMValue *ret_val, const int *ret_type_codes,
+                                           void *resource_handle) {
     (void)ret_val;
     (void)ret_type_codes;
 
@@ -55,9 +56,9 @@ static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes
     }
 
     CUstream stream = (CUstream)deviceApi->GetStream();
-    CUDA_DRIVER_CALL(cuLaunchKernel(info->cu_function, grid_dim[0], grid_dim[1], grid_dim[2], block_dim[0],
-                                    block_dim[1], block_dim[2], dyn_shared_mem_size, stream, info->kernel_arg_storages,
-                                    NULL));
+    CUDA_DRIVER_CALL(cuLaunchKernel(info->cu_function, grid_dim[0], grid_dim[1], grid_dim[2],
+                                    block_dim[0], block_dim[1], block_dim[2], dyn_shared_mem_size,
+                                    stream, info->kernel_arg_storages, NULL));
 
     return status;
 }
@@ -89,13 +90,15 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num
     (*cudaModule)->Release = TVM_RT_WASM_CUDAModuleReleaseFunc;
     (*cudaModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
-    (*cudaModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
+    (*cudaModule)->packed_functions =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);
     memset((*cudaModule)->functions, 0, sizeof(CUDAFunctionInfo) * num_func);
     (*cudaModule)->num_functions = num_func;
     for (uint32_t fid = 0; fid < num_func; ++fid) {
         (*cudaModule)->packed_functions[fid].module = (Module *)(*cudaModule);
-        (*cudaModule)->packed_functions[fid].exec = (TVMBackendPackedCFunc)TVM_RT_WASM_CUDAWrappedFunction;
+        (*cudaModule)->packed_functions[fid].exec =
+            (TVMBackendPackedCFunc)TVM_RT_WASM_CUDAWrappedFunction;
         (*cudaModule)->packed_functions[fid].reserved = fid;
     }
 }
@@ -160,15 +163,16 @@ int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, Module
             uint32_t name_size = (uint32_t) * (uint64_t *)names;
             names += sizeof(uint64_t); // name_size
 
-            CUDA_DRIVER_CALL_OR_GOTO(
-                cuModuleGetFunction(&cuda_module->functions[fid].cu_function, cuda_module->cu_module, names), fail);
+            CUDA_DRIVER_CALL_OR_GOTO(cuModuleGetFunction(&cuda_module->functions[fid].cu_function,
+                                                         cuda_module->cu_module, names),
+                                     fail);
 
             names += name_size; // name string
 
             // functionInfo.name
             name_size = (uint32_t) * (uint64_t *)names;
-            names += sizeof(uint64_t) + name_size;                                     // name_size + name string
-            names += sizeof(uint64_t);                                                 // num_func_args
+            names += sizeof(uint64_t) + name_size; // name_size + name string
+            names += sizeof(uint64_t);             // num_func_args
             names += cuda_module->functions[fid].num_kernel_args * sizeof(DLDataType); // arg types
 
             uint32_t mp_size = (uint32_t) * (uint64_t *)names;

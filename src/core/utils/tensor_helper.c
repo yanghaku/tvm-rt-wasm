@@ -1,9 +1,9 @@
 /*!
-* \file utils/tensor_helper.c
-* \brief the utils function implementation for DLTensor.
-* \author YangBo MG21330067@smail.nju.edu.cn
-*
-*/
+ * \file utils/tensor_helper.c
+ * \brief the utils function implementation for DLTensor.
+ * \author YangBo MG21330067@smail.nju.edu.cn
+ *
+ */
 
 #include <utils/tensor_helper.h>
 
@@ -24,15 +24,15 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
     memcpy(&header, *blob, sizeof(header));
     *blob += sizeof(header);
     if (unlikely(header != kTVMNDArrayMagic)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor magic number: %" PRIX64 ", expect %" PRIX64, header,
-                                kTVMNDArrayMagic);
+        TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor magic number: %" PRIX64 ", expect %" PRIX64,
+                                header, kTVMNDArrayMagic);
     }
     *blob += sizeof(uint64_t);                                 // reserved
     *blob += sizeof(DLDevice);                                 // DLDevice
 
     if (unlikely(memcmp(&tensor->ndim, *blob, sizeof(int)))) { // ndim
-        TVM_RT_SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, but got %d", tensor->ndim,
-                                *(int *)(*blob));
+        TVM_RT_SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, but got %d",
+                                tensor->ndim, *(int *)(*blob));
     }
     *blob += sizeof(int); // ndim
 
@@ -43,8 +43,9 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
     for (int i = 0; i < tensor->ndim; ++i) { // shapes
         const int64_t shape_i = *(int64_t *)(*blob);
         if (unlikely(tensor->shape[i] != shape_i)) {
-            TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor shape: expect shape[%d] = %" PRIi64 ", but got %" PRIi64, i,
-                                    tensor->shape[i], shape_i);
+            TVM_RT_SET_ERROR_RETURN(
+                -1, "Invalid DLTensor shape: expect shape[%d] = %" PRIi64 ", but got %" PRIi64, i,
+                tensor->shape[i], shape_i);
         }
         *blob += sizeof(int64_t); // shape
     }
@@ -53,8 +54,9 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
     memcpy(&byte_size, *blob, sizeof(byte_size));
     int64_t tensor_size = (int64_t)TVM_RT_WASM_DLTensor_GetDataBytes(tensor);
     if (unlikely(byte_size != tensor_size)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor byte size: expect %" PRIu64 ", but got %" PRIu64, tensor_size,
-                                byte_size);
+        TVM_RT_SET_ERROR_RETURN(-1,
+                                "Invalid DLTensor byte size: expect %" PRIu64 ", but got %" PRIu64,
+                                tensor_size, byte_size);
     }
     *blob += sizeof(byte_size); // byte_size
 
@@ -87,19 +89,19 @@ int TVM_RT_WASM_DLTensor_LoadDataFromBinary(DLTensor *tensor, const char **blob)
  * @return 0 if successful
  */
 int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp) {
-#define read_from_fp(ptr, len, fp)                                                                                     \
-    do {                                                                                                               \
-        if (unlikely(fread((ptr), 1, (len), fp) != (len))) {                                                           \
-            TVM_RT_SET_ERROR_RETURN(-1, "invalid param binary: unexpect EOF");                                         \
-        }                                                                                                              \
+#define read_from_fp(ptr, len, fp)                                                                 \
+    do {                                                                                           \
+        if (unlikely(fread((ptr), 1, (len), fp) != (len))) {                                       \
+            TVM_RT_SET_ERROR_RETURN(-1, "invalid param binary: unexpect EOF");                     \
+        }                                                                                          \
     } while (0)
 
     uint64_t header;
     read_from_fp(&header, sizeof(uint64_t), fp);
 
     if (unlikely(header != kTVMNDArrayMagic)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor magic number: %" PRIX64 ", expect %" PRIX64, header,
-                                kTVMNDArrayMagic);
+        TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor magic number: %" PRIX64 ", expect %" PRIX64,
+                                header, kTVMNDArrayMagic);
     }
 
     read_from_fp(&header, sizeof(uint64_t), fp); // reserved
@@ -110,7 +112,8 @@ int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp) {
     int ndim;
     read_from_fp(&ndim, sizeof(int), fp); // ndim
     if (unlikely(tensor->ndim != ndim)) { // ndim
-        TVM_RT_SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, but got %d", tensor->ndim, ndim);
+        TVM_RT_SET_ERROR_RETURN(-1, "DLTensor ndim must be same: expected %d, but got %d",
+                                tensor->ndim, ndim);
     }
 
     DLDataType _dlDataType;
@@ -121,8 +124,9 @@ int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp) {
         int64_t shape;
         read_from_fp(&shape, sizeof(int64_t), fp);
         if (unlikely(tensor->shape[i] != shape)) {
-            TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor shape: expect shape[%d] = %" PRIi64 ", but got %" PRIi64, i,
-                                    tensor->shape[i], shape);
+            TVM_RT_SET_ERROR_RETURN(
+                -1, "Invalid DLTensor shape: expect shape[%d] = %" PRIi64 ", but got %" PRIi64, i,
+                tensor->shape[i], shape);
         }
     }
 
@@ -130,8 +134,9 @@ int TVM_RT_WASM_DLTensor_LoadDataFromFile(DLTensor *tensor, FILE *fp) {
     read_from_fp(&byte_size, sizeof(int64_t), fp);
     uint64_t tensor_size = TVM_RT_WASM_DLTensor_GetDataBytes(tensor);
     if (unlikely(byte_size != tensor_size)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Invalid DLTensor byte size: expect %" PRIu64 ", but got %" PRIu64, tensor_size,
-                                byte_size);
+        TVM_RT_SET_ERROR_RETURN(-1,
+                                "Invalid DLTensor byte size: expect %" PRIu64 ", but got %" PRIu64,
+                                tensor_size, byte_size);
     }
 
     if (tensor->device.device_type == kDLCPU || tensor->device.device_type == kDLCUDAHost) {

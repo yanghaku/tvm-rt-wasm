@@ -21,7 +21,7 @@
  *  \sa module.h
  */
 
-/**-------------------------------------global variables--------------------------------------------------------------*/
+/*--------------------------------------global variables------------------------------------------*/
 
 /*! \brief the global buffer storage */
 char global_buf[GLOBAL_BUF_SIZE];
@@ -29,7 +29,7 @@ char global_buf[GLOBAL_BUF_SIZE];
 /*! \brief the global function storage, <string,PackedFunction*> */
 static Trie *global_functions = NULL;
 
-/**--------------------------------------public functions-------------------------------------------------------------*/
+/*---------------------------------------public functions-----------------------------------------*/
 
 /*!
  * \brief Used for implementing C API function.
@@ -63,7 +63,8 @@ int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandl
     CHECK_INPUT_POINTER(file_name, -2, "Filename");
     CHECK_INPUT_POINTER(format, -2, "Format");
     CHECK_INPUT_POINTER(out, -2, "TVMModuleHandle pointer");
-    return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE, (Module **)out);
+    return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE,
+                                     (Module **)out);
 }
 
 /*!
@@ -88,7 +89,8 @@ int TVMModImport(TVMModuleHandle mod, TVMModuleHandle dep) {
  * \param out The result function, can be NULL if it is not available.
  * \return 0 when no error is thrown, nonzero when failure happens
  */
-int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_imports, TVMFunctionHandle *out) {
+int TVMModGetFunction(TVMModuleHandle mod, const char *func_name, int query_imports,
+                      TVMFunctionHandle *out) {
     CHECK_INPUT_POINTER(mod, -2, "Module handle");
     CHECK_INPUT_POINTER(func_name, -2, "Function Name");
     CHECK_INPUT_POINTER(out, -2, "Out FunctionHandle pointer");
@@ -138,8 +140,8 @@ int TVMFuncFree(TVMFunctionHandle func) {
  * \return 0 when success, nonzero when failure happens
  * \note TVM calls always exchanges with type bits=64, lanes=1
  */
-int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_codes, int num_args, TVMValue *ret_val,
-                int *ret_type_code) {
+int TVMFuncCall(TVMFunctionHandle func, TVMValue *arg_values, int *type_codes, int num_args,
+                TVMValue *ret_val, int *ret_type_code) {
     CHECK_INPUT_POINTER(func, -2, "TVMFunctionHandle");
     CHECK_INPUT_POINTER(arg_values, -2, "TVM argument values");
     CHECK_INPUT_POINTER(type_codes, -2, "TVM argument types");
@@ -226,8 +228,8 @@ int TVMFuncRemoveGlobal(const char *name) {
  * \param out The output handle.
  * \return 0 when success, nonzero when failure happens
  */
-int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_bits, int dtype_lanes, int device_type,
-                  int device_id, TVMArrayHandle *out) {
+int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_bits,
+                  int dtype_lanes, int device_type, int device_id, TVMArrayHandle *out) {
     CHECK_INPUT_POINTER(shape, -2, "Shape");
     CHECK_INPUT_POINTER(out, -2, "TVMArrayHandle pointer");
 
@@ -477,7 +479,8 @@ int TVMSynchronize(int device_type, int device_id, TVMStreamHandle stream) {
  * \param dst The destination stream to synchronize.
  * \return 0 when success, nonzero when failure happens
  */
-int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle src, TVMStreamHandle dst) {
+int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle src,
+                               TVMStreamHandle dst) {
     if (device_type == kDLCPU) {
         return 0;
     }
@@ -498,7 +501,8 @@ int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle s
  * \param out_data The allocated device pointer.
  * \return 0 when success, nonzero when failure happens
  */
-int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint, void **out_data) {
+int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint,
+                            void **out_data) {
     CHECK_INPUT_POINTER(out_data, -2, "Output data pointer");
     if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
         *out_data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
@@ -519,9 +523,9 @@ int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDat
  * \param ndim The number of dimension of the tensor.
  * \param shape The shape of the tensor.
  * \param dtype The type of elements.
- * \param mem_scope The memory scope of the tensor can be nullptr, which indicate the default global DRAM
- * \param out_data The allocated device pointer.
- * \return 0 when success, nonzero when failure happens
+ * \param mem_scope The memory scope of the tensor can be nullptr, which indicate the default global
+ * DRAM \param out_data The allocated device pointer. \return 0 when success, nonzero when failure
+ * happens
  */
 int TVMDeviceAllocDataSpaceWithScope(DLDevice dev, int ndim, const int64_t *shape, DLDataType dtype,
                                      const char *mem_scope, void **out_data) {
@@ -575,7 +579,8 @@ int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream
                (from->device.device_type == kDLCUDAHost && to->device.device_type == kDLCUDA)) {
         type = kDLCUDA;
     } else {
-        TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy: from device_type(%d) to device_type(%d)",
+        TVM_RT_SET_ERROR_RETURN(-1,
+                                "Unsupported data copy: from device_type(%d) to device_type(%d)",
                                 from->device.device_type, to->device.device_type);
     }
 
@@ -592,7 +597,8 @@ int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream
     return deviceApi->CopyDataFromTo(from, to, stream);
 }
 
-int TVM_RT_WASM_SetDevice(TVMValue *args, const int *_tc, int _n, TVMValue *_rv, const int *_rt, void *_h) {
+int TVM_RT_WASM_SetDevice(TVMValue *args, const int *_tc, int _n, TVMValue *_rv, const int *_rt,
+                          void *_h) {
     (void)_tc;
     (void)_n;
     (void)_rv;
@@ -611,7 +617,8 @@ static __attribute__((constructor)) void tvm_runtime_for_webassembly_constructor
         {.exec = (TVMBackendPackedCFunc)TVM_RT_WASM_SetDevice, .module = NULL, .reserved = 0}};
 
     TVM_RT_WASM_TrieCreate(&global_functions);
-    if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION, pf)) != 0) {
+    if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION,
+                                        pf)) != 0) {
         fprintf(stderr, "register global function fail!\n");
         exit(-1);
     }
@@ -627,7 +634,7 @@ static __attribute__((destructor)) void tvm_runtime_for_webassembly_destructor()
     TVM_RT_WASM_DeviceReleaseAll();
 }
 
-/**-------------------------The following API will not be implemented in this project---------------------------------*/
+/*----------------The following API will not be implemented in this project-----------------------*/
 
 /*
 int TVMCFuncSetReturn(TVMRetValueHandle ret, TVMValue *value, int *type_code, int num_ret);

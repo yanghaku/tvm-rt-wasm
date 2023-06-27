@@ -87,36 +87,40 @@ int TVM_RT_WASM_SystemLibraryModuleCreate(Module **libraryModule) {
 
     // dev_blob
     const char *blob = NULL;
-    if (TRIE_SUCCESS ==
-        TVM_RT_WASM_TrieQuery(system_lib_symbol, (const uint8_t *)TVM_DEV_MODULE_BLOB, (void **)&blob)) {
+    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery(system_lib_symbol,
+                                              (const uint8_t *)TVM_DEV_MODULE_BLOB,
+                                              (void **)&blob)) {
         status = TVM_RT_WASM_ModuleLoadBinaryBlob(blob, libraryModule);
         if (unlikely(status)) {
-            goto syslib_fail;
+            goto sys_lib_fail;
         }
     }
 
     // module context
     void **module_context = NULL;
-    if (TRIE_SUCCESS ==
-        TVM_RT_WASM_TrieQuery(system_lib_symbol, (const uint8_t *)TVM_MODULE_CTX, (void **)&module_context)) {
+    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery(system_lib_symbol, (const uint8_t *)TVM_MODULE_CTX,
+                                              (void **)&module_context)) {
         *module_context = *libraryModule;
     } else {
         status = -1;
-        TVM_RT_SET_ERROR_AND_GOTO(syslib_fail, "Cannot find module context symbol `%s` from system library",
+        TVM_RT_SET_ERROR_AND_GOTO(sys_lib_fail,
+                                  "Cannot find module context symbol `%s` from system library",
                                   TVM_MODULE_CTX);
     }
 
     /** init packed function */
-    (*libraryModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_sys_lib_symbol);
+    (*libraryModule)->packed_functions =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_sys_lib_symbol);
     memset((*libraryModule)->packed_functions, 0, sizeof(PackedFunction) * num_sys_lib_symbol);
-    TVM_RT_WASM_TrieVisit(system_lib_symbol, visit_symbol_change_to_func, (*libraryModule)->packed_functions);
+    TVM_RT_WASM_TrieVisit(system_lib_symbol, visit_symbol_change_to_func,
+                          (*libraryModule)->packed_functions);
     (*libraryModule)->module_funcs_map = system_lib_symbol;
     system_lib_symbol = NULL; // manage this Trie*
 
     sys_lib_module = *libraryModule;
     return 0;
 
-syslib_fail:
+sys_lib_fail:
     TVM_RT_WASM_SysLibModuleReleaseFunc(*libraryModule);
     return status;
 }

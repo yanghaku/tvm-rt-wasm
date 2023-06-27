@@ -39,7 +39,7 @@ struct Trie {
     bool has_value;
 };
 
-/**------------------------------------------public functions---------------------------------------------------------*/
+/*-----------------------------------public functions---------------------------------------------*/
 /*!
  * \brief alloc a new Trie and init it
  * @param trie the pointer to receive new Trie
@@ -60,7 +60,8 @@ INLINE int TVM_RT_WASM_TrieInsert(Trie *trie, const uint8_t *name, void *data) {
     while (*name) {
         uint32_t id = char2index[*name];
         if (unlikely(id == 255)) {
-            TVM_RT_SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "Charset is invalid: %c(ascii=%d)", *name, *name);
+            TVM_RT_SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "Charset is invalid: %c(ascii=%d)", *name,
+                                    *name);
         }
         if (trie->son[id] == NULL) {
             TVM_RT_WASM_TrieCreate(&trie->son[id]);
@@ -85,7 +86,8 @@ INLINE int TVM_RT_WASM_TrieInsertWithLen(Trie *trie, const uint8_t *name, size_t
     while (len--) {
         uint32_t id = char2index[*name];
         if (unlikely(id == 255)) {
-            TVM_RT_SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "Charset is invalid: %c(ascii=%d)", *name, *name);
+            TVM_RT_SET_ERROR_RETURN(TRIE_INVALID_CHARSET, "Charset is invalid: %c(ascii=%d)", *name,
+                                    *name);
         }
         if (trie->son[id] == NULL) {
             TVM_RT_WASM_TrieCreate(&trie->son[id]);
@@ -171,7 +173,8 @@ int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src);
  * @param visit the visit function
  * @param source_handle for visit function
  */
-void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char c, void **p_data, void *source_handle), void *source_handle);
+void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char c, void **p_data, void *source_handle),
+                           void *source_handle);
 
 /*!
  * \brief clone this Trie, and create a new Instance

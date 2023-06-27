@@ -25,8 +25,9 @@ typedef struct WebGPUModule {
     uint32_t num_functions;
 } WebGPUModule;
 
-static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_codes, int num_args, TVMValue *ret_val,
-                                             const int *ret_type_codes, void *resource_handle) {
+static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_codes, int num_args,
+                                             TVMValue *ret_val, const int *ret_type_codes,
+                                             void *resource_handle) {
     (void)ret_val;
     (void)ret_type_codes;
     PackedFunction *pf = (PackedFunction *)resource_handle;
@@ -39,7 +40,8 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
     uint32_t num_kernel_args = info->num_kernel_args;
     CHECK_DYN_MEM();
     if (dyn_shared_mem_size != 0) {
-        TVM_RT_SET_ERROR_RETURN(-1, "WebGPU cannot support dynamic shared memory, but got size %zu.",
+        TVM_RT_SET_ERROR_RETURN(-1,
+                                "WebGPU cannot support dynamic shared memory, but got size %zu.",
                                 dyn_shared_mem_size);
     }
 
@@ -49,8 +51,8 @@ static int TVM_RT_WASM_WebGPUWrappedFunction(TVMValue *args, const int *type_cod
     }
 
     (void)block_dim;
-    int status = WGPU_FunctionRun(info->device_func, (WGPU_Memory *)info->kernel_arg_storages, num_kernel_args,
-                                  grid_dim[0], grid_dim[1], grid_dim[2]);
+    int status = WGPU_FunctionRun(info->device_func, (WGPU_Memory *)info->kernel_arg_storages,
+                                  num_kernel_args, grid_dim[0], grid_dim[1], grid_dim[2]);
 
     return status;
 }
@@ -84,13 +86,15 @@ static void TVM_RT_WASM_WebGPUModuleAllocate(WebGPUModule **webgpuModule, uint32
     (*webgpuModule)->Release = TVM_RT_WASM_WebGPUModuleReleaseFunc;
     (*webgpuModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     TVM_RT_WASM_TrieCreate(&((*webgpuModule)->module_funcs_map));
-    (*webgpuModule)->packed_functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
+    (*webgpuModule)->packed_functions =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*webgpuModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(WebGPUFunctionInfo) * num_func);
     memset((*webgpuModule)->functions, 0, sizeof(WebGPUFunctionInfo) * num_func);
     (*webgpuModule)->num_functions = num_func;
     for (uint32_t fid = 0; fid < num_func; ++fid) {
         (*webgpuModule)->packed_functions[fid].module = (Module *)(*webgpuModule);
-        (*webgpuModule)->packed_functions[fid].exec = (TVMBackendPackedCFunc)TVM_RT_WASM_WebGPUWrappedFunction;
+        (*webgpuModule)->packed_functions[fid].exec =
+            (TVMBackendPackedCFunc)TVM_RT_WASM_WebGPUWrappedFunction;
         (*webgpuModule)->packed_functions[fid].reserved = fid;
     }
 }
@@ -126,8 +130,9 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, Modu
         // parse source map <string, string>
         uint32_t source_map_size = (uint32_t) * (uint64_t *)blob;
         if (source_map_size != func_map_size) {
-            TVM_RT_SET_ERROR_AND_GOTO(fail, "Invalid module: function size (%d) != source size (%d)\n", func_map_size,
-                                      source_map_size);
+            TVM_RT_SET_ERROR_AND_GOTO(fail,
+                                      "Invalid module: function size (%d) != source size (%d)\n",
+                                      func_map_size, source_map_size);
         }
 
         DeviceAPI *webgpu_dev_api = NULL;
@@ -150,8 +155,8 @@ int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, Modu
             uint32_t src_size = (uint32_t) * (uint64_t *)blob;
             blob += sizeof(uint64_t); // src_size
 
-            status = WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob, src_size, NULL, 0,
-                                         func_info_list[fid].num_kernel_args);
+            status = WGPU_FunctionCreate(gpu_device, &func_info_list[fid].device_func, blob,
+                                         src_size, NULL, 0, func_info_list[fid].num_kernel_args);
             if (unlikely(status)) {
                 goto fail;
             }

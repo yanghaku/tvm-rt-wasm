@@ -20,13 +20,14 @@ typedef struct TVM_RT_WASM_GraphExecutor_st *TVM_RT_WASM_GraphExecutor;
  * \brief Allocate a new TVM_RT_WASM_GraphExecutor and initialize it.
  *
  * \param graph_json JSON-encoded TVM graph.
- * \param module_handle TVM Module that exposes the functions to call. If module_handle is NULL, use the system library.
- * \param devices runtime execution device.
- * \param num_dev the number of devices.
- * \return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
+ * \param module_handle TVM Module that exposes the functions to call. If module_handle is NULL, use
+ * the system library. \param devices runtime execution device. \param num_dev the number of
+ * devices. \return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
  */
-TVM_DLL TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json, TVMModuleHandle module_handle,
-                                                                  const DLDevice *devices, uint32_t num_dev);
+TVM_DLL TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json,
+                                                                  TVMModuleHandle module_handle,
+                                                                  const DLDevice *devices,
+                                                                  uint32_t num_dev);
 
 /*!
  * \brief Free the instance of TVM_RT_WASM_GraphExecutor.
@@ -49,7 +50,8 @@ TVM_DLL int TVM_RT_WASM_GraphExecutorRun(TVM_RT_WASM_GraphExecutor g);
  * \param data_in The input data. The function will copy `data_in` to graph input tensor.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorSetInput(TVM_RT_WASM_GraphExecutor g, uint32_t index, const DLTensor *data_in);
+TVM_DLL int TVM_RT_WASM_GraphExecutorSetInput(TVM_RT_WASM_GraphExecutor g, uint32_t index,
+                                              const DLTensor *data_in);
 
 /*!
  * \brief Set input to the graph based on name.
@@ -68,7 +70,8 @@ TVM_DLL int TVM_RT_WASM_GraphExecutorSetInputByName(TVM_RT_WASM_GraphExecutor g,
  * \param data_out The point to DLTensor. The function will copy graph output tensor to `data_out`.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorGetOutput(TVM_RT_WASM_GraphExecutor g, uint32_t index, DLTensor *data_out);
+TVM_DLL int TVM_RT_WASM_GraphExecutorGetOutput(TVM_RT_WASM_GraphExecutor g, uint32_t index,
+                                               DLTensor *data_out);
 
 /*!
  * \brief Get output data for given output name.
@@ -77,7 +80,8 @@ TVM_DLL int TVM_RT_WASM_GraphExecutorGetOutput(TVM_RT_WASM_GraphExecutor g, uint
  * \param data_out The point to DLTensor. The function will copy graph output tensor to `data_out`.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorGetOutputByName(TVM_RT_WASM_GraphExecutor g, const char *name, DLTensor *data_out);
+TVM_DLL int TVM_RT_WASM_GraphExecutorGetOutputByName(TVM_RT_WASM_GraphExecutor g, const char *name,
+                                                     DLTensor *data_out);
 
 /*!
  * \brief Load parameters from parameter blob.
@@ -95,7 +99,8 @@ TVM_DLL int TVM_RT_WASM_GraphExecutorLoadParams(TVM_RT_WASM_GraphExecutor g, con
  * \param filename File path to read and load.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(TVM_RT_WASM_GraphExecutor g, const char *filename);
+TVM_DLL int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(TVM_RT_WASM_GraphExecutor g,
+                                                        const char *filename);
 
 /*!
  * \brief Clone a new instance of TVM_RT_WASM_GraphExecutor.
@@ -103,9 +108,10 @@ TVM_DLL int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(TVM_RT_WASM_GraphExecuto
  * \param cloned Pointer which receive the new instance.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorClone(TVM_RT_WASM_GraphExecutor g, TVM_RT_WASM_GraphExecutor *cloned);
+TVM_DLL int TVM_RT_WASM_GraphExecutorClone(TVM_RT_WASM_GraphExecutor g,
+                                           TVM_RT_WASM_GraphExecutor *cloned);
 
-/*----------------------------Functions to get graph information------------------------------------------------------*/
+/*-----------------Functions to get graph information---------------------------------------------*/
 
 /*!
  * \brief Get total number of nodes.
@@ -121,7 +127,8 @@ TVM_DLL int TVM_RT_WASM_GraphExecutorGetNumOfNodes(TVM_RT_WASM_GraphExecutor g);
  * \param name the pointer to receive string pointer.
  * \return 0 if successful.
  */
-TVM_DLL int TVM_RT_WASM_GraphExecutorGetNodeName(TVM_RT_WASM_GraphExecutor g, uint32_t nid, const char **name);
+TVM_DLL int TVM_RT_WASM_GraphExecutorGetNodeName(TVM_RT_WASM_GraphExecutor g, uint32_t nid,
+                                                 const char **name);
 
 /*!
  * \brief Get the input index given the name of input.

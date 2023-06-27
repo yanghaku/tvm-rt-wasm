@@ -25,7 +25,8 @@ static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) {
     return 0;
 }
 
-static void *TVM_RT_WASM_WebGPU_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
+static void *TVM_RT_WASM_WebGPU_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment,
+                                               DLDataType type_hint) {
     (void)dev_id;
     (void)alignment;
     (void)type_hint;
@@ -38,8 +39,8 @@ static void *TVM_RT_WASM_WebGPU_AllocDataSpace(int dev_id, size_t nbytes, size_t
     return res;
 }
 
-static void *TVM_RT_WASM_WebGPU_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype,
-                                                    const char *mem_scope) {
+static void *TVM_RT_WASM_WebGPU_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape,
+                                                    DLDataType dtype, const char *mem_scope) {
     (void)dev_id;
     (void)ndim;
     (void)shape;
@@ -59,24 +60,25 @@ static int TVM_RT_WASM_WebGPU_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMSt
     uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
     uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
     if (unlikely(bytes != byte_check)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Data copy size is diff, from=%" PRIu64 " and to=%" PRIu64, bytes, byte_check);
+        TVM_RT_SET_ERROR_RETURN(-1, "Data copy size is diff, from=%" PRIu64 " and to=%" PRIu64,
+                                bytes, byte_check);
     }
     if (from->device.device_type == kDLCPU) {
         if (to->device.device_type == kDLCPU) {
             memcpy(to->data, from->data, bytes);
         } else if (to->device.device_type == kDLWebGPU) {
-            WGPU_CALL(
-                WGPU_MemoryCopyHtoD((WGPU_Memory)to->data, to->byte_offset, from->data, from->byte_offset, bytes));
+            WGPU_CALL(WGPU_MemoryCopyHtoD((WGPU_Memory)to->data, to->byte_offset, from->data,
+                                          from->byte_offset, bytes));
         } else {
             TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy!");
         }
     } else if (from->device.device_type == kDLWebGPU) {
         if (to->device.device_type == kDLCPU) {
-            WGPU_CALL(
-                WGPU_MemoryCopyDtoH(to->data, to->byte_offset, (WGPU_Memory)from->data, from->byte_offset, bytes));
-        } else if (to->device.device_type == kDLWebGPU) {
-            WGPU_CALL(WGPU_MemoryCopyDtoD((WGPU_Memory)to->data, to->byte_offset, (WGPU_Memory)from->data,
+            WGPU_CALL(WGPU_MemoryCopyDtoH(to->data, to->byte_offset, (WGPU_Memory)from->data,
                                           from->byte_offset, bytes));
+        } else if (to->device.device_type == kDLWebGPU) {
+            WGPU_CALL(WGPU_MemoryCopyDtoD((WGPU_Memory)to->data, to->byte_offset,
+                                          (WGPU_Memory)from->data, from->byte_offset, bytes));
         } else {
             TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy!");
         }
@@ -112,7 +114,8 @@ static TVMStreamHandle TVM_RT_WASM_WebGPU_GetStream() {
     return (TVMStreamHandle)webGPUDeviceAPI.device;
 }
 
-static int TVM_RT_WASM_WebGPU_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {
+static int TVM_RT_WASM_WebGPU_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src,
+                                               TVMStreamHandle event_dst) {
     (void)dev_id;
     (void)event_dst;
     (void)event_src;

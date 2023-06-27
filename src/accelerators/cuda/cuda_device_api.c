@@ -41,7 +41,8 @@ static int TVM_RT_WASM_CUDA_SetDevice(int dev_id) {
     return 0;
 }
 
-static void *TVM_RT_WASM_CUDA_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint) {
+static void *TVM_RT_WASM_CUDA_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment,
+                                             DLDataType type_hint) {
     (void)dev_id;
     (void)alignment;
     (void)type_hint;
@@ -54,8 +55,8 @@ fail:
     return NULL;
 }
 
-static void *TVM_RT_WASM_CUDA_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape, DLDataType dtype,
-                                                  const char *mem_scope) {
+static void *TVM_RT_WASM_CUDA_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape,
+                                                  DLDataType dtype, const char *mem_scope) {
     (void)dev_id;
     (void)ndim;
     (void)shape;
@@ -76,7 +77,8 @@ static int TVM_RT_WASM_CUDA_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStre
     uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
     uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
     if (unlikely(bytes != byte_check)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Data copy size is diff, from=%" PRIu64 " and to=%" PRIu64, bytes, byte_check);
+        TVM_RT_SET_ERROR_RETURN(-1, "Data copy size is diff, from=%" PRIu64 " and to=%" PRIu64,
+                                bytes, byte_check);
     }
     if (from->device.device_type == kDLCPU || from->device.device_type == kDLCUDAHost) {
         if (to->device.device_type == kDLCUDAHost || to->device.device_type == kDLCPU) {
@@ -128,7 +130,8 @@ static int TVM_RT_WASM_CUDA_SetStream(int dev_id, TVMStreamHandle stream) {
 
 static TVMStreamHandle TVM_RT_WASM_CUDA_GetStream() { return cudaDeviceApi.stream; }
 
-static int TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst) {
+static int TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src,
+                                             TVMStreamHandle event_dst) {
     (void)dev_id;
     (void)event_src;
     (void)event_dst;
@@ -175,8 +178,8 @@ static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataTy
         cachedWorkspaceMemory[cachedWorkspaceMemorySize++].size = nbytes;
     }
 #else
-    CUDA_DRIVER_CALL_NULL(
-        cuMemAllocFromPoolAsync((CUdeviceptr *)&res, nbytes, cudaDeviceApi.mem_pool, cudaDeviceApi.stream));
+    CUDA_DRIVER_CALL_NULL(cuMemAllocFromPoolAsync((CUdeviceptr *)&res, nbytes,
+                                                  cudaDeviceApi.mem_pool, cudaDeviceApi.stream));
 #endif // CUDA_10_ONLY
 
     return res;

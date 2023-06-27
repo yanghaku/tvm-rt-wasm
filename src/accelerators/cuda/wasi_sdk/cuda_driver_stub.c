@@ -523,7 +523,8 @@ CUresult cuGetErrorString(CUresult error, const char **p_str) {
         *p_str = "the hardware resources required to create MPS client have been exhausted";
         break;
     case CUDA_ERROR_MPS_MAX_CONNECTIONS_REACHED:
-        *p_str = "the hardware resources required to support device connections have been exhausted";
+        *p_str =
+            "the hardware resources required to support device connections have been exhausted";
         break;
     case CUDA_ERROR_MPS_CLIENT_TERMINATED:
         *p_str = "the MPS client has been terminated by the server";
@@ -559,8 +560,8 @@ CUresult cuGetErrorString(CUresult error, const char **p_str) {
         *p_str = "wait operation timed out";
         break;
     case CUDA_ERROR_GRAPH_EXEC_UPDATE_FAILURE:
-        *p_str = "the graph update was not performed because it included changes which violated constraints specific "
-                 "to instantiated graph update";
+        *p_str = "the graph update was not performed because it included changes which violated "
+                 "constraints specific to instantiated graph update";
         break;
     case CUDA_ERROR_EXTERNAL_DEVICE:
         *p_str = "an async error has occured in external entity outside of CUDA";

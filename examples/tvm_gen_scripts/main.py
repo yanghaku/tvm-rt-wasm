@@ -1,6 +1,6 @@
+from model_info import get_ir_module_from_frontend
 from module_process import build_ir_module, save_module
 from utils import get_arg_parser, get_tvm_target
-from model_info import get_ir_module_from_frontend
 
 if __name__ == "__main__":
     opts = get_arg_parser().parse_args()

@@ -16,12 +16,12 @@ extern "C" {
 #include <utils/common.h>
 
 // the error string can be got using `TVMGetLastError`
-#define WGPU_CALL(x)                                                                                                   \
-    do {                                                                                                               \
-        int result = (x);                                                                                              \
-        if (unlikely(result)) {                                                                                        \
-            return -1;                                                                                                 \
-        }                                                                                                              \
+#define WGPU_CALL(x)                                                                               \
+    do {                                                                                           \
+        int result = (x);                                                                          \
+        if (unlikely(result)) {                                                                    \
+            return -1;                                                                             \
+        }                                                                                          \
     } while (0)
 
 #ifdef __cplusplus

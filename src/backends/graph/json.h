@@ -24,72 +24,72 @@ extern "C" {
 #define PeekNextChar(ptr) (*(ptr))
 
 /*! \brief get next nonSpace char, and save it to "ch" , pointer will point to the next of "ch" */
-#define NextNonSpace(ptr, ch)                                                                                          \
-    do {                                                                                                               \
-        (ch) = NextChar(ptr);                                                                                          \
+#define NextNonSpace(ptr, ch)                                                                      \
+    do {                                                                                           \
+        (ch) = NextChar(ptr);                                                                      \
     } while (isspace(ch))
 
 /*! \brief get next nonSpace char, and save it to "ch" , pointer will point to "ch" */
-#define PeekNextNonSpace(ptr, ch)                                                                                      \
-    do {                                                                                                               \
-        while (isspace(PeekNextChar(ptr)))                                                                             \
-            ++(ptr);                                                                                                   \
-        (ch) = *(ptr);                                                                                                 \
+#define PeekNextNonSpace(ptr, ch)                                                                  \
+    do {                                                                                           \
+        while (isspace(PeekNextChar(ptr)))                                                         \
+            ++(ptr);                                                                               \
+        (ch) = *(ptr);                                                                             \
     } while (0)
 
 /*! \brief check the expect char and given char equal if or not */
-#define CheckEQ(expect, given)                                                                                         \
-    do {                                                                                                               \
-        if (unlikely((expect) != (given))) {                                                                           \
-            return -2;                                                                                                 \
-        }                                                                                                              \
+#define CheckEQ(expect, given)                                                                     \
+    do {                                                                                           \
+        if (unlikely((expect) != (given))) {                                                       \
+            return -2;                                                                             \
+        }                                                                                          \
     } while (0)
 
 /*! \brief the loop read number from string that the ptr point to */
 // todo: change it to judge lead zero
-#define str2numLoop(ptr, num)                                                                                          \
-    do {                                                                                                               \
-        while (isdigit0to9(PeekNextChar(ptr))) {                                                                       \
-            (num) = ((num) << 3) + ((num) << 1) + NextChar(ptr) - '0';                                                 \
-        }                                                                                                              \
+#define str2numLoop(ptr, num)                                                                      \
+    do {                                                                                           \
+        while (isdigit0to9(PeekNextChar(ptr))) {                                                   \
+            (num) = ((num) << 3) + ((num) << 1) + NextChar(ptr) - '0';                             \
+        }                                                                                          \
     } while (0)
 
 /*! \brief change string to unsigned(any bits) and save to num */
-#define str2unsigned(ptr, num)                                                                                         \
-    do {                                                                                                               \
-        char ch;                                                                                                       \
-        NextNonSpace(ptr, ch);                                                                                         \
-        if (likely(isdigit0to9(ch))) {                                                                                 \
-            (num) = ch - '0';                                                                                          \
-            str2numLoop(ptr, (num));                                                                                   \
-            return 0;                                                                                                  \
-        }                                                                                                              \
-        return -1;                                                                                                     \
+#define str2unsigned(ptr, num)                                                                     \
+    do {                                                                                           \
+        char ch;                                                                                   \
+        NextNonSpace(ptr, ch);                                                                     \
+        if (likely(isdigit0to9(ch))) {                                                             \
+            (num) = ch - '0';                                                                      \
+            str2numLoop(ptr, (num));                                                               \
+            return 0;                                                                              \
+        }                                                                                          \
+        return -1;                                                                                 \
     } while (0)
 
 /*! \brief change string to signed(any bits) and save to num */
-#define str2signed(ptr, num)                                                                                           \
-    do {                                                                                                               \
-        char ch;                                                                                                       \
-        /* if negative, flag=1, else 0*/                                                                               \
-        char flag = 0;                                                                                                 \
-        NextNonSpace(ptr, ch);                                                                                         \
-        if (ch == '-') {                                                                                               \
-            flag = 1;                                                                                                  \
-            ch = NextChar(ptr);                                                                                        \
-        }                                                                                                              \
-        if (likely(isdigit0to9(ch))) {                                                                                 \
-            (num) = ch - '0';                                                                                          \
-            str2numLoop(ptr, (num));                                                                                   \
-            if (flag) {                                                                                                \
-                (num) = -(num);                                                                                        \
-            }                                                                                                          \
-            return 0;                                                                                                  \
-        }                                                                                                              \
-        return -1;                                                                                                     \
+#define str2signed(ptr, num)                                                                       \
+    do {                                                                                           \
+        char ch;                                                                                   \
+        /* if negative, flag=1, else 0*/                                                           \
+        char flag = 0;                                                                             \
+        NextNonSpace(ptr, ch);                                                                     \
+        if (ch == '-') {                                                                           \
+            flag = 1;                                                                              \
+            ch = NextChar(ptr);                                                                    \
+        }                                                                                          \
+        if (likely(isdigit0to9(ch))) {                                                             \
+            (num) = ch - '0';                                                                      \
+            str2numLoop(ptr, (num));                                                               \
+            if (flag) {                                                                            \
+                (num) = -(num);                                                                    \
+            }                                                                                      \
+            return 0;                                                                              \
+        }                                                                                          \
+        return -1;                                                                                 \
     } while (0)
 
-/*-----------------------------------Definition for JsonReader--------------------------------------------------------*/
+/*--------------------Definition for JsonReader---------------------------------------------------*/
 
 /*! \brief a tiny json reader simply contain a char pointer */
 typedef const char *JsonReader;
@@ -109,7 +109,9 @@ INLINE void TVM_RT_WASM_JsonReader_Create(const char *json_str, JsonReader **out
  * \brief delete the instance of JsonReader
  * @param reader the instance pointer
  */
-INLINE void TVM_RT_WASM_JsonReader_Release(JsonReader *reader) { TVM_RT_WASM_HeapMemoryFree(reader); }
+INLINE void TVM_RT_WASM_JsonReader_Release(JsonReader *reader) {
+    TVM_RT_WASM_HeapMemoryFree(reader);
+}
 
 /*!
  * \brief read a 32 bit unsigned int
@@ -128,7 +130,9 @@ INLINE int TVM_RT_WASM_JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-INLINE int TVM_RT_WASM_JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) { str2signed(*reader, *out_num); }
+INLINE int TVM_RT_WASM_JsonReader_Read_int32(JsonReader *reader, int32_t *out_num) {
+    str2signed(*reader, *out_num);
+}
 
 /*!
  * \brief read a 64 bit unsigned int
@@ -146,7 +150,9 @@ INLINE int TVM_RT_WASM_JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_
  * @param out_num the pointer to receive number
  * @return 0 if successful
  */
-INLINE int TVM_RT_WASM_JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) { str2signed(*reader, *out_num); }
+INLINE int TVM_RT_WASM_JsonReader_Read_int64(JsonReader *reader, int64_t *out_num) {
+    str2signed(*reader, *out_num);
+}
 
 /*!
  * \brief read string and save to out_str
@@ -155,7 +161,8 @@ INLINE int TVM_RT_WASM_JsonReader_Read_int64(JsonReader *reader, int64_t *out_nu
  * @param out_str_size the store buffer size
  * @return if successful return actual length ( > 0 ), -1: buffer_size tool short, <= -1: error code
  */
-INLINE int TVM_RT_WASM_JsonReader_ReadString(JsonReader *reader, char *out_str, size_t out_str_size) {
+INLINE int TVM_RT_WASM_JsonReader_ReadString(JsonReader *reader, char *out_str,
+                                             size_t out_str_size) {
     char ch;
     NextNonSpace(*reader, ch);
     CheckEQ(ch, '\"'); // check the start is '\"'
@@ -230,8 +237,8 @@ INLINE int TVM_RT_WASM_JsonReader_NextArrayItem(JsonReader *reader) {
  * @param reader the instance of JsonReader
  * @param out_key the buffer to save "key" of object
  * @param out_key_size buffer size
- * @return if successful return actual length of key ( >0 ), 0: no object to read, -1: buffer_size tool short, <= -2:
- * error
+ * @return if successful return actual length of key ( >0 ), 0: no object to read, -1: buffer_size
+ * tool short, <= -2: error
  */
 int TVM_RT_WASM_JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size);
 

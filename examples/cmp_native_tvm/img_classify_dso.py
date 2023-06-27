@@ -1,9 +1,10 @@
+import argparse
+
+import numpy as np
 import tvm
+from PIL import Image
 from tvm.contrib import graph_executor
 from tvm.contrib.download import download_testdata
-import numpy as np
-from PIL import Image
-import argparse
 
 
 def get_classification_inputs():

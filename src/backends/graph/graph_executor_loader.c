@@ -13,8 +13,10 @@
 static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *, TVM_RT_WASM_GraphExecutor);
-static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *, TVM_RT_WASM_GraphExecutor);
-static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *, TVM_RT_WASM_GraphExecutor);
+static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *,
+                                                                 TVM_RT_WASM_GraphExecutor);
+static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *,
+                                                                TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *, TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *, TVM_RT_WASM_GraphExecutor);
 
@@ -32,8 +34,9 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *, TVM_RT_
  * \param graph the instance.
  * \return 0 if successful.
  */
-int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle, const DLDevice *devices,
-                                  uint32_t num_dev, TVM_RT_WASM_GraphExecutor graph) {
+int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle,
+                                  const DLDevice *devices, uint32_t num_dev,
+                                  TVM_RT_WASM_GraphExecutor graph) {
     // Init JsonReader
     JsonReader *reader = NULL;
     TVM_RT_WASM_JsonReader_Create(graph_json, &reader);
@@ -82,7 +85,8 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     }
     if (unlikely(bitmask != (1 | 2 | 4 | 8 | 16))) {
         status = -1;
-        TVM_RT_SET_ERROR_AND_GOTO(load_parse_json_fail, "Json needs key: nodes,arg_nodes,heads,attrs,node_row_ptr");
+        TVM_RT_SET_ERROR_AND_GOTO(load_parse_json_fail,
+                                  "Json needs key: nodes,arg_nodes,heads,attrs,node_row_ptr");
     }
 
     // release JsonReader
@@ -101,7 +105,8 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     TVM_RT_WASM_TrieCreate(&graph->inputs_map);
     for (uintptr_t i = 0; i < graph->num_inputs_nodes; ++i) {
         uint32_t nid = graph->inputs_nodes[i];
-        status = TVM_RT_WASM_TrieInsert(graph->inputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
+        status = TVM_RT_WASM_TrieInsert(graph->inputs_map, (const uint8_t *)graph->nodes[nid].name,
+                                        (void *)i);
         if (status) {
             TVM_RT_SET_ERROR_RETURN(status, "Insert data to inputs map fail");
         }
@@ -110,7 +115,8 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     TVM_RT_WASM_TrieCreate(&graph->outputs_map);
     for (uintptr_t i = 0; i < graph->num_outputs; ++i) {
         uint32_t nid = graph->outputs_nodes[i].node_id;
-        status = TVM_RT_WASM_TrieInsert(graph->outputs_map, (const uint8_t *)graph->nodes[nid].name, (void *)i);
+        status = TVM_RT_WASM_TrieInsert(graph->outputs_map, (const uint8_t *)graph->nodes[nid].name,
+                                        (void *)i);
         if (status) {
             TVM_RT_SET_ERROR_RETURN(status, "Insert data to outputs map fail");
         }
@@ -155,11 +161,13 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
     storage_size = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(size_t) * num_storage);
     memset(storage_size, 0, sizeof(size_t) * num_storage);
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-        size_t now_size = TVM_RT_WASM_DLTensor_GetDataSize(graph->data_entry[i].dl_tensor.shape,
-                                                           (int)graph->data_entry[i].dl_tensor.ndim);
-        now_size =
-            ((graph->data_entry[i].dl_tensor.dtype.bits * graph->data_entry[i].dl_tensor.dtype.lanes + 7U) / 8U) *
-            now_size;
+        size_t now_size = TVM_RT_WASM_DLTensor_GetDataSize(
+            graph->data_entry[i].dl_tensor.shape, (int)graph->data_entry[i].dl_tensor.ndim);
+        now_size = ((graph->data_entry[i].dl_tensor.dtype.bits *
+                         graph->data_entry[i].dl_tensor.dtype.lanes +
+                     7U) /
+                    8U) *
+                   now_size;
         if (unlikely(now_size == 0)) {
             status = -1;
             TVM_RT_SET_ERROR_AND_GOTO(setup_storage_return, "Shape[%d] cannot contains 0", i);
@@ -176,11 +184,14 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
         if ((int)storage_device[sid].device_type == -1) {
             storage_device[sid].device_type = graph->data_entry[i].dl_tensor.device.device_type;
         } else {
-            if (unlikely(storage_device[sid].device_type != graph->data_entry[i].dl_tensor.device.device_type)) {
+            if (unlikely(storage_device[sid].device_type !=
+                         graph->data_entry[i].dl_tensor.device.device_type)) {
                 status = -1;
                 TVM_RT_SET_ERROR_AND_GOTO(
-                    setup_storage_return, "The same storage requires the same device_type, but got %d and %d",
-                    storage_device[sid].device_type, graph->data_entry[i].dl_tensor.device.device_type);
+                    setup_storage_return,
+                    "The same storage requires the same device_type, but got %d and %d",
+                    storage_device[sid].device_type,
+                    graph->data_entry[i].dl_tensor.device.device_type);
             }
         }
     }
@@ -201,7 +212,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
     static const char *lookup_linked_param_func_name = "_lookup_linked_param";
     Module *graph_lib_mod = (Module *)graph->module_handle;
     PackedFunction *func;
-    status = graph_lib_mod->GetFunction(graph_lib_mod, lookup_linked_param_func_name, 1, (TVMFunctionHandle *)&func);
+    status = graph_lib_mod->GetFunction(graph_lib_mod, lookup_linked_param_func_name, 1,
+                                        (TVMFunctionHandle *)&func);
     if (status == 0) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
@@ -220,8 +232,9 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
     for (uint32_t i = 0; i < num_storage; ++i) {
         if (graph->storages[i].is_linked_param == 0) {
 
-            if (unlikely(status = TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type,
-                                                          &(graph->storages[i].storage)))) {
+            if (unlikely(status =
+                             TVMDeviceAllocDataSpace(storage_device[i], storage_size[i], 0, no_type,
+                                                     &(graph->storages[i].storage)))) {
                 goto setup_storage_return;
             }
         }
@@ -229,7 +242,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
 
     // set up the data_entry
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-        graph->data_entry[i].dl_tensor.data = graph->storages[graph->data_entry[i].storage_id].storage;
+        graph->data_entry[i].dl_tensor.data =
+            graph->storages[graph->data_entry[i].storage_id].storage;
     }
 
 setup_storage_return:
@@ -254,11 +268,13 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
 
     uint32_t num_op_storage = 0;
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
-        graph->nodeOps[nid].num_args = (int)(graph->nodes[nid].num_inputs + graph->nodes[nid].num_outputs);
+        graph->nodeOps[nid].num_args =
+            (int)(graph->nodes[nid].num_inputs + graph->nodes[nid].num_outputs);
         num_op_storage += graph->nodeOps[nid].num_args;
     }
     graph->node_op_arg_type_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int) * num_op_storage);
-    graph->node_op_arg_value_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * num_op_storage);
+    graph->node_op_arg_value_storage =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * num_op_storage);
     TVMValue *alloc_value = graph->node_op_arg_value_storage;
     int *alloc_type = graph->node_op_arg_type_storage;
 
@@ -279,7 +295,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
             }
             for (uint32_t i = 0; i < node->num_outputs; ++i) {
                 int eid = DATA_ENTRY_ID(graph, nid, i);
-                nodeOp->arg_values[node->num_inputs + i].v_handle = &graph->data_entry[eid].dl_tensor;
+                nodeOp->arg_values[node->num_inputs + i].v_handle =
+                    &graph->data_entry[eid].dl_tensor;
                 nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
             }
 
@@ -288,7 +305,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
                 continue;
             }
 
-            int status = graph_lib_mod->GetFunction(graph_lib_mod, node->func_name, 1, &nodeOp->exec);
+            int status =
+                graph_lib_mod->GetFunction(graph_lib_mod, node->func_name, 1, &nodeOp->exec);
             if (unlikely(status)) {
                 TVM_RT_SET_ERROR_RETURN(-1, "Cannot find function name `%s`", node->func_name);
             }
@@ -303,32 +321,33 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
 }
 
 #define JSON_READER_ERROR_PREFIX "Graph Json parse error: "
-#define JSON_ERROR(fmt, ...) TVM_RT_SET_ERROR_RETURN(-1, "%s" fmt, JSON_READER_ERROR_PREFIX, ##__VA_ARGS__)
+#define JSON_ERROR(fmt, ...)                                                                       \
+    TVM_RT_SET_ERROR_RETURN(-1, "%s" fmt, JSON_READER_ERROR_PREFIX, ##__VA_ARGS__)
 
 /*! \brief json next array item exist check */
-#define ARRAY_CHECK_NEXT_EXISTS(reader, fmt, ...)                                                                      \
-    do {                                                                                                               \
-        status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                                         \
-        if (unlikely(status != 1)) {                                                                                   \
-            JSON_ERROR(fmt, ##__VA_ARGS__);                                                                            \
-        }                                                                                                              \
+#define ARRAY_CHECK_NEXT_EXISTS(reader, fmt, ...)                                                  \
+    do {                                                                                           \
+        status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                     \
+        if (unlikely(status != 1)) {                                                               \
+            JSON_ERROR(fmt, ##__VA_ARGS__);                                                        \
+        }                                                                                          \
     } while (0)
 
 /*! \brief json next array item no-exist check */
-#define ARRAY_CHECK_NEXT_NON_EXISTS(reader, fmt, ...)                                                                  \
-    do {                                                                                                               \
-        status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                                         \
-        if (unlikely(status != 0)) {                                                                                   \
-            JSON_ERROR(fmt, ##__VA_ARGS__);                                                                            \
-        }                                                                                                              \
+#define ARRAY_CHECK_NEXT_NON_EXISTS(reader, fmt, ...)                                              \
+    do {                                                                                           \
+        status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                     \
+        if (unlikely(status != 0)) {                                                               \
+            JSON_ERROR(fmt, ##__VA_ARGS__);                                                        \
+        }                                                                                          \
     } while (0)
 
 /*! \brief parse the digit string */
-#define STR_DIGIT_TO_UINT(str, str_len, num)                                                                           \
-    do {                                                                                                               \
-        for (int i = 0; i < (str_len); ++i) {                                                                          \
-            (num) = ((num) << 3) + ((num) << 1) + (str)[i] - '0';                                                      \
-        }                                                                                                              \
+#define STR_DIGIT_TO_UINT(str, str_len, num)                                                       \
+    do {                                                                                           \
+        for (int i = 0; i < (str_len); ++i) {                                                      \
+            (num) = ((num) << 3) + ((num) << 1) + (str)[i] - '0';                                  \
+        }                                                                                          \
     } while (0)
 
 /*!
@@ -337,7 +356,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader,
+                                                      TVM_RT_WASM_GraphExecutor graph) {
     size_t node_size = 0;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &node_size);
     if (unlikely(status)) {
@@ -364,7 +384,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
         char key[GRAPH_JSON_KEY_SIZE];
         while (TVM_RT_WASM_JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
             if (!strcmp(key, "op")) {
-                int str_len = TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                int str_len =
+                    TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
                 if (unlikely(str_len <= 0)) {
                     JSON_ERROR("Parse string for GraphExecutorNode.op fail");
                 }
@@ -373,7 +394,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
                 strcpy((char *)node->op_type, global_buf);
 
             } else if (!strcmp(key, "name")) {
-                int str_len = TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                int str_len =
+                    TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
                 if (unlikely(str_len <= 0)) {
                     JSON_ERROR("Parse GraphExecutorNode.op fail");
                 }
@@ -389,7 +411,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
 
                 if (inputs_num) {
                     node->num_inputs = inputs_num;
-                    node->inputs = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeEntry) * inputs_num);
+                    node->inputs =
+                        TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeEntry) * inputs_num);
                     memset(node->inputs, 0, sizeof(GraphExecutorNodeEntry));
                 }
                 for (uint32_t inputs_count = 0; inputs_count < inputs_num; ++inputs_count) {
@@ -398,14 +421,16 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
                     // node_id
                     ARRAY_CHECK_NEXT_EXISTS(reader, "No element for NodeEntry.node_id"); // '['
 
-                    status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &node->inputs[inputs_count].node_id);
+                    status = TVM_RT_WASM_JsonReader_Read_uint32(
+                        reader, &node->inputs[inputs_count].node_id);
                     if (unlikely(status)) {
                         JSON_ERROR("Read uint32 fail for NodeEntry.node_id");
                     }
                     // index
                     ARRAY_CHECK_NEXT_EXISTS(reader, "No element for NodeEntry.index"); // ','
 
-                    status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &node->inputs[inputs_count].index);
+                    status = TVM_RT_WASM_JsonReader_Read_uint32(reader,
+                                                                &node->inputs[inputs_count].index);
                     if (unlikely(status)) {
                         JSON_ERROR("Read uint32 fail for NodeEntry.index");
                     }
@@ -419,14 +444,18 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
                             JSON_ERROR("Read uint32 fail for NodeEntry.version");
                         }
 
-                        ARRAY_CHECK_NEXT_NON_EXISTS(reader, "NodeEntry need len = 2 or 3, but given >3");
+                        ARRAY_CHECK_NEXT_NON_EXISTS(reader,
+                                                    "NodeEntry need len = 2 or 3, but given >3");
                     }
                 }
-                ARRAY_CHECK_NEXT_NON_EXISTS(reader, "Inputs len expect %zu, parse fail", inputs_num); // ']'
+                ARRAY_CHECK_NEXT_NON_EXISTS(reader, "Inputs len expect %zu, parse fail",
+                                            inputs_num); // ']'
 
             } else if (!strcmp(key, "attr") || !strcmp(key, "attrs")) {
-                while (TVM_RT_WASM_JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) > 0) {
-                    int str_len = TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
+                while (TVM_RT_WASM_JsonReader_NextObjectItem(reader, key, GRAPH_JSON_KEY_SIZE) >
+                       0) {
+                    int str_len =
+                        TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
                     if (unlikely(str_len == -1)) {
                         JSON_ERROR("Parse string for Node Attrs key fail");
                     }
@@ -441,8 +470,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
                         uint32_t num_inputs_tmp = 0;
                         STR_DIGIT_TO_UINT(global_buf, str_len, num_inputs_tmp);
                         if (unlikely(node->inputs != NULL && num_inputs_tmp != node->num_inputs)) {
-                            JSON_ERROR("Node Attrs.num_inputs(%d) != Attrs.inputs.len(%d)", num_inputs_tmp,
-                                       node->num_inputs);
+                            JSON_ERROR("Node Attrs.num_inputs(%d) != Attrs.inputs.len(%d)",
+                                       num_inputs_tmp, node->num_inputs);
                         }
 
                     } else if (!strcmp(key, "num_outputs")) {
@@ -471,7 +500,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader, TVM_RT
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader, TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *reader,
+                                                                 TVM_RT_WASM_GraphExecutor graph) {
     size_t input_size;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &input_size);
     if (unlikely(status)) {
@@ -504,7 +534,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *rea
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader, TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *reader,
+                                                                TVM_RT_WASM_GraphExecutor graph) {
     size_t entry_size;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &entry_size);
     if (unlikely(status)) {
@@ -523,14 +554,16 @@ static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *read
         // node_id
         ARRAY_CHECK_NEXT_EXISTS(reader, "No element for outputs NodeEntry.node_id"); // '['
 
-        status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &(graph->outputs_nodes[entry_count].node_id));
+        status = TVM_RT_WASM_JsonReader_Read_uint32(reader,
+                                                    &(graph->outputs_nodes[entry_count].node_id));
         if (unlikely(status)) {
             JSON_ERROR("Read uint32 fail for outputs NodeEntry.node_id");
         }
         // index
         ARRAY_CHECK_NEXT_EXISTS(reader, "No element for outputs NodeEntry.index");
 
-        status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &(graph->outputs_nodes[entry_count].index));
+        status =
+            TVM_RT_WASM_JsonReader_Read_uint32(reader, &(graph->outputs_nodes[entry_count].index));
         if (unlikely(status)) {
             JSON_ERROR("Read uint32 fail for outputs NodeEntry.index");
         }
@@ -557,7 +590,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *read
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader,
+                                                      TVM_RT_WASM_GraphExecutor graph) {
     int status = 0;
     size_t storage_id_size = 0;
     size_t device_type_size = 0;
@@ -600,7 +634,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
                 if (unlikely(str_len <= 0)) {
                     JSON_ERROR("Parse GraphAttr data_type array element fail");
                 }
-                status = TVM_RT_WASM_DLDataType_ParseFromString(global_buf, &graph->data_entry[i].dl_tensor.dtype);
+                status = TVM_RT_WASM_DLDataType_ParseFromString(
+                    global_buf, &graph->data_entry[i].dl_tensor.dtype);
                 if (unlikely(status)) {
                     return status;
                 }
@@ -627,7 +662,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
                 JSON_ERROR("Parse GraphAttr storage_id array length fail");
             }
             if (graph->data_entry == NULL) {
-                graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * storage_id_size);
+                graph->data_entry =
+                    TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * storage_id_size);
                 memset(graph->data_entry, 0, sizeof(DataEntry) * storage_id_size);
                 graph->num_data_entry = storage_id_size;
             } else {
@@ -639,7 +675,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
             for (size_t i = 0; i < storage_id_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, "Parse GraphAttr storage_id array element fail");
 
-                status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &graph->data_entry[i].storage_id);
+                status =
+                    TVM_RT_WASM_JsonReader_Read_uint32(reader, &graph->data_entry[i].storage_id);
                 if (unlikely(status)) {
                     JSON_ERROR("Parse GraphAttr storage_id array element fail");
                 }
@@ -665,7 +702,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
                 JSON_ERROR("Parse GraphAttr device_index array length fail");
             }
             if (graph->data_entry == NULL) {
-                graph->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * device_type_size);
+                graph->data_entry =
+                    TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * device_type_size);
                 memset(graph->data_entry, 0, sizeof(DataEntry) * device_type_size);
                 graph->num_data_entry = device_type_size;
             } else {
@@ -677,7 +715,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
             for (size_t i = 0; i < device_type_size; ++i) {
                 ARRAY_CHECK_NEXT_EXISTS(reader, "Parse GraphAttr dev_type array element fail");
 
-                status = TVM_RT_WASM_JsonReader_Read_uint32(reader, &graph->data_entry[i].dl_tensor.device.device_type);
+                status = TVM_RT_WASM_JsonReader_Read_uint32(
+                    reader, &graph->data_entry[i].dl_tensor.device.device_type);
                 if (unlikely(status)) {
                     JSON_ERROR("Parse GraphAttr dev_type array element fail");
                 }
@@ -720,13 +759,15 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
                 if (unlikely(status)) {
                     JSON_ERROR("Parse GraphAttr shape.dim element fail");
                 }
-                graph->data_entry[i].dl_tensor.shape = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int64_t) * ndim);
+                graph->data_entry[i].dl_tensor.shape =
+                    TVM_RT_WASM_HeapMemoryAlloc(sizeof(int64_t) * ndim);
                 memset(graph->data_entry[i].dl_tensor.shape, 0, sizeof(int64_t) * ndim);
                 graph->data_entry[i].dl_tensor.ndim = (int)ndim;
 
                 for (size_t dim = 0; dim < ndim; ++dim) {
                     ARRAY_CHECK_NEXT_EXISTS(reader, "Parse GraphAttr shape.dim element fail");
-                    status = TVM_RT_WASM_JsonReader_Read_int64(reader, graph->data_entry[i].dl_tensor.shape + dim);
+                    status = TVM_RT_WASM_JsonReader_Read_int64(
+                        reader, graph->data_entry[i].dl_tensor.shape + dim);
                     if (unlikely(status)) {
                         JSON_ERROR("Parse GraphAttr shape.dim (uint64_t) fail");
                     }
@@ -756,7 +797,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader, TVM_RT
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader, TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *reader,
+                                                           TVM_RT_WASM_GraphExecutor graph) {
     size_t ptr_size;
     int status = TVM_RT_WASM_JsonReader_ArrayLength(reader, &ptr_size);
     if (unlikely(status)) {

@@ -78,7 +78,8 @@ static int TVM_RT_WASM_GraphExecutorCUDAClone(void *d, void **cloned) {
  * \return 0 if successful.
  */
 int TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(TVM_RT_WASM_GraphExecutor g) {
-    CUDAGraphExecutorExtensionData *d = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAGraphExecutorExtensionData));
+    CUDAGraphExecutorExtensionData *d =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAGraphExecutorExtensionData));
     DeviceAPI *deviceApi = NULL;
     int status = TVM_RT_WASM_DeviceAPIGet(kDLCUDA, &deviceApi);
     if (unlikely(status)) {
@@ -90,7 +91,8 @@ int TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(TVM_RT_WASM_GraphExecutor g
     deviceApi->SetStream(g->devices[0].device_id, d->cu_stream);
 
     // begin capture
-    CUDA_DRIVER_CALL_OR_GOTO(cuStreamBeginCapture(d->cu_stream, CU_STREAM_CAPTURE_MODE_THREAD_LOCAL), fail);
+    CUDA_DRIVER_CALL_OR_GOTO(
+        cuStreamBeginCapture(d->cu_stream, CU_STREAM_CAPTURE_MODE_THREAD_LOCAL), fail);
 
     status = TVM_RT_WASM_GraphExecutorRun(g);
     if (unlikely(status)) {

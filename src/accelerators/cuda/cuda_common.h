@@ -15,24 +15,24 @@ extern "C" {
 #include <cuda.h>
 #include <utils/common.h>
 
-#define CUDA_DRIVER_CALL(x)                                                                                            \
-    do {                                                                                                               \
-        CUresult result = (x);                                                                                         \
-        if (unlikely(result != CUDA_SUCCESS)) {                                                                        \
-            const char *msg;                                                                                           \
-            cuGetErrorString(result, &msg);                                                                            \
-            TVM_RT_SET_ERROR_RETURN(-1, "CUDA Driver Call Error: %s", msg);                                            \
-        }                                                                                                              \
+#define CUDA_DRIVER_CALL(x)                                                                        \
+    do {                                                                                           \
+        CUresult result = (x);                                                                     \
+        if (unlikely(result != CUDA_SUCCESS)) {                                                    \
+            const char *msg;                                                                       \
+            cuGetErrorString(result, &msg);                                                        \
+            TVM_RT_SET_ERROR_RETURN(-1, "CUDA Driver Call Error: %s", msg);                        \
+        }                                                                                          \
     } while (0)
 
-#define CUDA_DRIVER_CALL_OR_GOTO(x, label)                                                                             \
-    do {                                                                                                               \
-        CUresult result = (x);                                                                                         \
-        if (unlikely(result != CUDA_SUCCESS)) {                                                                        \
-            const char *msg;                                                                                           \
-            cuGetErrorString(result, &msg);                                                                            \
-            TVM_RT_SET_ERROR_AND_GOTO(label, "CUDA Driver Call Error: %s", msg);                                       \
-        }                                                                                                              \
+#define CUDA_DRIVER_CALL_OR_GOTO(x, label)                                                         \
+    do {                                                                                           \
+        CUresult result = (x);                                                                     \
+        if (unlikely(result != CUDA_SUCCESS)) {                                                    \
+            const char *msg;                                                                       \
+            cuGetErrorString(result, &msg);                                                        \
+            TVM_RT_SET_ERROR_AND_GOTO(label, "CUDA Driver Call Error: %s", msg);                   \
+        }                                                                                          \
     } while (0)
 
 #ifdef __cplusplus

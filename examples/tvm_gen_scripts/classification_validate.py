@@ -1,12 +1,12 @@
 import os.path
 
-import tvm.runtime.ndarray
-from tvm.contrib.download import download_testdata
 import numpy as np
+import tvm.runtime.ndarray
 from PIL import Image
+from tvm.contrib.download import download_testdata
 
-from module_process import build_ir_module, run_module
 from model_info import get_ir_module_from_frontend, get_model_info
+from module_process import build_ir_module, run_module
 from utils import get_arg_parser, get_tvm_target
 
 
