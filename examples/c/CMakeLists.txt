@@ -64,6 +64,9 @@ set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 #-----------------------------------------------------------------------------------------------------------------------
 project(tvm-rt-wasm-c-examples LANGUAGES C)
 
+if (${BUILD_MEMORY_CHECK})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+endif ()
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR) # This CMakeLists.txt is in source top level, must find tvm-rt-wasm package
     find_package(tvm-rt-wasm REQUIRED PATHS ${TVM_RT_WASM_ROOT})
 else () # This CmakeLists.txt is built as a subdirectory in tvm-rt-wasm project, (for developers).
@@ -79,6 +82,7 @@ else () # This CmakeLists.txt is built as a subdirectory in tvm-rt-wasm project,
     endif ()
     _add_imported_library(tvm-rt-backend-graph)
     _add_imported_library(tvm-rt-backend-aot)
+    _add_imported_library(tvm-rt-backend-relay-vm)
     _add_imported_library(tvm-rt-core)
 endif ()
 
@@ -97,7 +101,7 @@ elseif (${_ENABLE_EMSDK})
 else () # native toolchain
     link_libraries(m)
     set(TVM_HOST_TARGET "native")
-    add_link_options(-Wl,--strip-all)
+    #    add_link_options(-Wl,--strip-all)
 endif ()
 
 # Setup CUDA library
@@ -256,6 +260,13 @@ set(mobilenet-aot_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet-aot)
 set(mobilenet-aot_sources mobilenet-aot/mobilenet-aot.c)
 add_tvm_bundle_executable(mobilenet-aot ${mobilenet-aot_sources} "mobilenet" ${mobilenet-aot_lib_dir} "aot")
 
+## add mobilenet relay vm target
+## now the tvm cannot generate relay vm system-lib. todo: support it.
+set(mobilenet-relay-vm_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet-relay-vm)
+set(mobilenet-relay-vm_sources mobilenet-relay-vm/mobilenet-relay-vm.c)
+add_tvm_bundle_executable(mobilenet-relay-vm ${mobilenet-relay-vm_sources} "mobilenet" ${mobilenet-relay-vm_lib_dir} "relay_vm")
+
+
 ## dso library test
 if (NOT ${_ENABLE_WASI_SDK})
     function(add_dso_executable target_name sources)
@@ -264,6 +275,7 @@ if (NOT ${_ENABLE_WASI_SDK})
         target_link_libraries(${target_name} PRIVATE
                 tvm-rt-wasm::tvm-rt-backend-aot
                 tvm-rt-wasm::tvm-rt-backend-graph
+                tvm-rt-wasm::tvm-rt-backend-relay-vm
                 tvm-rt-wasm::tvm-rt-core)
         target_compile_definitions(${target_name} PRIVATE -DDSO_TEST)
         if (${_ENABLE_EMSDK})
@@ -276,4 +288,6 @@ if (NOT ${_ENABLE_WASI_SDK})
     add_dso_executable(mobilenet-dso mobilenet/mobilenet.c)
     # for aot executor
     add_dso_executable(mobilenet-aot-dso mobilenet-aot/mobilenet-aot.c)
+    # for relay vm
+    add_dso_executable(mobilenet-relay-vm-dso mobilenet-relay-vm/mobilenet-relay-vm.c)
 endif ()

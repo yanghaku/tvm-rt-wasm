@@ -63,8 +63,8 @@ int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandl
     CHECK_INPUT_POINTER(file_name, -2, "Filename");
     CHECK_INPUT_POINTER(format, -2, "Format");
     CHECK_INPUT_POINTER(out, -2, "TVMModuleHandle pointer");
-    return TVM_RT_WASM_ModuleFactory(format, file_name, MODULE_FACTORY_RESOURCE_FILE,
-                                     (Module **)out);
+    return TVM_RT_WASM_ModuleFactory(format, strlen(format), file_name,
+                                     MODULE_FACTORY_RESOURCE_FILE, (Module **)out);
 }
 
 /*!

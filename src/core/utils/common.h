@@ -127,7 +127,7 @@ extern char global_buf[];
         }                                                                                          \
     } while (0)
 
-#define CHECK_NodeRange(max_r, index)                                                              \
+#define CHECK_INDEX_RANGE(max_r, index)                                                            \
     do {                                                                                           \
         if (unlikely((index) >= (max_r))) {                                                        \
             TVM_RT_SET_ERROR_RETURN(-2,                                                            \

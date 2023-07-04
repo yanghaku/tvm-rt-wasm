@@ -103,8 +103,8 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
     // if module_handle is NULL, use the system library.
     if (module_handle == NULL) {
         SET_TIME(t0)
-        int status =
-            TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
+        int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, sizeof(MODULE_SYSTEM_LIB) - 1,
+                                               NULL, 0, (Module **)&module_handle);
         if (unlikely(status)) {
             return NULL;
         }
@@ -216,7 +216,7 @@ int TVM_RT_WASM_AotExecutorSetInput(TVM_RT_WASM_AotExecutor a, uint32_t index,
                                     const DLTensor *data_in) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(data_in, -2, "DLTensor");
-    CHECK_NodeRange((uint32_t)a->metadata->num_inputs, index);
+    CHECK_INDEX_RANGE((uint32_t)a->metadata->num_inputs, index);
     return TVMDeviceCopyDataFromTo((DLTensor *)data_in, &a->tensors[index], NULL);
 }
 
@@ -234,7 +234,7 @@ int TVM_RT_WASM_AotExecutorGetOutput(TVM_RT_WASM_AotExecutor a, uint32_t index,
                                      DLTensor *data_out) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(data_out, -2, "DLTensor");
-    CHECK_NodeRange((uint32_t)a->metadata->num_outputs, index);
+    CHECK_INDEX_RANGE((uint32_t)a->metadata->num_outputs, index);
     return TVMDeviceCopyDataFromTo(&a->tensors[a->metadata->num_inputs + index], data_out, NULL);
 }
 
@@ -288,7 +288,7 @@ int TVM_RT_WASM_AotExecutorGetInputDataType(TVM_RT_WASM_AotExecutor a, uint32_t 
                                             DLDataType *type_ptr) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(type_ptr, -2, "DLDataType pointer");
-    CHECK_NodeRange((uint32_t)a->metadata->num_inputs, index);
+    CHECK_INDEX_RANGE((uint32_t)a->metadata->num_inputs, index);
 
     *type_ptr = a->metadata->inputs[index].dtype;
     return 0;
@@ -298,7 +298,7 @@ int TVM_RT_WASM_AotExecutorGetOutputDataType(TVM_RT_WASM_AotExecutor a, uint32_t
                                              DLDataType *type_ptr) {
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(type_ptr, -2, "DLDataType pointer");
-    CHECK_NodeRange((uint32_t)a->metadata->num_outputs, index);
+    CHECK_INDEX_RANGE((uint32_t)a->metadata->num_outputs, index);
 
     *type_ptr = a->metadata->outputs[index].dtype;
     return 0;
@@ -309,7 +309,7 @@ int TVM_RT_WASM_AotExecutorGetInputShape(TVM_RT_WASM_AotExecutor a, uint32_t ind
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(shape_ptr, -2, "shape pointer");
     CHECK_INPUT_POINTER(ndim_ptr, -2, "ndim pointer");
-    CHECK_NodeRange((uint32_t)a->metadata->num_inputs, index);
+    CHECK_INDEX_RANGE((uint32_t)a->metadata->num_inputs, index);
 
     const struct TVMTensorInfo *in_tensor = a->metadata->inputs + index;
     *shape_ptr = in_tensor->shape;
@@ -322,7 +322,7 @@ int TVM_RT_WASM_AotExecutorGetOutputShape(TVM_RT_WASM_AotExecutor a, uint32_t in
     CHECK_AotExecutor(a);
     CHECK_INPUT_POINTER(shape_ptr, -2, "shape pointer");
     CHECK_INPUT_POINTER(ndim_ptr, -2, "ndim pointer");
-    CHECK_NodeRange((uint32_t)a->metadata->num_outputs, index);
+    CHECK_INDEX_RANGE((uint32_t)a->metadata->num_outputs, index);
 
     const struct TVMTensorInfo *out_tensor = a->metadata->outputs + index;
     *shape_ptr = out_tensor->shape;

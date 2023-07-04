@@ -17,6 +17,7 @@ endif ()
 # Used for the developers.
 option(BUILD_EXAMPLES "Build the examples." OFF)
 option(BUILD_TESTS "Build the tests." OFF)
+option(BUILD_MEMORY_CHECK "Build with the memory sanitize." OFF)
 
 #------------------------- Check options and setup toolchain -----------------------------------------------------------
 set(_ENABLE_CUDA ON)
@@ -95,6 +96,7 @@ function(add_backend_library _target_name _backend_folder)
 endfunction()
 add_backend_library(tvm-rt-backend-graph src/backends/graph)
 add_backend_library(tvm-rt-backend-aot src/backends/aot)
+add_backend_library(tvm-rt-backend-relay-vm src/backends/relay_vm)
 
 ## CUDA library target.
 if (${_ENABLE_CUDA})
@@ -129,7 +131,7 @@ if (${_ENABLE_EMSDK})
             -sERROR_ON_UNDEFINED_SYMBOLS=1 -sMODULARIZE=1 -sSINGLE_FILE=1 -sEXPORT_NAME="tvm_rt_module_create"
             -sEXPORTED_RUNTIME_METHODS=["FS","stackAlloc","stackSave","stackRestore","stringToUTF8","UTF8ToString","stringToNewUTF8","stringToUTF8OnStack"])
 
-    set(_tvm_module_lib_deps tvm-rt-backend-graph tvm-rt-backend-aot tvm-rt-core)
+    set(_tvm_module_lib_deps tvm-rt-backend-graph tvm-rt-backend-aot tvm-rt-backend-relay-vm tvm-rt-core)
     if (${_ENABLE_WEBGPU})
         target_link_options(tvm-rt-module PRIVATE -sASYNCIFY)
         list(APPEND _tvm_module_lib_deps -Wl,--whole-archive tvm-rt-webgpu -Wl,--no-whole-archive)
@@ -146,6 +148,7 @@ endfunction()
 install_library(tvm-rt-core)
 install_library(tvm-rt-backend-graph)
 install_library(tvm-rt-backend-aot)
+install_library(tvm-rt-backend-relay-vm)
 if (${_ENABLE_CUDA})
     install_library(tvm-rt-cuda)
 endif ()
@@ -175,6 +178,7 @@ install(FILES 3rdparty/tvm/include/tvm/runtime/c_runtime_api.h DESTINATION inclu
 install(FILES 3rdparty/dlpack/include/dlpack/dlpack.h DESTINATION include/dlpack/)
 install(FILES include/graph_executor.h
         include/aot_executor.h
+        include/relay_vm.h
         DESTINATION include)
 
 # install LICENSE file
@@ -182,4 +186,8 @@ install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 if (${BUILD_EXAMPLES})
     add_subdirectory(examples/c EXCLUDE_FROM_ALL)
+endif ()
+
+if (${BUILD_MEMORY_CHECK})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
 endif ()

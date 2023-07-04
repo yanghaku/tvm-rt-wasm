@@ -52,8 +52,7 @@ static int TVM_RT_WASM_SysLibModuleReleaseFunc(Module *self) {
     return 0;
 }
 
-static void visit_symbol_change_to_func(char c, void **data_ptr, void *source_handle) {
-    (void)c;
+static void visit_symbol_change_to_func(void **data_ptr, void *source_handle) {
     static int now_functions = 0;
     PackedFunction *pf = (PackedFunction *)source_handle;
     if (*data_ptr != NULL) {

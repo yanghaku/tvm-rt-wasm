@@ -28,8 +28,7 @@ typedef void *TVM_RT_LIB_NATIVE_HANDLE;
 #include <module/module.h>
 
 /*! \brief Free all packed functions for dso module. */
-static void visit_dso_funcs_free(char c, void **data_ptr, void *_) {
-    (void)c;
+static void visit_dso_funcs_free(void **data_ptr, void *_) {
     (void)_;
     if (*data_ptr != NULL) {
         TVM_RT_WASM_HeapMemoryFree(*data_ptr);
@@ -80,10 +79,15 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
 /*!
  * \brief Create a library module from the dynamic shared library.
  * @param filename the filename
+ * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
  * @param libraryModule the out handle
  * @return 0 if successful
  */
-int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **dsoModule) {
+int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, int resource_type,
+                                       Module **dsoModule) {
+    if (unlikely(resource_type != MODULE_FACTORY_RESOURCE_FILE)) {
+        TVM_RT_SET_ERROR_RETURN(-1, "The dso library can only be load from file");
+    }
     TVM_RT_LIB_NATIVE_HANDLE native_handle = TVM_RT_WASM_OPEN_LIB(filename, RTLD_LAZY);
     if (unlikely(native_handle == NULL)) {
         TVM_RT_SET_ERROR_RETURN(-1, "Cannot load shared library %s", filename);

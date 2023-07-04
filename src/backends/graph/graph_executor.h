@@ -1,8 +1,7 @@
 /*!
- * \file graph/graph_executor.h
- * \brief graph_executor struct definition
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+ * @file graph/graph_executor.h
+ * @brief graph_executor struct definition
+ * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #ifndef TVM_RT_WASM_BACKENDS_GRAPH_GRAPH_EXECUTOR_INNER_H_INCLUDE_
@@ -15,6 +14,7 @@ extern "C" {
 #include <graph_executor.h>
 #include <tvm/runtime/c_backend_api.h>
 #include <tvm/runtime/c_runtime_api.h>
+#include <utils/stream_reader.h>
 #include <utils/trie.h>
 
 /**
@@ -45,139 +45,139 @@ extern "C" {
  *
  */
 
-/*! \brief NodeEntry for graph */
+/*! @brief NodeEntry for graph */
 typedef struct GraphExecutorNodeEntry {
-    /*! \brief id in node list */
+    /*! @brief id in node list */
     uint32_t node_id;
-    /*! \brief an entry that represents output data from a node */
+    /*! @brief an entry that represents output data from a node */
     uint32_t index;
-    // /*!\brief the version will not be used in this project */
+    // /*!@brief the version will not be used in this project */
     // uint32_t version;
 } GraphExecutorNodeEntry;
 
-/*! \brief Node for graph */
+/*! @brief Node for graph */
 typedef struct GraphExecutorNode {
-    /*! \brief inputs number in attr for node */
+    /*! @brief inputs number in attr for node */
     uint32_t num_inputs;
-    /*! \brief outputs number in attr for node */
+    /*! @brief outputs number in attr for node */
     uint32_t num_outputs;
-    /*! \brief flatten_data in attr_for node */
+    /*! @brief flatten_data in attr_for node */
     uint32_t flatten_data;
-    /*! \brief node_row_ptr (to quickly get data entry id) */
+    /*! @brief node_row_ptr (to quickly get data entry id) */
     uint32_t row_ptr;
 
-    /*! \brief the operator type for node */
+    /*! @brief the operator type for node */
     const char *op_type;
-    /*! \brief the name for node */
+    /*! @brief the name for node */
     const char *name;
-    /*! \brief the function name in attr for node */
+    /*! @brief the function name in attr for node */
     const char *func_name;
-    /*! \brief the inputs data NodeEntry */
+    /*! @brief the inputs data NodeEntry */
     GraphExecutorNodeEntry *inputs;
-    // /*! \brief control_dep, this will not be used in this project */
+    // /*! @brief control_dep, this will not be used in this project */
     // uint32_t *control_dep;
 } GraphExecutorNode;
 
-/*! \brief operator function information for every node */
+/*! @brief operator function information for every node */
 typedef struct GraphExecutorNodeOp {
-    /*! \brief the number of argument */
+    /*! @brief the number of argument */
     int num_args;
-    /*! \brief the return typeCode */
+    /*! @brief the return typeCode */
     int return_type_code;
-    /*! \brief the return value */
+    /*! @brief the return value */
     TVMValue return_value;
-    /*! \brief argument type_codes */
+    /*! @brief argument type_codes */
     int *arg_type_codes;
-    /*! \brief argument values */
+    /*! @brief argument values */
     TVMValue *arg_values;
-    /*! \brief the function handle */
+    /*! @brief the function handle */
     TVMFunctionHandle exec;
 } GraphExecutorNodeOp;
 
-/*! \brief the data entry */
+/*! @brief the data entry */
 typedef struct DataEntry {
     DLTensor dl_tensor;
     uint32_t storage_id;
 } DataEntry;
 
-/*! \brief the data storage pool entry */
+/*! @brief the data storage pool entry */
 typedef struct StorageEntry {
     void *storage;
     int is_linked_param;
 } StorageEntry;
 
-/*! \brief the GraphExecutor struct */
+/*! @brief the GraphExecutor struct */
 struct TVM_RT_WASM_GraphExecutor_st {
-    /*! \brief the number of nodes */
+    /*! @brief the number of nodes */
     uint32_t num_nodes;
-    /*! \brief the number of input nodes */
+    /*! @brief the number of input nodes */
     uint32_t num_inputs_nodes;
-    /*! \brief the number of outputs node entry */
+    /*! @brief the number of outputs node entry */
     uint32_t num_outputs;
-    /*! \brief the number of data entry */
+    /*! @brief the number of data entry */
     uint32_t num_data_entry;
-    /*! \brief the number of device */
+    /*! @brief the number of device */
     uint32_t num_device;
-    /*! \brief Node array */
+    /*! @brief Node array */
     GraphExecutorNode *nodes;
-    /*! \brief nodeOps array */
+    /*! @brief nodeOps array */
     GraphExecutorNodeOp *nodeOps;
-    /*! \brief inputs nodes index array */
+    /*! @brief inputs nodes index array */
     uint32_t *inputs_nodes;
-    /*! \brief outputs node entry array */
+    /*! @brief outputs node entry array */
     GraphExecutorNodeEntry *outputs_nodes;
-    /*! \brief data_entry array */
+    /*! @brief data_entry array */
     DataEntry *data_entry;
-    /*! \brief storage array */
+    /*! @brief storage array */
     StorageEntry *storages;
-    /*! \brief device array */
+    /*! @brief device array */
     DLDevice *devices;
-    /*! \brief module handle */
+    /*! @brief module handle */
     TVMModuleHandle module_handle;
-    /*! \brief map outputs name to output indices */
+    /*! @brief map outputs name to output indices */
     Trie *outputs_map;
-    /*! \brief map inputs name to inputs indices */
+    /*! @brief map inputs name to inputs indices */
     Trie *inputs_map;
-    /*! \brief the node operator argument value storage pool */
+    /*! @brief the node operator argument value storage pool */
     TVMValue *node_op_arg_value_storage;
-    /*! \brief the node operator argument type storage pool */
+    /*! @brief the node operator argument type storage pool */
     int *node_op_arg_type_storage;
 
     /*!
-     * \brief Execute the graph.
-     * \param g The instance of This.
-     * \return 0 if success
+     * @brief Execute the graph.
+     * @param g The instance of This.
+     * @return 0 if success
      */
     int (*Run)(struct TVM_RT_WASM_GraphExecutor_st *g);
 
     /*!
-     * \brief Free the extension_data.
-     * \param extension_data The pointer to extension_data.
-     * \return 0 if successful
+     * @brief Free the extension_data.
+     * @param extension_data The pointer to extension_data.
+     * @return 0 if successful
      */
     int (*Free)(void *extension_data);
 
     /*!
-     * \brief Clone the extension_data.
-     * \param extension_data The pointer to extension_data.
-     * \param cloned_extension_data Pointer which receive the new instance.
-     * \return 0 if successful
+     * @brief Clone the extension_data.
+     * @param extension_data The pointer to extension_data.
+     * @param cloned_extension_data Pointer which receive the new instance.
+     * @return 0 if successful
      */
     int (*Clone)(void *extension_data, void **cloned_extension_data);
 
-    /*! \brief for extension */
+    /*! @brief for extension */
     void *extension_data;
 };
 
 /*!
- * \brief init a new GraphExecutor from graph.json
+ * @brief Init a new GraphExecutor from graph.json
  *
- * \param graph_json JSON-encoded graph.
- * \param module_handle TVM Module that exposes the functions to call.
- * \param devices runtime execution device.
- * \param num_dev the number of devices
- * \param graph the instance.
- * \return 0 if successful.
+ * @param graph_json JSON-encoded graph.
+ * @param module_handle TVM Module that exposes the functions to call.
+ * @param devices runtime execution device.
+ * @param num_dev the number of devices
+ * @param graph the instance.
+ * @return 0 if successful.
  */
 int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle,
                                   const DLDevice *devices, uint32_t num_dev,
@@ -187,14 +187,14 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
 
 #define CHECK_GraphExecutor(g) CHECK_INPUT_POINTER(g, -2, "GraphExecutor")
 
-/*! \brief GetEntryId for GraphExecutor */
+/*! @brief GetEntryId for GraphExecutor */
 #define DATA_ENTRY_ID(graph, nid, index) ((graph)->nodes[(nid)].row_ptr + (index))
 
 /*!
- * \brief Allocate and initialize CUDA extension data for TVM_RT_WASM_GraphExecutor.
+ * @brief Allocate and initialize CUDA extension data for TVM_RT_WASM_GraphExecutor.
  *
- * \param g The instance of TVM_RT_WASM_GraphExecutor.
- * \return 0 if successful.
+ * @param g The instance of TVM_RT_WASM_GraphExecutor.
+ * @return 0 if successful.
  */
 int TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(TVM_RT_WASM_GraphExecutor g);
 

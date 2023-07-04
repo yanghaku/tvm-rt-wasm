@@ -1,14 +1,14 @@
 /*!
- * \file graph/graph_executor_loader.c
- * \brief parse json file and load graph_executor
- * \author YangBo MG21330067@smail.nju.edu.cn
+ * @file graph/graph_executor_loader.c
+ * @brief parse json file and load graph_executor
+ * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #include <device/cpu_memory.h>
 #include <graph/graph_executor.h>
 #include <graph/json.h>
+#include <graph/tensor_loader.h>
 #include <module/module.h>
-#include <utils/tensor_helper.h>
 
 static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor);
@@ -25,14 +25,14 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *, TVM_RT_
 #endif // GRAPH_JSON_KEY_SIZE
 
 /*!
- * \brief init a new GraphExecutor from graph.json
+ * @brief Init a new GraphExecutor from graph.json
  *
- * \param graph_json JSON-encoded graph.
- * \param module_handle TVM Module that exposes the functions to call.
- * \param devices runtime execution device.
- * \param num_dev the number of devices
- * \param graph the instance.
- * \return 0 if successful.
+ * @param graph_json JSON-encoded graph.
+ * @param module_handle TVM Module that exposes the functions to call.
+ * @param devices runtime execution device.
+ * @param num_dev the number of devices
+ * @param graph the instance.
+ * @return 0 if successful.
  */
 int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle,
                                   const DLDevice *devices, uint32_t num_dev,
@@ -138,7 +138,7 @@ load_parse_json_fail:
 }
 
 /*!
- * \brief setup storage for graph executor
+ * @brief setup storage for graph executor
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
@@ -257,7 +257,7 @@ setup_storage_return:
 }
 
 /*!
- * \brief setup operators for graph executor
+ * @brief setup operators for graph executor
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
@@ -324,7 +324,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
 #define JSON_ERROR(fmt, ...)                                                                       \
     TVM_RT_SET_ERROR_RETURN(-1, "%s" fmt, JSON_READER_ERROR_PREFIX, ##__VA_ARGS__)
 
-/*! \brief json next array item exist check */
+/*! @brief json next array item exist check */
 #define ARRAY_CHECK_NEXT_EXISTS(reader, fmt, ...)                                                  \
     do {                                                                                           \
         status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                     \
@@ -333,7 +333,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
         }                                                                                          \
     } while (0)
 
-/*! \brief json next array item no-exist check */
+/*! @brief json next array item no-exist check */
 #define ARRAY_CHECK_NEXT_NON_EXISTS(reader, fmt, ...)                                              \
     do {                                                                                           \
         status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                     \
@@ -342,7 +342,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
         }                                                                                          \
     } while (0)
 
-/*! \brief parse the digit string */
+/*! @brief parse the digit string */
 #define STR_DIGIT_TO_UINT(str, str_len, num)                                                       \
     do {                                                                                           \
         for (int i = 0; i < (str_len); ++i) {                                                      \
@@ -351,7 +351,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
     } while (0)
 
 /*!
- * \brief load graph nodes from json
+ * @brief load graph nodes from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
@@ -495,7 +495,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader,
 }
 
 /*!
- * \brief load graph input node indices from json
+ * @brief load graph input node indices from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
@@ -529,7 +529,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *rea
 }
 
 /*!
- * \brief load graph output nodeEntry from json
+ * @brief load graph output nodeEntry from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
@@ -585,7 +585,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *read
 }
 
 /*!
- * \brief load graph attributes from json
+ * @brief load graph attributes from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
@@ -792,7 +792,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader,
 }
 
 /*!
- * \brief load graph node_row_ptr from json
+ * @brief load graph node_row_ptr from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
  * @return 0 if successful

@@ -107,10 +107,15 @@ def run_module(opts, module, input_dict):
 
 
 def build_ir_module(opts, ir_module, params, target):
+    if opts.dso:
+        sys_lib = False
+    else:
+        sys_lib = True
+
     if opts.executor == "relax_vm":
         from tvm import relax
         with PassContext(opt_level=3):
-            return relax.build(ir_module, target, params=params)
+            return relax.build(ir_module, target, params=params, system_lib=sys_lib)
     elif opts.executor == "relay_vm":
         with PassContext(opt_level=3):
             return relay.vm.compile(ir_module, target, target_host=target, params=params)
@@ -118,10 +123,6 @@ def build_ir_module(opts, ir_module, params, target):
         raise Exception('unsupported backend type: ' + opts.executor)
 
     # graph or aot
-    if opts.dso:
-        sys_lib = False
-    else:
-        sys_lib = True
     executor = relay.backend.Executor(opts.executor)
     if opts.tune:
         tasks = autotvm.task.extract_from_program(ir_module, target=target, params=params)

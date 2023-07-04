@@ -1,6 +1,6 @@
-#include "aot_executor.h"
 #include "dlpack/dlpack.h"
 #include "during.h"
+#include "relay_vm.h"
 #include "tvm_error_process.h"
 #include <float.h>
 
@@ -15,15 +15,18 @@ int main(int argc, char **argv) {
 
     int status;
 #ifdef DSO_TEST
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <aot.so>\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <relay executable bytecode> <relay executable library>\n",
+                argv[0]);
         return -1;
     }
     TVMModuleHandle module = NULL;
-    RUN(TVMModLoadFromFile(argv[1], "so", &module));
+    RUN(TVMModLoadFromFile(argv[2], "so", &module));
 #else
-    (void)argc;
-    (void)argv;
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <relay executable bytecode>\n", argv[0]);
+        return -1;
+    }
     TVMModuleHandle module = NULL;
 #endif // DSO_TEST
 
@@ -64,13 +67,14 @@ int main(int argc, char **argv) {
 #endif
 
     SET_TIME(create_start)
-    TVM_RT_WASM_AotExecutor aot_executor = TVM_RT_WASM_AotExecutorCreate(module, &exec_device, 1);
-    if (!aot_executor) {
-        fprintf(stderr, "Create Aot Executor fail: %s\n", TVMGetLastError());
+    TVM_RT_WASM_RelayVirtualMachine vm =
+        TVM_RT_WASM_RelayVirtualMachineCreateFromFile(module, argv[1], &exec_device, 1);
+    if (!vm) {
+        fprintf(stderr, "Create relay vm fail: %s\n", TVMGetLastError());
         return -1;
     }
     SET_TIME(create_end)
-    printf("Create AotExecutor time: %lf ms\n", GET_DURING(create_end, create_start));
+    printf("Create relay vm time: %lf ms\n", GET_DURING(create_end, create_start));
 
     while (1) {
         // load input from file
@@ -85,15 +89,15 @@ int main(int argc, char **argv) {
 
         SET_TIME(t0) // set input start
 
-        RUN(TVM_RT_WASM_AotExecutorSetInput(aot_executor, 0, &input));
+        RUN(TVM_RT_WASM_RelayVirtualMachineSetInput(vm, NULL, 0, &input));
 
         SET_TIME(t1) // set input end, run start
 
-        RUN(TVM_RT_WASM_AotExecutorRun(aot_executor));
+        RUN(TVM_RT_WASM_RelayVirtualMachineRun(vm, NULL));
 
         SET_TIME(t2) // run end, get output start
 
-        RUN(TVM_RT_WASM_AotExecutorGetOutput(aot_executor, 0, &output));
+        RUN(TVM_RT_WASM_RelayVirtualMachineGetOutput(vm, NULL, 0, &output));
 
         SET_TIME(t3) // get output end
         printf("Set input time: %lf ms\nRun time: %lf ms\nGet output time: %lf ms\n",
@@ -112,7 +116,7 @@ int main(int argc, char **argv) {
         fflush(stdout);
     }
 
-    RUN(TVM_RT_WASM_AotExecutorFree(aot_executor));
+    RUN(TVM_RT_WASM_RelayVirtualMachineFree(vm));
 
     SET_TIME(end_time)
     printf("\nTotal time: %lf ms\n", GET_DURING(end_time, start_time));

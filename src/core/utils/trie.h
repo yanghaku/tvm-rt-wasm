@@ -30,8 +30,6 @@ typedef struct Trie Trie;
 /*! \brief this is a table for char to index (for all uint8_t ) */
 extern const unsigned char char2index[];
 
-extern const char index2char[];
-
 /*! \brief the definition of Trie */
 struct Trie {
     Trie *son[CHAR_SET_SIZE];
@@ -173,7 +171,7 @@ int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src);
  * @param visit the visit function
  * @param source_handle for visit function
  */
-void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char c, void **p_data, void *source_handle),
+void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(void **p_data, void *source_handle),
                            void *source_handle);
 
 /*!

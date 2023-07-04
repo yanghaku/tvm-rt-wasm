@@ -1,14 +1,14 @@
 /*!
- * \file graph/graph_executor.c
- * \brief the implement for graph_executor
- * \author YangBo MG21330067@smail.nju.edu.cn
+ * @file graph/graph_executor.c
+ * @brief the implement for graph_executor
+ * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #include <device/cpu_memory.h>
 #include <graph/graph_executor.h>
+#include <graph/tensor_loader.h>
 #include <module/module.h>
 #include <string.h>
-#include <utils/tensor_helper.h>
 
 #define NO_CUDA_GRAPH_EXTENSION (-0x12345)
 // weak link
@@ -25,8 +25,8 @@ TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json
     // if module_handle is NULL, use the system library.
     if (module_handle == NULL) {
         SET_TIME(t0)
-        int status =
-            TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, NULL, 0, (Module **)&module_handle);
+        int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, sizeof(MODULE_SYSTEM_LIB) - 1,
+                                               NULL, 0, (Module **)&module_handle);
         if (unlikely(status)) {
             return NULL;
         }
@@ -183,7 +183,7 @@ int TVM_RT_WASM_GraphExecutorSetInput(TVM_RT_WASM_GraphExecutor g, uint32_t inde
                                       const DLTensor *data_in) {
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(data_in, -2, "DLTensor");
-    CHECK_NodeRange(g->num_inputs_nodes, index);
+    CHECK_INDEX_RANGE(g->num_inputs_nodes, index);
     uint32_t eid = DATA_ENTRY_ID(g, g->inputs_nodes[index], 0);
     return TVMDeviceCopyDataFromTo((DLTensor *)data_in, &g->data_entry[eid].dl_tensor, NULL);
 }
@@ -202,7 +202,7 @@ int TVM_RT_WASM_GraphExecutorGetOutput(TVM_RT_WASM_GraphExecutor g, uint32_t ind
                                        DLTensor *data_out) {
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(data_out, -2, "DLTensor");
-    CHECK_NodeRange(g->num_outputs, index);
+    CHECK_INDEX_RANGE(g->num_outputs, index);
 
     uint32_t eid = DATA_ENTRY_ID(g, g->outputs_nodes[index].node_id, g->outputs_nodes[index].index);
     return TVMDeviceCopyDataFromTo(&g->data_entry[eid].dl_tensor, data_out, NULL);
@@ -218,194 +218,38 @@ int TVM_RT_WASM_GraphExecutorGetOutputByName(TVM_RT_WASM_GraphExecutor g, const 
     return TVM_RT_WASM_GraphExecutorGetOutput(g, index, data_out);
 }
 
-/*!
- * \brief Load parameters from parameter blob.
- * \param graph The instance of TVM_RT_WASM_GraphExecutor.
- * \param param_blob A binary blob of parameter.
- * \param param_size The parameter size.
- * \return 0 if successful.
- */
 int TVM_RT_WASM_GraphExecutorLoadParams(TVM_RT_WASM_GraphExecutor graph, const char *param_blob,
                                         uint32_t param_size) {
     CHECK_GraphExecutor(graph);
     CHECK_INPUT_POINTER(param_blob, -2, "Param blob");
-
     if (unlikely(param_size < sizeof(uint64_t) * 2)) {
         TVM_RT_SET_ERROR_RETURN(-1, "Param size is too short, at least %zu", sizeof(uint64_t) * 2);
     }
-    if (unlikely(*((uint64_t *)param_blob) != kTVMNDArrayListMagic)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Param magic expected %" PRIu64 ", but got %" PRIu64,
-                                kTVMNDArrayListMagic, *((uint64_t *)param_blob));
-    }
-    const char *blob =
-        param_blob + sizeof(uint64_t) + sizeof(uint64_t); // magic(8 bytes), reserved(8 bytes)
 
-    uint64_t name_num;
-    memcpy(&name_num, blob, sizeof(name_num));
-    blob += sizeof(name_num);
-    const char *name = blob;
-
-    // scan names
-    for (uint32_t i = 0; i < (uint32_t)name_num; ++i) {
-        uint32_t str_len = (uint32_t) * (uint64_t *)blob;
-        blob += sizeof(uint64_t) + str_len;
-        if (unlikely(str_len == 0)) {
-            TVM_RT_SET_ERROR_RETURN(-1, "Node name cannot be empty");
-        }
+    StreamReader *reader;
+    int status = TVM_RT_WASM_BytesStreamReaderCreate(param_blob, param_size, &reader);
+    if (unlikely(status)) {
+        return status;
     }
 
-    uint64_t arr_num;
-    memcpy(&arr_num, blob, sizeof(arr_num));
-    blob += sizeof(arr_num);
-
-    if (unlikely(name_num != arr_num)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Params name_num(%" PRIu64 ") != array_num(%" PRIu64 ")",
-                                name_num, arr_num);
-    }
-
-    // scan name and load param
-    for (uint32_t i = 0; i < (uint32_t)arr_num; ++i) {
-        uint32_t str_len = (uint32_t) * (uint64_t *)name;
-        name += sizeof(uint64_t);
-
-        intptr_t index = -1;
-        if (unlikely(TVM_RT_WASM_TrieQueryWithLen(graph->inputs_map, (const uint8_t *)name, str_len,
-                                                  (void **)&index) == TRIE_NOT_FOUND)) {
-            TVM_RT_SET_ERROR_RETURN(-1, "Node name `%s` not found", name);
-        }
-
-        uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[index], 0);
-        if (unlikely(eid >= graph->num_data_entry)) {
-            TVM_RT_SET_ERROR_RETURN(
-                -1, "Data entry id (%u) is greater than the number of data entry (%u)", eid,
-                graph->num_data_entry);
-        }
-
-        int status =
-            TVM_RT_WASM_DLTensor_LoadDataFromBinary(&graph->data_entry[eid].dl_tensor, &blob);
-        if (unlikely(status)) {
-            return status;
-        }
-
-        // point to next name
-        name += str_len;
-    }
-
-    return TVMSynchronize(graph->devices[0].device_type, graph->devices[0].device_id, NULL);
+    status = TVM_RT_WASM_GraphExecutorLoadParamsFromReader(graph, reader);
+    reader->Free(reader);
+    return status;
 }
 
-/*!
- * \brief Load parameters from parameter file.
- * \param graph The instance of TVM_RT_WASM_GraphExecutor.
- * \param filename File path to read and load.
- * \return 0 if successful.
- */
 int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(TVM_RT_WASM_GraphExecutor graph,
                                                 const char *filename) {
     CHECK_GraphExecutor(graph);
-    CHECK_INPUT_POINTER(filename, -2, "Filename");
 
-    FILE *fp = NULL;
-    if (unlikely((fp = fopen(filename, "rb")) == NULL)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Cannot open file `%s`", filename);
+    StreamReader *reader;
+    int status = TVM_RT_WASM_FileStreamReaderCreate(filename, &reader);
+    if (unlikely(status)) {
+        return status;
     }
 
-#define read_from_fp(ptr, len, fp, err_handle_block)                                               \
-    do {                                                                                           \
-        if (unlikely(fread((ptr), 1, (len), fp) != (len))) {                                       \
-            {                                                                                      \
-                err_handle_block;                                                                  \
-            }                                                                                      \
-            TVM_RT_SET_ERROR_RETURN(-1, "Invalid param file: unexpected EOF");                     \
-        }                                                                                          \
-    } while (0)
-
-    // magic(8 bytes)
-    uint64_t array_list_magic;
-    read_from_fp(&array_list_magic, sizeof(uint64_t), fp, fclose(fp));
-    if (unlikely(array_list_magic != kTVMNDArrayListMagic)) {
-        fclose(fp);
-        TVM_RT_SET_ERROR_RETURN(-1, "Param magic expected %" PRIu64 ", but got %" PRIu64,
-                                kTVMNDArrayListMagic, array_list_magic);
-    }
-
-    // reserved(8 bytes)
-    read_from_fp(&array_list_magic, sizeof(uint64_t), fp, fclose(fp));
-
-    uint64_t name_num;
-    read_from_fp(&name_num, sizeof(uint64_t), fp, fclose(fp));
-
-#define NAME_BUFFER_SIZE 1024
-
-    size_t *name_indexes = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(size_t) * name_num);
-    size_t current_name_buf_size = NAME_BUFFER_SIZE;
-    char *name_buf = TVM_RT_WASM_WorkplaceMemoryAlloc(current_name_buf_size);
-
-#define do_before_return()                                                                         \
-    do {                                                                                           \
-        fclose(fp);                                                                                \
-        TVM_RT_WASM_WorkplaceMemoryFree(name_buf);                                                 \
-        TVM_RT_WASM_WorkplaceMemoryFree(name_indexes);                                             \
-    } while (0)
-
-    // scan names
-    for (uint32_t i = 0; i < (uint32_t)name_num; ++i) {
-        uint64_t str_len;
-        read_from_fp(&str_len, sizeof(uint64_t), fp, do_before_return());
-
-        if (unlikely(str_len == 0)) {
-            do_before_return();
-            TVM_RT_SET_ERROR_RETURN(-1, "Node name cannot be empty");
-        }
-        // realloc
-        if (str_len >= current_name_buf_size) {
-            current_name_buf_size = str_len + 1;
-            TVM_RT_WASM_WorkplaceMemoryFree(name_buf);
-            name_buf = TVM_RT_WASM_WorkplaceMemoryAlloc(current_name_buf_size);
-        }
-        read_from_fp(name_buf, str_len, fp, do_before_return());
-
-        intptr_t index = -1;
-        if (unlikely(TVM_RT_WASM_TrieQueryWithLen(graph->inputs_map, (const uint8_t *)name_buf,
-                                                  (size_t)str_len,
-                                                  (void **)&index) == TRIE_NOT_FOUND)) {
-            TVM_RT_SET_ERROR("Node name `%s` not found", name_buf);
-            do_before_return();
-            return -1;
-        }
-        name_indexes[i] = (size_t)index;
-    }
-
-    uint64_t arr_num;
-    read_from_fp(&arr_num, sizeof(uint64_t), fp, do_before_return());
-    if (unlikely(name_num != arr_num)) {
-        do_before_return();
-        TVM_RT_SET_ERROR_RETURN(-1, "Params name_num(%" PRIu64 ") != array_num(%" PRIu64 ")",
-                                name_num, arr_num);
-    }
-
-    // do load param
-    for (uint32_t i = 0; i < (uint32_t)arr_num; ++i) {
-        uint32_t eid = DATA_ENTRY_ID(graph, graph->inputs_nodes[name_indexes[i]], 0);
-        if (unlikely(eid >= graph->num_data_entry)) {
-            do_before_return();
-            TVM_RT_SET_ERROR_RETURN(
-                -1, "Data entry id (%u) is greater than the number of data entry (%u)", eid,
-                graph->num_data_entry);
-        }
-
-        int status = TVM_RT_WASM_DLTensor_LoadDataFromFile(&graph->data_entry[eid].dl_tensor, fp);
-        if (unlikely(status)) {
-            do_before_return();
-            return status;
-        }
-    }
-
-    do_before_return();
-    return TVMSynchronize(graph->devices[0].device_type, graph->devices[0].device_id, NULL);
-#undef do_before_return
-#undef read_from_fp
-#undef NAME_BUFFER_SIZE
+    status = TVM_RT_WASM_GraphExecutorLoadParamsFromReader(graph, reader);
+    reader->Free(reader);
+    return status;
 }
 
 int TVM_RT_WASM_GraphExecutorClone(TVM_RT_WASM_GraphExecutor g, TVM_RT_WASM_GraphExecutor *cloned) {
@@ -551,7 +395,7 @@ int TVM_RT_WASM_GraphExecutorGetNodeName(TVM_RT_WASM_GraphExecutor g, uint32_t n
                                          const char **name) {
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(name, -2, "Name pointer");
-    CHECK_NodeRange(g->num_nodes, nid);
+    CHECK_INDEX_RANGE(g->num_nodes, nid);
     *name = g->nodes[nid].name;
     return 0;
 }
@@ -594,7 +438,7 @@ int TVM_RT_WASM_GraphExecutorGetInputDataType(TVM_RT_WASM_GraphExecutor g, uint3
                                               DLDataType *type_ptr) {
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(type_ptr, -2, "DLDataType pointer");
-    CHECK_NodeRange(g->num_inputs_nodes, index);
+    CHECK_INDEX_RANGE(g->num_inputs_nodes, index);
     uint32_t eid = DATA_ENTRY_ID(g, g->inputs_nodes[index], 0);
     *type_ptr = g->data_entry[eid].dl_tensor.dtype;
     return 0;
@@ -604,7 +448,7 @@ int TVM_RT_WASM_GraphExecutorGetOutputDataType(TVM_RT_WASM_GraphExecutor g, uint
                                                DLDataType *type_ptr) {
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(type_ptr, -2, "DLDataType pointer");
-    CHECK_NodeRange(g->num_outputs, index);
+    CHECK_INDEX_RANGE(g->num_outputs, index);
     uint32_t eid = DATA_ENTRY_ID(g, g->outputs_nodes[index].node_id, g->outputs_nodes[index].index);
     *type_ptr = g->data_entry[eid].dl_tensor.dtype;
     return 0;
@@ -615,7 +459,7 @@ int TVM_RT_WASM_GraphExecutorGetInputShape(TVM_RT_WASM_GraphExecutor g, uint32_t
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(shape_ptr, -2, "shape pointer");
     CHECK_INPUT_POINTER(ndim_ptr, -2, "ndim pointer");
-    CHECK_NodeRange(g->num_inputs_nodes, index);
+    CHECK_INDEX_RANGE(g->num_inputs_nodes, index);
     uint32_t eid = DATA_ENTRY_ID(g, g->inputs_nodes[index], 0);
     *shape_ptr = g->data_entry[eid].dl_tensor.shape;
     *ndim_ptr = g->data_entry[eid].dl_tensor.ndim;
@@ -627,21 +471,9 @@ int TVM_RT_WASM_GraphExecutorGetOutputShape(TVM_RT_WASM_GraphExecutor g, uint32_
     CHECK_GraphExecutor(g);
     CHECK_INPUT_POINTER(shape_ptr, -2, "shape pointer");
     CHECK_INPUT_POINTER(ndim_ptr, -2, "ndim pointer");
-    CHECK_NodeRange(g->num_outputs, index);
+    CHECK_INDEX_RANGE(g->num_outputs, index);
     uint32_t eid = DATA_ENTRY_ID(g, g->outputs_nodes[index].node_id, g->outputs_nodes[index].index);
     *shape_ptr = g->data_entry[eid].dl_tensor.shape;
     *ndim_ptr = g->data_entry[eid].dl_tensor.ndim;
     return 0;
 }
-
-// used for js api
-#if USE_WEBGPU && defined(__EMSCRIPTEN__) // USE_WEBGPU = 1 && defined(__EMSCRIPTEN__)
-
-TVM_DLL const char *TVM_RT_WASM_JS_GraphExecutorGetNodeName(const TVM_RT_WASM_GraphExecutor g,
-                                                            uint32_t nid) {
-    const char *res = NULL;
-    TVM_RT_WASM_GraphExecutorGetNodeName(g, nid, &res);
-    return res;
-}
-
-#endif // USE_WEBGPU = 1 && defined(__EMSCRIPTEN__)

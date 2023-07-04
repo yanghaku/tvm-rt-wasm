@@ -71,18 +71,20 @@ struct Module {
 
 /*! \brief the public functions for every module */
 
+#define MODULE_FACTORY_RESOURCE_BINARY 0
+#define MODULE_FACTORY_RESOURCE_FILE 1
+
 /*!
  * \brief create a module instance for given type
  * @param type the module type or file format
+ * @param type_size the type string size.
  * @param resource filename or binary source
  * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
  * @param out the pointer to receive created instance
  * @return >=0 if successful   (if binary type, it should return the binary length it has read)
  */
-#define MODULE_FACTORY_RESOURCE_BINARY 0
-#define MODULE_FACTORY_RESOURCE_FILE 1
-int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type,
-                              Module **out);
+int TVM_RT_WASM_ModuleFactory(const char *type, size_t type_size, const char *resource,
+                              int resource_type, Module **out);
 
 #define MODULE_SYSTEM_LIB "SystemLibrary"
 
@@ -136,10 +138,11 @@ int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out);
 /*!
  * \brief Create a library module from the dynamic shared library
  * @param filename the filename
+ * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
  * @param out the out handle
  * @return 0 if successful
  */
-int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, Module **out);
+int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, int resource_type, Module **out);
 
 /*!
  * \brief Create a cuda module instance from file or binary

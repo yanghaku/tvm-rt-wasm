@@ -91,8 +91,9 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
         } else {
             const char *key = blob;
             blob += mod_type_key_size;
-            status = TVM_RT_WASM_ModuleFactory(key, blob, MODULE_FACTORY_RESOURCE_BINARY,
-                                               &modules[num_modules]);
+            status =
+                TVM_RT_WASM_ModuleFactory(key, mod_type_key_size, blob,
+                                          MODULE_FACTORY_RESOURCE_BINARY, &modules[num_modules]);
             if (unlikely(status <= 0)) { // ModuleFactory will return offset
                 if (modules) {
                     TVM_RT_WASM_HeapMemoryFree(modules);
@@ -172,27 +173,40 @@ int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
 /*!
  * \brief create a module instance for given type
  * @param type the module type or file format
+ * @param type_size the type string size.
  * @param resource filename or binary source
  * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
  * @param out the pointer to receive created instance
  * @return >=0 if successful   (if binary type, it should return the binary length it has read)
  */
-int TVM_RT_WASM_ModuleFactory(const char *type, const char *resource, int resource_type,
-                              Module **out) {
-    if (!memcmp(type, MODULE_SYSTEM_LIB, strlen(MODULE_SYSTEM_LIB))) {
-        return TVM_RT_WASM_SystemLibraryModuleCreate(out);
-    }
-    if (!memcmp(type, "so", 2) || !memcmp(type, "dll", 3) || !memcmp(type, "dylib", 5)) {
-        if (unlikely(resource_type != MODULE_FACTORY_RESOURCE_FILE)) {
-            TVM_RT_SET_ERROR_RETURN(-1, "The dso library can only be load from file");
+int TVM_RT_WASM_ModuleFactory(const char *type, size_t type_size, const char *resource,
+                              int resource_type, Module **out) {
+    switch (type_size) {
+    case 2:
+        if (!memcmp(type, "so", 2)) {
+            return TVM_RT_WASM_DSOLibraryModuleCreate(resource, resource_type, out);
         }
-        return TVM_RT_WASM_DSOLibraryModuleCreate(resource, out);
+    case 3:
+        if (!memcmp(type, "dll", 3)) {
+            return TVM_RT_WASM_DSOLibraryModuleCreate(resource, resource_type, out);
+        }
+    case 4:
+        if (!memcmp(type, "cuda", 4)) {
+            return TVM_RT_WASM_CUDAModuleCreate(resource, resource_type, out);
+        }
+    case 5:
+        if (!memcmp(type, "dylib", 5)) {
+            return TVM_RT_WASM_DSOLibraryModuleCreate(resource, resource_type, out);
+        }
+    case 6:
+        if (!memcmp(type, "webgpu", 6)) {
+            return TVM_RT_WASM_WebGPUModuleCreate(resource, resource_type, out);
+        }
+    case sizeof(MODULE_SYSTEM_LIB) - 1:
+        if (!memcmp(type, MODULE_SYSTEM_LIB, sizeof(MODULE_SYSTEM_LIB) - 1)) {
+            return TVM_RT_WASM_SystemLibraryModuleCreate(out);
+        }
+    default:
+        TVM_RT_SET_ERROR_RETURN(-1, "Unsupported module type %s", type);
     }
-    if (!memcmp(type, "cuda", 4)) {
-        return TVM_RT_WASM_CUDAModuleCreate(resource, resource_type, out);
-    }
-    if (!memcmp(type, "webgpu", 6)) {
-        return TVM_RT_WASM_WebGPUModuleCreate(resource, resource_type, out);
-    }
-    TVM_RT_SET_ERROR_RETURN(-1, "Unsupported module type %s", type);
 }

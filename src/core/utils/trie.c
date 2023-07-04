@@ -24,12 +24,6 @@ const unsigned char char2index[] = {
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255};
 
-const char index2char[] = {'.', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B',
-                           'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-                           'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_', 'a',
-                           'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-                           'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
-
 /*! \brief These functions are recursive and cannot be inlined */
 
 int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
@@ -49,11 +43,11 @@ int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
     return 0;
 }
 
-void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(char, void **, void *), void *source_handle) {
+void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(void **, void *), void *source_handle) {
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {
         if (trie->son[i]) {
             if (trie->son[i]->has_value) {
-                visit(index2char[i], &trie->son[i]->data, source_handle);
+                visit(&trie->son[i]->data, source_handle);
             }
             TVM_RT_WASM_TrieVisit(trie->son[i], visit, source_handle);
         }
