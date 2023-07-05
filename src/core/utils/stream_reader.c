@@ -152,7 +152,7 @@ int TVM_RT_WASM_BytesStreamReaderCreate(const char *bytes, size_t byte_len,
 
     // check overflow
     uintptr_t b = (uintptr_t)bytes;
-    if (UINTPTR_MAX - byte_len > b) {
+    if (UINTPTR_MAX - byte_len < b) {
         TVM_RT_SET_ERROR_RETURN(-1, "Bytes length overflow!");
     }
 

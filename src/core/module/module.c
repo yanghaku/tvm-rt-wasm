@@ -52,44 +52,40 @@ static int TVM_RT_WASM_ModuleCreateFromReader(const char *type_key, size_t type_
         if (!memcmp(type_key, "cuda", 4)) {
             return TVM_RT_WASM_CUDAModuleCreate(reader, out);
         }
+        break;
     case 6:
         if (!memcmp(type_key, "webgpu", 6)) {
             return TVM_RT_WASM_WebGPUModuleCreate(reader, out);
         }
+        break;
     case 15:
         if (!memcmp(type_key, "metadata_module", 15)) {
             // empty module
             *out = NULL;
             return 0;
         }
+        break;
     default:
-        TVM_RT_SET_ERROR_RETURN(-1, "Unsupported module type %s", type_key);
+        break;
     }
+    TVM_RT_SET_ERROR_RETURN(-1, "Unsupported module type %s", type_key);
 }
 
-#define ModuleBinaryCheckReadOrGoto(_ptr, _size)                                                   \
-    do {                                                                                           \
-        _ptr = TVM_RT_WASM_ModuleBinaryCheckRead(&reader, _size);                                  \
-        if (unlikely((_ptr) == NULL)) {                                                            \
-            status = -1;                                                                           \
-            goto parse_binary_return;                                                              \
-        }                                                                                          \
-    } while (0)
-
 int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_module) {
-    uint64_t blob_size = *(uint64_t *)blob;
+    size_t blob_size = (size_t) * (uint64_t *)blob;
     blob += sizeof(uint64_t);
 
     // check overflow and create binary reader
     uintptr_t b = (uintptr_t)blob;
-    if (UINTPTR_MAX - blob_size > b) {
+    if (UINTPTR_MAX - blob_size < b) {
         TVM_RT_SET_ERROR_RETURN(-1, "Bytes length overflow!");
     }
-    ModuleBinaryReader reader = {
+    ModuleBinaryReader reader_st = {
         .current_ptr = blob,
         .end_ptr = blob + blob_size,
     };
 
+    ModuleBinaryReader *reader = &reader_st;
     const char *cur_ptr;
     Module **modules = NULL;
     uint64_t *import_tree_row_ptr = NULL;
@@ -98,6 +94,9 @@ int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_modul
     size_t num_import_tree_row_ptr = 0;
     size_t num_import_tree_child_indices = 0;
     int status = 0;
+
+#define ModuleBinaryCheckReadOrGoto(_ptr, _read_size)                                              \
+    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_ptr, _read_size, parse_binary_return)
 
     ModuleBinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t));
     size_t key_num = (size_t) * (uint64_t *)cur_ptr;
@@ -129,7 +128,7 @@ int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_modul
                 memcpy(import_tree_child_indices, cur_ptr, byte_size);
             }
         } else {
-            status = TVM_RT_WASM_ModuleCreateFromReader(type_key, type_key_size, &reader,
+            status = TVM_RT_WASM_ModuleCreateFromReader(type_key, type_key_size, reader,
                                                         modules + num_modules);
             if (unlikely(status)) {
                 goto parse_binary_return;

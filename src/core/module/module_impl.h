@@ -51,19 +51,21 @@ typedef struct ModuleBinaryReader {
 
 /**
  * @brief Add read_size offset to current pointer and check.
- * @param reader The module binary reader instance.
- * @param read_size The size to read.
- * @return return origin pointer if success. return NULL if fail.
+ * If check fail, goto fail label.
+ * Requirement variables:
+ *  int status;
+ *  ModuleBinaryReader *reader;
  */
-INLINE const char *TVM_RT_WASM_ModuleBinaryCheckRead(ModuleBinaryReader *reader, size_t read_size) {
-    const char *origin = reader->current_ptr;
-    const char *next = origin + read_size;
-    if (unlikely(next >= reader->end_ptr)) {
-        TVM_RT_SET_ERROR_RETURN(NULL, "Module binary unexpected eof.");
-    }
-    reader->current_ptr = next;
-    return origin;
-}
+#define TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_ptr, _read_size, _fail_label)                     \
+    do {                                                                                           \
+        (_ptr) = reader->current_ptr;                                                              \
+        const char *_next = (_ptr) + (_read_size);                                                 \
+        if (unlikely(_next > reader->end_ptr)) {                                                   \
+            status = -1;                                                                           \
+            TVM_RT_SET_ERROR_AND_GOTO(_fail_label, "Module binary unexpected eof.");               \
+        }                                                                                          \
+        reader->current_ptr = _next;                                                               \
+    } while (0)
 
 #ifdef __cplusplus
 } // extern "C"

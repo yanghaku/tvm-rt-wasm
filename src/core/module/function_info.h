@@ -31,57 +31,64 @@
      */                                                                                            \
     uint32_t num_func_arg_map;
 
-#define PARSE_FUNC_INFO(module, fail_label)                                                        \
-    /* key: name */                                                                                \
-    uint32_t name_size = (uint32_t) * (uint64_t *)blob;                                            \
-    blob += sizeof(uint64_t); /* name_size */                                                      \
-    TVM_RT_WASM_TrieInsertWithLen(module->module_funcs_map, (const uint8_t *)blob, name_size,      \
-                                  module->packed_functions + fid);                                 \
-    blob += name_size; /* name string */                                                           \
-                                                                                                   \
-    /* value: FunctionInfo{name, arg_types, launch_params_tags} */                                 \
-    name_size = (uint32_t) * (uint64_t *)blob;                                                     \
-    blob += sizeof(uint64_t) + name_size; /* name_size + name string */                            \
-                                                                                                   \
-    uint32_t num_kernel_arg = (uint32_t) * (uint64_t *)blob;                                       \
-    info->num_kernel_args = num_kernel_arg;                                                        \
-    info->kernel_arg_storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * (num_kernel_arg));   \
-                                                                                                   \
-    blob += sizeof(uint64_t);                           /* num_func_args */                        \
-    blob += info->num_kernel_args * sizeof(DLDataType); /* arg types */                            \
-                                                                                                   \
-    uint32_t mp_size = (uint32_t) * (uint64_t *)blob;                                              \
-    info->num_func_arg_map = mp_size;                                                              \
-    blob += sizeof(uint64_t); /* num_func_arg_map */                                               \
-                                                                                                   \
-    /* allocate memory for arg_index_map */                                                        \
-    info->func_arg_index_map = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * mp_size);            \
-    for (uint32_t i = 0; i < mp_size; ++i) {                                                       \
-        name_size = (uint32_t) * (uint64_t *)blob;                                                 \
-        blob += sizeof(uint64_t); /* name_size */                                                  \
-                                                                                                   \
-        if (name_size == 24 && memcmp(blob, "tir.use_dyn_shared_memory", name_size) == 0) {        \
-            if (unlikely(i + 1 != mp_size)) {                                                      \
-                const char *msg =                                                                  \
-                    "binary parse error: the tir.use_dyn_shared_memory must in last!\n";           \
-                TVM_RT_SET_ERROR_AND_GOTO(fail_label, "%s", msg);                                  \
-            }                                                                                      \
-            --info->num_func_arg_map;                                                              \
-            info->use_dyn_mem = 1;                                                                 \
-        } else if (name_size > 17 && memcmp(blob, "paramWriteAccess:", 17) == 0) {                 \
-            /* no nothing now */                                                                   \
-        } else if (name_size == 10 && memcmp(blob, "blockIdx.", 9) == 0) {                         \
-            info->func_arg_index_map[i] = (uint8_t)(blob[9] - 'x');                                \
-        } else if (name_size == 11 && memcmp(blob, "threadIdx.", 10) == 0) {                       \
-            info->func_arg_index_map[i] = (uint8_t)(blob[10] - 'x' + 3);                           \
-        } else {                                                                                   \
-            blob[name_size] = '\0';                                                                \
-            TVM_RT_SET_ERROR_AND_GOTO(fail_label, "unknown params Tags: %s\n", blob);              \
-        }                                                                                          \
-                                                                                                   \
-        blob += name_size; /* name string */                                                       \
-    }                                                                                              \
+#define PARSE_FUNC_INFO(_mod, _cur_ptr, fail_label)                                                \
     do {                                                                                           \
+        /* key: name */                                                                            \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        size_t name_size = (size_t) * (uint64_t *)_cur_ptr;                                        \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                  \
+        TVM_RT_WASM_TrieInsertWithLen((_mod)->module_funcs_map, (const uint8_t *)_cur_ptr,         \
+                                      name_size, (_mod)->packed_functions + fid);                  \
+                                                                                                   \
+        /* value: FunctionInfo{name, arg_types, launch_params_tags} */                             \
+                                                                                                   \
+        /* FunctionInfo.name */                                                                    \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        name_size = (size_t) * (uint64_t *)_cur_ptr;                                               \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                  \
+                                                                                                   \
+        /* num_func_args */                                                                        \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        size_t num_kernel_arg = (size_t) * (uint64_t *)_cur_ptr;                                   \
+        info->num_kernel_args = num_kernel_arg;                                                    \
+        info->kernel_arg_storages =                                                                \
+            TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * (num_kernel_arg));                       \
+                                                                                                   \
+        /* arg types */                                                                            \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(                                                   \
+            _cur_ptr, info->num_kernel_args * sizeof(DLDataType), fail_label);                     \
+                                                                                                   \
+        /* num_func_arg_map */                                                                     \
+        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        size_t mp_size = (size_t) * (uint64_t *)_cur_ptr;                                          \
+        info->num_func_arg_map = mp_size;                                                          \
+                                                                                                   \
+        /* allocate memory for arg_index_map */                                                    \
+        info->func_arg_index_map = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * mp_size);        \
+        for (size_t i = 0; i < mp_size; ++i) {                                                     \
+            TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);       \
+            name_size = (size_t) * (uint64_t *)_cur_ptr;                                           \
+            TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);              \
+                                                                                                   \
+            if (name_size == 24 &&                                                                 \
+                memcmp(_cur_ptr, "tir.use_dyn_shared_memory", name_size) == 0) {                   \
+                if (unlikely(i + 1 != mp_size)) {                                                  \
+                    const char *msg =                                                              \
+                        "binary parse error: the tir.use_dyn_shared_memory must in last!\n";       \
+                    TVM_RT_SET_ERROR_AND_GOTO(fail_label, "%s", msg);                              \
+                }                                                                                  \
+                --info->num_func_arg_map;                                                          \
+                info->use_dyn_mem = 1;                                                             \
+            } else if (name_size > 17 && memcmp(_cur_ptr, "paramWriteAccess:", 17) == 0) {         \
+                /* no nothing now */                                                               \
+            } else if (name_size == 10 && memcmp(_cur_ptr, "blockIdx.", 9) == 0) {                 \
+                info->func_arg_index_map[i] = (uint8_t)(_cur_ptr[9] - 'x');                        \
+            } else if (name_size == 11 && memcmp(_cur_ptr, "threadIdx.", 10) == 0) {               \
+                info->func_arg_index_map[i] = (uint8_t)(_cur_ptr[10] - 'x' + 3);                   \
+            } else {                                                                               \
+                TVM_RT_SET_ERROR_AND_GOTO(fail_label, "unknown params Tags: %s\n", _cur_ptr);      \
+            }                                                                                      \
+        }                                                                                          \
     } while (0)
 
 #define CHECK_DYN_MEM()                                                                            \

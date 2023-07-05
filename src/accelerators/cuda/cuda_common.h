@@ -33,6 +33,17 @@ extern "C" {
         }                                                                                          \
     } while (0)
 
+#define CUDA_DRIVER_CALL_OR_GOTO_WITH_STATUS(x, label)                                             \
+    do {                                                                                           \
+        CUresult result = (x);                                                                     \
+        if (unlikely(result != CUDA_SUCCESS)) {                                                    \
+            status = -1;                                                                           \
+            const char *msg;                                                                       \
+            cuGetErrorString(result, &msg);                                                        \
+            TVM_RT_SET_ERROR_AND_GOTO(label, "CUDA Driver Call Error: %s", msg);                   \
+        }                                                                                          \
+    } while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

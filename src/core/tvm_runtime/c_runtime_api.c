@@ -38,7 +38,8 @@ int TVMModLoadFromFile(const char *file_name, const char *format, TVMModuleHandl
     CHECK_INPUT_POINTER(file_name, -2, "Filename");
     CHECK_INPUT_POINTER(format, -2, "Format");
     CHECK_INPUT_POINTER(out, -2, "TVMModuleHandle pointer");
-    if (strcmp(format, "dll") == 0 || strcmp(format, "dylib") == 0 || strcmp(format, "dso") == 0) {
+    if (strcmp(format, "so") == 0 || strcmp(format, "dll") == 0 || strcmp(format, "dylib") == 0 ||
+        strcmp(format, "dso") == 0) {
         return TVM_RT_WASM_SharedLibraryModuleCreate(file_name, (Module **)out);
     }
     TVM_RT_SET_ERROR_RETURN(-1, "Unsupported module file format `%s`\n", format);
