@@ -1,7 +1,6 @@
-/*!
- * \file webgpu/c_api/native_impl/dawn.c
- * \brief link with dawn library implementation.
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file webgpu/c_api/native_impl/dawn.c
+ * @brief link with dawn library implementation.
  */
 
 #ifndef __EMSCRIPTEN__ // !__EMSCRIPTEN__

@@ -1,7 +1,6 @@
-/*!
- * \file device/cpu_memory.c
- * \brief implement for cuda device api
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file device/cpu_memory.c
+ * @brief Implementation for CPU main memory alloc/free.
  */
 
 #ifdef CPU_STATIC_MEMORY

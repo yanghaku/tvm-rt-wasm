@@ -1,13 +1,11 @@
-/*!
- * \file utils/trie.c
- * \brief the trie util implementation.
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file utils/trie.c
+ * @brief The trie implementation.
  */
 
 #include <utils/trie.h>
 
-/*! \brief this is a table for char to index (for all uint8_t )  for Trie */
+/** @brief This is a table for char to index (for all uint8_t ) */
 const unsigned char char2index[] = {
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -24,7 +22,7 @@ const unsigned char char2index[] = {
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255};
 
-/*! \brief These functions are recursive and cannot be inlined */
+/*--------------------These functions are recursive and cannot be inlined.------------------------*/
 
 int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {

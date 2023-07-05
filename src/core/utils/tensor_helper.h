@@ -1,4 +1,4 @@
-/*!
+/**
  * @file utils/tensor_helper.h
  * @brief the utils function for DLTensor
  * @author YangBo MG21330067@smail.nju.edu.cn
@@ -15,13 +15,13 @@ extern "C" {
 #include <utils/common.h>
 #include <utils/stream_reader.h>
 
-/*! @brief Magic number for NDArray file */
+/** @brief Magic number for NDArray file */
 #define kTVMNDArrayMagic (0xDD5E40F096B4A13FUL)
 
-/*! @brief Magic number for NDArray list file  */
+/** @brief Magic number for NDArray list file  */
 #define kTVMNDArrayListMagic (0xF7E58D4F05049CB7UL)
 
-/*!
+/**
  * @brief get data number of tensor.
  * @param shape the shape of tensor.
  * @param ndim the number of dim.
@@ -35,7 +35,7 @@ INLINE int64_t TVM_RT_WASM_DLTensor_GetDataSize(const int64_t *shape, int ndim) 
     return size;
 }
 
-/*!
+/**
  * @brief Get data bytes number of tensor.
  * @param tensor the tensor pointer.
  * @return result
@@ -49,7 +49,7 @@ INLINE uint64_t TVM_RT_WASM_DLTensor_GetDataBytes(const DLTensor *tensor) {
     return size;
 }
 
-/*!
+/**
  * @brief Parse binary and load data to tensor.
  * @param tensor the tensor with no data or with data.
  * @param reader The stream reader instance.

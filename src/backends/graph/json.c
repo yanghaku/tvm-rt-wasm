@@ -1,12 +1,11 @@
-/*!
- * \file graph/json.c
- * \brief the implementation for json api.
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file graph/json.c
+ * @brief the implementation for json api.
  */
 
 #include <graph/json.h>
 
-/*! \brief this function contain function call, so cannot be inlined */
+/** @brief This function contain function call, so cannot be inlined. */
 int TVM_RT_WASM_JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size) {
     char ch;
     NextNonSpace(*reader, ch);

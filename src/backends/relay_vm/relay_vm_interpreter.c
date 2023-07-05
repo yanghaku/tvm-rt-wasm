@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_vm_interpreter.c
- * @brief run relay VM functions.
- * @author YangBo MG21330067@smail.nju.edu.cn
+ * @brief Run relay VM functions.
  */
 
 #include <device/cpu_memory.h>

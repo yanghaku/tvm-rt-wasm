@@ -1,8 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_vm.h
- * @brief private struct and functions for relay_vm.
- * @author YangBo MG21330067@smail.nju.edu.cn
- *
+ * @brief Private struct and functions for relay_vm.
  */
 
 #ifndef TVM_RT_WASM_BACKENDS_RELAY_VM_RELAY_VM_H_INCLUDE_
@@ -22,16 +20,16 @@ typedef struct TVM_RT_WASM_RelayVMFrame_st {
     /** @brief current code section */
     const TVM_RT_WASM_RelayInstruction *code;
 
-    /*! \brief registers in this frame */
+    /** @brief registers in this frame */
     TVM_RT_WASM_RelayVMRegister *registers;
 
-    /*! \brief registers size in this frame */
+    /** @brief registers size in this frame */
     size_t num_registers;
 
     /** @brief current program counter */
     size_t pc;
 
-    /*! @brief Register in caller's frame to put return value */
+    /** @brief Register in caller's frame to put return value */
     size_t caller_return_register;
 } TVM_RT_WASM_RelayVMFrame;
 

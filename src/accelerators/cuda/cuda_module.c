@@ -1,28 +1,27 @@
-/*!
- * \file cuda/cuda_module.c
- * \brief implement functions for cuda module
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file cuda/cuda_module.c
+ * @brief Implement functions for cuda module.
  */
 
 #include <cuda_common.h>
 #include <device/cpu_memory.h>
 #include <device/device_api.h>
 #include <module/function_info.h>
-#include <module/module.h>
+#include <module/module_impl.h>
 
 typedef struct CUDAFunctionInfo {
-    /*! \brief base information */
+    /** @brief base information */
     BASE_FUNCTION_INFO
 
-    /*! \brief the cuda functions in cuda module */
+    /** @brief the cuda functions in cuda module */
     CUfunction cu_function;
 } CUDAFunctionInfo;
 
-/*! \brief define the cuda module derived from module */
+/** @brief define the cuda module derived from module */
 typedef struct CUDAModule {
     MODULE_BASE_MEMBER
 
-    /*! \brief the cuda module */
+    /** @brief the cuda module */
     // todo: change it to support multi-GPU
     CUmodule cu_module;
     CUDAFunctionInfo *functions;
@@ -103,14 +102,13 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, uint32_t num
     }
 }
 
-/*!
- * \brief create a cuda module instance from file or binary
- * @param resource the file name or binary pointer
- * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
- * @param cudaModule the out handle
- * @return >=0 if successful   (if binary type, it should return the binary length it has read)
+/**
+ * @brief Create a CUDA module instance from the byte stream.
+ * @param reader The module binary reader.
+ * @param out The pointer to save created module instance.
+ * @return 0 if successful
  */
-int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, Module **out) {
+int TVM_RT_WASM_CUDAModuleCreate(ModuleBinaryReader *reader, Module **out) {
 
     if (resource_type == MODULE_FACTORY_RESOURCE_FILE) {
         TVM_RT_NOT_IMPLEMENT(-2);

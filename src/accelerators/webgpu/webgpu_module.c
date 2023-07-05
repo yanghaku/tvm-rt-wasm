@@ -1,12 +1,11 @@
-/*!
- * \file module/webgpu_module.c
- * \brief implement functions for webgpu module
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file module/webgpu_module.c
+ * @brief Implement functions for WebGPU module.
  */
 
 #include <device/device_api.h>
 #include <module/function_info.h>
-#include <module/module.h>
+#include <module/module_impl.h>
 #include <webgpu_common.h>
 
 typedef struct WebGPUFunctionInfo {
@@ -15,11 +14,11 @@ typedef struct WebGPUFunctionInfo {
     WGPU_Function device_func;
 } WebGPUFunctionInfo;
 
-/*! \brief define the webgpu module derived from module */
+/** @brief define the WebGPU module derived from module */
 typedef struct WebGPUModule {
     MODULE_BASE_MEMBER
 
-    /*! \brief the webgpu module */
+    /** @brief the WebGPU module */
     // todo: multi-GPU support
     WebGPUFunctionInfo *functions;
     uint32_t num_functions;
@@ -99,14 +98,13 @@ static void TVM_RT_WASM_WebGPUModuleAllocate(WebGPUModule **webgpuModule, uint32
     }
 }
 
-/*!
- * \brief create a webgpu module instance from file or binary
- * @param resource the file name or binary pointer
- * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
- * @param out the out handle
- * @return >=0 if successful  (if binary type, it should return the binary length it has read)
+/**
+ * @brief Create a WebGPU module instance from the byte stream.
+ * @param reader The module binary reader.
+ * @param out The pointer to save created module instance.
+ * @return 0 if successful
  */
-int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, Module **out) {
+int TVM_RT_WASM_WebGPUModuleCreate(ModuleBinaryReader *reader, Module **out) {
 
     if (resource_type == MODULE_FACTORY_RESOURCE_FILE) {
         TVM_RT_NOT_IMPLEMENT(-2);

@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_instruction.c
  * @brief functions for relay VM function and instructions.
- * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #include <device/cpu_memory.h>
@@ -20,7 +19,7 @@ INLINE int64_t parse_str_ull__(const char *s, size_t len) {
     return ans;
 }
 
-/**! @sa https://github.com/apache/tvm/blob/main/src/support/utils.h */
+/** @sa https://github.com/apache/tvm/blob/main/src/support/utils.h */
 INLINE uint64_t hash__(uint64_t state, uint64_t value) {
     return state ^ (value + 0x9e3779b9 + (state << 6) + (state >> 2));
 }

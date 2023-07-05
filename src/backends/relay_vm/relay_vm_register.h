@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_vm_register.h
  * @brief relay VM register struct.
- * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #ifndef TVM_RT_WASM_BACKENDS_RELAY_VM_RELAY_VM_REGISTER_H_INCLUDE_

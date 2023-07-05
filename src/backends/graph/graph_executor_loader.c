@@ -1,7 +1,6 @@
-/*!
+/**
  * @file graph/graph_executor_loader.c
  * @brief parse json file and load graph_executor
- * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #include <device/cpu_memory.h>
@@ -24,19 +23,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodeRowPtrArray(JsonReader *, TVM_RT_
 #define GRAPH_JSON_KEY_SIZE 128
 #endif // GRAPH_JSON_KEY_SIZE
 
-/*!
- * @brief Init a new GraphExecutor from graph.json
- *
- * @param graph_json JSON-encoded graph.
- * @param module_handle TVM Module that exposes the functions to call.
- * @param devices runtime execution device.
- * @param num_dev the number of devices
- * @param graph the instance.
- * @return 0 if successful.
- */
-int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module_handle,
-                                  const DLDevice *devices, uint32_t num_dev,
-                                  TVM_RT_WASM_GraphExecutor graph) {
+int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, Module *module, const DLDevice *devices,
+                                  uint32_t num_dev, TVM_RT_WASM_GraphExecutor graph) {
     // Init JsonReader
     JsonReader *reader = NULL;
     TVM_RT_WASM_JsonReader_Create(graph_json, &reader);
@@ -96,7 +84,7 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, TVMModuleHandle module
     graph->devices = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLDevice) * num_dev);
     memcpy(graph->devices, devices, sizeof(DLDevice) * num_dev);
     graph->num_device = num_dev;
-    graph->module_handle = module_handle;
+    graph->module = module;
 
     if (unlikely(graph->num_data_entry == 0)) {
         TVM_RT_SET_ERROR_RETURN(status, "The number of graph data_entry at least 1");
@@ -137,7 +125,7 @@ load_parse_json_fail:
     return status;
 }
 
-/*!
+/**
  * @brief setup storage for graph executor
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
@@ -210,10 +198,8 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
 
     // find linked param
     static const char *lookup_linked_param_func_name = "_lookup_linked_param";
-    Module *graph_lib_mod = (Module *)graph->module_handle;
     PackedFunction *func;
-    status = graph_lib_mod->GetFunction(graph_lib_mod, lookup_linked_param_func_name, 1,
-                                        (TVMFunctionHandle *)&func);
+    status = graph->module->GetFunction(graph->module, lookup_linked_param_func_name, 1, &func);
     if (status == 0) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
@@ -256,7 +242,7 @@ setup_storage_return:
     return status;
 }
 
-/*!
+/**
  * @brief setup operators for graph executor
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
@@ -278,7 +264,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
     TVMValue *alloc_value = graph->node_op_arg_value_storage;
     int *alloc_type = graph->node_op_arg_type_storage;
 
-    Module *graph_lib_mod = (Module *)graph->module_handle;
+    Module *graph_lib_mod = graph->module;
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
         GraphExecutorNode *node = graph->nodes + nid;
         if (strcmp(node->op_type, "tvm_op") == 0) {
@@ -324,7 +310,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
 #define JSON_ERROR(fmt, ...)                                                                       \
     TVM_RT_SET_ERROR_RETURN(-1, "%s" fmt, JSON_READER_ERROR_PREFIX, ##__VA_ARGS__)
 
-/*! @brief json next array item exist check */
+/** @brief json next array item exist check */
 #define ARRAY_CHECK_NEXT_EXISTS(reader, fmt, ...)                                                  \
     do {                                                                                           \
         status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                     \
@@ -333,7 +319,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
         }                                                                                          \
     } while (0)
 
-/*! @brief json next array item no-exist check */
+/** @brief json next array item no-exist check */
 #define ARRAY_CHECK_NEXT_NON_EXISTS(reader, fmt, ...)                                              \
     do {                                                                                           \
         status = TVM_RT_WASM_JsonReader_NextArrayItem(reader);                                     \
@@ -342,7 +328,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
         }                                                                                          \
     } while (0)
 
-/*! @brief parse the digit string */
+/** @brief parse the digit string */
 #define STR_DIGIT_TO_UINT(str, str_len, num)                                                       \
     do {                                                                                           \
         for (int i = 0; i < (str_len); ++i) {                                                      \
@@ -350,7 +336,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
         }                                                                                          \
     } while (0)
 
-/*!
+/**
  * @brief load graph nodes from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
@@ -494,7 +480,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *reader,
     return 0;
 }
 
-/*!
+/**
  * @brief load graph input node indices from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
@@ -528,7 +514,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *rea
     return 0;
 }
 
-/*!
+/**
  * @brief load graph output nodeEntry from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
@@ -584,7 +570,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphOutputNodeEntryArray(JsonReader *read
     return 0;
 }
 
-/*!
+/**
  * @brief load graph attributes from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor
@@ -791,7 +777,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader,
     return status;
 }
 
-/*!
+/**
  * @brief load graph node_row_ptr from json
  * @param reader the instance of JsonReader
  * @param graph the instance of GraphExecutor

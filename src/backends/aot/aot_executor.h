@@ -1,8 +1,6 @@
-/*!
- * \file aot/aot_executor.h
- * \brief aot_executor struct definition
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file aot/aot_executor.h
+ * @brief aot_executor struct definition
  */
 
 #ifndef TVM_RT_WASM_BACKENDS_AOT_AOT_EXECUTOR_INNER_H_INCLUDE_
@@ -18,7 +16,6 @@ extern "C" {
 #include <utils/common.h>
 
 struct TVM_RT_WASM_AotExecutor_st {
-    //    TVMModuleHandle module_handle;
     const struct TVMMetadata *metadata;
     DLDevice *devices;
     //    uint32_t num_devices;

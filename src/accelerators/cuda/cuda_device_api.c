@@ -1,7 +1,6 @@
-/*!
- * \file cuda/cuda_device_api.c
- * \brief implement for cuda device api
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file cuda/cuda_device_api.c
+ * @brief The implementation for cuda device api.
  */
 
 #include <cuda_common.h>
@@ -10,27 +9,27 @@
 #include <string.h>
 #include <utils/tensor_helper.h>
 
-/*! \brief CUDADeviceAPI implement the interface DeviceAPI */
+/** @brief CUDADeviceAPI implement the interface DeviceAPI */
 typedef struct CUDADeviceAPI {
     DEVICE_API_INTERFACE
 
-    /*! \brief the number of device */
+    /** @brief the number of device */
     uint32_t num_device;
-    /*! \brief current device id */
+    /** @brief current device id */
     int current_device;
-    /*! \brief the cuda contexts for every devices */
+    /** @brief the cuda contexts for every devices */
     CUcontext *contexts;
-    /*! \brief the now work stream */
+    /** @brief the now work stream */
     CUstream stream;
 
 #ifndef CUDA_10_ONLY
-    /*! \brief the cuda memory pool for workplace **/
+    /** @brief the cuda memory pool for workplace **/
     CUmemoryPool mem_pool;
 #endif // !CUDA_10_ONLY
 
 } CUDADeviceAPI;
 
-/*! \brief the cuda Device API will be a single static instance */
+/** @brief the cuda Device API will be a single static instance */
 static CUDADeviceAPI cudaDeviceApi;
 
 static int TVM_RT_WASM_CUDA_SetDevice(int dev_id) {
@@ -71,7 +70,8 @@ static int TVM_RT_WASM_CUDA_FreeDataSpace(int dev_id, void *ptr) {
     return 0;
 }
 
-static int TVM_RT_WASM_CUDA_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
+static int TVM_RT_WASM_CUDA_CopyDataFromTo(const DLTensor *from, DLTensor *to,
+                                           TVMStreamHandle stream) {
     (void)stream;
 
     uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
@@ -221,9 +221,9 @@ static int TVM_RT_WASM_CUDA_Release(DeviceAPI *d) {
     return 0;
 }
 
-/*!
- * \brief create a instance of cuda device api
- * @param out the pointer to receive instance
+/**
+ * @brief Create a instance of cuda device api.
+ * @param out the pointer to save instance.
  * @return 0 if successful
  */
 int TVM_RT_WASM_CUDADeviceAPICreate(DeviceAPI **out) {

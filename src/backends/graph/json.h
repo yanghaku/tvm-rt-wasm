@@ -1,8 +1,6 @@
-/*!
- * \file graph/json.h
- * \brief the parse util for load graph json
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file graph/json.h
+ * @brief Help functions to load graph json.
  */
 
 #ifndef TVM_RT_WASM_BACKENDS_GRAPH_JSON_H_INCLUDE_
@@ -17,19 +15,19 @@ extern "C" {
 #include <device/cpu_memory.h>
 #include <utils/common.h>
 
-/*! \brief get next char from the str, and change pointer to next */
+/** @brief get next char from the str, and change pointer to next */
 #define NextChar(ptr) (*((ptr)++))
 
-/*! \brief get next char from the str, but not change pointer */
+/** @brief get next char from the str, but not change pointer */
 #define PeekNextChar(ptr) (*(ptr))
 
-/*! \brief get next nonSpace char, and save it to "ch" , pointer will point to the next of "ch" */
+/** @brief get next nonSpace char, and save it to "ch" , pointer will point to the next of "ch" */
 #define NextNonSpace(ptr, ch)                                                                      \
     do {                                                                                           \
         (ch) = NextChar(ptr);                                                                      \
     } while (isspace(ch))
 
-/*! \brief get next nonSpace char, and save it to "ch" , pointer will point to "ch" */
+/** @brief get next nonSpace char, and save it to "ch" , pointer will point to "ch" */
 #define PeekNextNonSpace(ptr, ch)                                                                  \
     do {                                                                                           \
         while (isspace(PeekNextChar(ptr)))                                                         \
@@ -37,7 +35,7 @@ extern "C" {
         (ch) = *(ptr);                                                                             \
     } while (0)
 
-/*! \brief check the expect char and given char equal if or not */
+/** @brief check the expect char and given char equal if or not */
 #define CheckEQ(expect, given)                                                                     \
     do {                                                                                           \
         if (unlikely((expect) != (given))) {                                                       \
@@ -45,7 +43,7 @@ extern "C" {
         }                                                                                          \
     } while (0)
 
-/*! \brief the loop read number from string that the ptr point to */
+/** @brief the loop read number from string that the ptr point to */
 // todo: change it to judge lead zero
 #define str2numLoop(ptr, num)                                                                      \
     do {                                                                                           \
@@ -54,7 +52,7 @@ extern "C" {
         }                                                                                          \
     } while (0)
 
-/*! \brief change string to unsigned(any bits) and save to num */
+/** @brief change string to unsigned(any bits) and save to num */
 #define str2unsigned(ptr, num)                                                                     \
     do {                                                                                           \
         char ch;                                                                                   \
@@ -67,7 +65,7 @@ extern "C" {
         return -1;                                                                                 \
     } while (0)
 
-/*! \brief change string to signed(any bits) and save to num */
+/** @brief change string to signed(any bits) and save to num */
 #define str2signed(ptr, num)                                                                       \
     do {                                                                                           \
         char ch;                                                                                   \
@@ -91,11 +89,11 @@ extern "C" {
 
 /*--------------------Definition for JsonReader---------------------------------------------------*/
 
-/*! \brief a tiny json reader simply contain a char pointer */
+/** @brief a tiny json reader simply contain a char pointer */
 typedef const char *JsonReader;
 
-/*!
- * \brief Constructor function for JsonReader
+/**
+ * @brief Constructor function for JsonReader
  * @param json_str the source json string pointer
  * @param out_reader the pointer to receive out_reader
  * @return 0 if successful
@@ -105,17 +103,17 @@ INLINE void TVM_RT_WASM_JsonReader_Create(const char *json_str, JsonReader **out
     **out_reader = json_str;
 }
 
-/*!
- * \brief delete the instance of JsonReader
+/**
+ * @brief delete the instance of JsonReader
  * @param reader the instance pointer
  */
 INLINE void TVM_RT_WASM_JsonReader_Release(JsonReader *reader) {
     TVM_RT_WASM_HeapMemoryFree(reader);
 }
 
-/*!
- * \brief read a 32 bit unsigned int
- * \note The reason for using inline instead of macro definition is the need for type checking
+/**
+ * @brief read a 32 bit unsigned int
+ * @note The reason for using inline instead of macro definition is the need for type checking
  * @param reader the instance of JsonReader
  * @param out_num the pointer to receive number
  * @return 0 if successful
@@ -124,8 +122,8 @@ INLINE int TVM_RT_WASM_JsonReader_Read_uint32(JsonReader *reader, uint32_t *out_
     str2unsigned(*reader, *out_num);
 }
 
-/*!
- * \brief read a 32 bit signed int
+/**
+ * @brief read a 32 bit signed int
  * @param reader the instance of JsonReader
  * @param out_num the pointer to receive number
  * @return 0 if successful
@@ -134,8 +132,8 @@ INLINE int TVM_RT_WASM_JsonReader_Read_int32(JsonReader *reader, int32_t *out_nu
     str2signed(*reader, *out_num);
 }
 
-/*!
- * \brief read a 64 bit unsigned int
+/**
+ * @brief read a 64 bit unsigned int
  * @param reader the instance of JsonReader
  * @param out_num the pointer to receive number
  * @return 0 if successful
@@ -144,8 +142,8 @@ INLINE int TVM_RT_WASM_JsonReader_Read_uint64(JsonReader *reader, uint64_t *out_
     str2unsigned(*reader, *out_num);
 }
 
-/*!
- * \brief read a 64 bit signed int
+/**
+ * @brief read a 64 bit signed int
  * @param reader the instance of JsonReader
  * @param out_num the pointer to receive number
  * @return 0 if successful
@@ -154,8 +152,8 @@ INLINE int TVM_RT_WASM_JsonReader_Read_int64(JsonReader *reader, int64_t *out_nu
     str2signed(*reader, *out_num);
 }
 
-/*!
- * \brief read string and save to out_str
+/**
+ * @brief read string and save to out_str
  * @param reader the instance of JsonReader
  * @param out_str the store buffer
  * @param out_str_size the store buffer size
@@ -212,8 +210,8 @@ INLINE int TVM_RT_WASM_JsonReader_ReadString(JsonReader *reader, char *out_str,
     return size;
 }
 
-/*!
- * \brief check and prepare to read the next array item
+/**
+ * @brief check and prepare to read the next array item
  * @param reader the instance of JsonReader
  * @return if successful return 1, 0: no array item, <0 : error code
  */
@@ -232,8 +230,8 @@ INLINE int TVM_RT_WASM_JsonReader_NextArrayItem(JsonReader *reader) {
     return -1;
 }
 
-/*!
- * \brief prepare to read the next object item value, and read it's key if exist
+/**
+ * @brief prepare to read the next object item value, and read it's key if exist
  * @param reader the instance of JsonReader
  * @param out_key the buffer to save "key" of object
  * @param out_key_size buffer size
@@ -242,8 +240,8 @@ INLINE int TVM_RT_WASM_JsonReader_NextArrayItem(JsonReader *reader) {
  */
 int TVM_RT_WASM_JsonReader_NextObjectItem(JsonReader *reader, char *out_key, size_t out_key_size);
 
-/*!
- * \brief get the array length (it need to scan all the json string of array)
+/**
+ * @brief get the array length (it need to scan all the json string of array)
  * @param reader the instance of JsonReader
  * @param out_size the pointer to receive array length
  * @return 0 if successful

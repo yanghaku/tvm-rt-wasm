@@ -1,7 +1,6 @@
-/*!
+/**
  * @file graph/tensor_loader.c
  * @brief load the DLTensor list from param blob.
- * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #include <string.h>
@@ -11,7 +10,7 @@
 #include <graph/tensor_loader.h>
 #include <utils/common.h>
 
-/*!
+/**
  * @brief Parse string to DLDataType.
  * @param str the source string
  * @param out_type the pointer to save result DLDataType
@@ -58,7 +57,7 @@ int TVM_RT_WASM_DLDataType_ParseFromString(const char *str, DLDataType *out_type
     return 0;
 }
 
-/*!
+/**
  * @brief Load parameters from stream reader.
  * @param graph The instance of TVM_RT_WASM_GraphExecutor.
  * @param reader The stream reader instance.

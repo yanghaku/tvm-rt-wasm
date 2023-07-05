@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_executable.h
- * @brief private struct and functions for relay executable.
- * @author YangBo MG21330067@smail.nju.edu.cn
+ * @brief Private struct and functions for relay executable.
  * @sa https://github.com/apache/tvm/blob/main/include/tvm/runtime/vm/executable.h
  */
 
@@ -12,6 +11,7 @@
 extern "C" {
 #endif
 
+#include <module/module.h>
 #include <relay_vm/relay_instruction.h>
 #include <tvm/runtime/c_runtime_api.h>
 #include <utils/trie.h>
@@ -21,26 +21,26 @@ typedef struct TVM_RT_WASM_RelayExecutable_st *TVM_RT_WASM_RelayExecutable;
 
 /** @brief Relay Executable definition */
 struct TVM_RT_WASM_RelayExecutable_st {
-    /*! @brief module handle */
-    TVMModuleHandle module_handle;
+    /** @brief module handle */
+    Module *module_handle;
 
-    /*! @brief devices */
+    /** @brief devices */
     DLDevice *devices;
 
-    /*! @brief global string map to index */
+    /** @brief global string map to index */
     Trie *global_map;
 
-    /*! @brief packed functions */
-    TVMFunctionHandle *packed_functions;
+    /** @brief packed functions */
+    PackedFunction **packed_functions;
 
-    /*! @brief constant tensors */
+    /** @brief constant tensors */
     DLTensor *constant_tensors;
-    /*! @brief the constant may not be immediate, use the late bound name to index. */
+    /** @brief the constant may not be immediate, use the late bound name to index. */
     char **late_bound_constant_names;
-    /*! @brief constant tensors device index */
+    /** @brief constant tensors device index */
     size_t *constant_device_indices;
 
-    /*! @brief relay VM functions */
+    /** @brief relay VM functions */
     TVM_RT_WASM_RelayFunction *functions;
 
     size_t num_constant_tensors;
@@ -63,7 +63,7 @@ int TVM_RT_WASM_RelayExecutableCreateFromReader(TVMModuleHandle module_handle, S
                                                 const DLDevice *devices, uint32_t num_dev,
                                                 TVM_RT_WASM_RelayExecutable *exe_ptr);
 
-/*!
+/**
  * @brief Free the instance of TVM_RT_WASM_RelayExecutable.
  * @param exe The instance of TVM_RT_WASM_RelayExecutable.
  * @return 0 if successful.

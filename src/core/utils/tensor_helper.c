@@ -1,7 +1,6 @@
-/*!
+/**
  * @file utils/tensor_helper.h
  * @brief the utils function for DLTensor
- * @author YangBo MG21330067@smail.nju.edu.cn
  */
 
 #include <device/cpu_memory.h>
@@ -9,14 +8,6 @@
 #include <utils/common.h>
 #include <utils/tensor_helper.h>
 
-/*!
- * @brief Parse binary and load data to tensor.
- * @param tensor the tensor with no data or with data.
- * @param reader The stream reader instance.
- * @note If shape is NULL, it will alloc memory for shape.
- * @note If data is NULL, it will alloc memory for data.
- * @return 0 if successful
- */
 int TVM_RT_WASM_DLTensor_LoadFromReader(DLTensor *tensor, StreamReader *reader) {
     uint64_t header;
     int status = reader->ReadBytes(reader, &header, sizeof(uint64_t));

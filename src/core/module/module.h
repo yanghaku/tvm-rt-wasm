@@ -1,7 +1,6 @@
-/*!
- * \file module/module.h
- * \brief define the module base struct and interface
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file module/module.h
+ * @brief Define the module base interface and member.
  */
 
 #ifndef TVM_RT_WASM_CORE_MODULE_MODULE_H_INCLUDE_
@@ -18,77 +17,55 @@ extern "C" {
 typedef struct Module Module;
 
 typedef struct PackedFunction {
-    /*! \brief this function in which module */
+    /** @brief This function in which module. */
     Module *module;
-    /*! \brief the function pointer to execute */
+    /** @brief The function pointer to execute. */
     TVMBackendPackedCFunc exec;
-    /*! \brief other information, such as function index in module */
+    /** @brief Other information, such as function index in module. */
     uint64_t reserved;
 } PackedFunction;
 
-/*-------------------------for the Definition of Module struct------------------------------------*/
-
-/*! \brief the base interface in module */
+/** @brief the base interface in module */
 #define MODULE_BASE_INTERFACE                                                                      \
-    /*!                                                                                            \
-     * \brief Release the resource for this module                                                 \
-     * \return 0 if successful                                                                     \
+    /**                                                                                            \
+     * @brief Release the resource for this module.                                                \
+     * @return 0 if successful                                                                     \
      */                                                                                            \
     int (*Release)(Module * self);                                                                 \
-    /*!                                                                                            \
-     * \brief Find function from module                                                            \
-     * \param mod The module handle.                                                               \
-     * \param func_name The name of the function.                                                  \
-     * \param query_imports Whether to query imported modules                                      \
-     * \param out The result function, can be NULL if it is not available.                         \
-     * \return 0 when no error is thrown, nonzero when failure happens                             \
+    /**                                                                                            \
+     * @brief Find function from module.                                                           \
+     * @param mod The module handle.                                                               \
+     * @param func_name The name of the function.                                                  \
+     * @param query_imports Whether to query imported modules.                                     \
+     * @param out The pointer to save result packed function.                                      \
+     * @return 0 if successful                                                                     \
      */                                                                                            \
     int (*GetFunction)(Module * mod, const char *func_name, int query_imports,                     \
-                       TVMFunctionHandle *out);
+                       PackedFunction **out);
 
-/*! \brief the base member in module */
+/** @brief The base member in module. */
 #define MODULE_BASE_MEMBER                                                                         \
-    /*! \brief the allocated size for imports array */                                             \
-    uint32_t allocated_imports_size;                                                               \
-    /*! \brief the number of imports */                                                            \
-    uint32_t num_imports;                                                                          \
-    /*! \brief the depend modules array */                                                         \
+    /** @brief the base interfaces. */                                                             \
+    MODULE_BASE_INTERFACE                                                                          \
+    /** @brief the depend modules array. */                                                        \
     Module **imports;                                                                              \
-    /*! \brief the cached map <string, PackedFunction*>, for "GetFuncFromEnv", imports + global    \
-     * function */                                                                                 \
+    /** @brief the cached map <string, PackedFunction*>.                                           \
+     *  For "GetFuncFromEnv", save imports + global function.                                      \
+     */                                                                                            \
     Trie *env_funcs_map;                                                                           \
-    /*! \brief the module functions, map <string, PackedFunction*> */                              \
+    /** @brief the module functions, map <string, PackedFunction*>. */                             \
     Trie *module_funcs_map;                                                                        \
-    /*! \brief the packed function storage */                                                      \
+    /** @brief the packed function storage. */                                                     \
     PackedFunction *packed_functions;                                                              \
-    /*! \brief the base interfaces */                                                              \
-    MODULE_BASE_INTERFACE
+    /** @brief the number of imports. */                                                           \
+    uint32_t num_imports;
 
-/*! \brief the base class Module */
+/** @brief The base Module. */
 struct Module {
     MODULE_BASE_MEMBER
 };
 
-/*! \brief the public functions for every module */
-
-#define MODULE_FACTORY_RESOURCE_BINARY 0
-#define MODULE_FACTORY_RESOURCE_FILE 1
-
-/*!
- * \brief create a module instance for given type
- * @param type the module type or file format
- * @param type_size the type string size.
- * @param resource filename or binary source
- * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
- * @param out the pointer to receive created instance
- * @return >=0 if successful   (if binary type, it should return the binary length it has read)
- */
-int TVM_RT_WASM_ModuleFactory(const char *type, size_t type_size, const char *resource,
-                              int resource_type, Module **out);
-
-#define MODULE_SYSTEM_LIB "SystemLibrary"
-
-/*! \brief symbols */
+/** @brief symbols */
 #define TVM_MODULE_CTX "__tvm_module_ctx"
 #define TVM_DEV_MODULE_BLOB "__tvm_dev_mblob"
 #define TVM_SET_DEVICE_FUNCTION "__tvm_set_device"
@@ -96,71 +73,20 @@ int TVM_RT_WASM_ModuleFactory(const char *type, size_t type_size, const char *re
 #define TVM_GET_METADATA_FUNC get_c_metadata
 #define TVM_GET_METADATA_FUNC_NAME TOSTRING(TVM_GET_METADATA_FUNC)
 
-#define MODULE_BASE_MEMBER_FREE(module)                                                            \
-    do {                                                                                           \
-        if (module->imports) {                                                                     \
-            for (uint32_t i = 0; i < module->num_imports; ++i) {                                   \
-                if (module->imports[i]) {                                                          \
-                    module->imports[i]->Release(module->imports[i]);                               \
-                }                                                                                  \
-            }                                                                                      \
-            TVM_RT_WASM_HeapMemoryFree(module->imports);                                           \
-        }                                                                                          \
-        if (module->module_funcs_map) {                                                            \
-            TVM_RT_WASM_TrieRelease(module->module_funcs_map);                                     \
-        }                                                                                          \
-        if (module->env_funcs_map) {                                                               \
-            TVM_RT_WASM_TrieRelease(module->env_funcs_map);                                        \
-        }                                                                                          \
-    } while (0)
-
-/*! \brief Default function for module get function. */
-int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports,
-                                         TVMFunctionHandle *out);
-
-/*------------------------------- Module create functions ----------------------------------------*/
-
-/*!
- * \brief Load from binary blob
- * @param blob the dev_blob binary
- * @param lib_module the root module handle
- * @return 0 if successful
- */
-int TVM_RT_WASM_ModuleLoadBinaryBlob(const char *blob, Module **lib_module);
-
-/*!
- * \brief Create a system library module (this will be a single instance)
- * @param out the out handle
+/**
+ * @brief Create a system library module. (It will be a single instance).
+ * @param out The pointer to save created module instance.
  * @return 0 if successful
  */
 int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out);
 
-/*!
- * \brief Create a library module from the dynamic shared library
- * @param filename the filename
- * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
- * @param out the out handle
+/**
+ * @brief Create a library module from the dynamic shared library.
+ * @param filename The filename.
+ * @param out The pointer to save created module instance.
  * @return 0 if successful
  */
-int TVM_RT_WASM_DSOLibraryModuleCreate(const char *filename, int resource_type, Module **out);
-
-/*!
- * \brief Create a cuda module instance from file or binary
- * @param resource the file name or binary pointer
- * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
- * @param out the out handle
- * @return >=0 if successful   (if binary type, it should return the binary length it has read)
- */
-int TVM_RT_WASM_CUDAModuleCreate(const char *resource, int resource_type, Module **out);
-
-/*!
- * \brief Create a webgpu module instance from file or binary
- * @param resource the file name or binary pointer
- * @param resource_type Specify whether resource is binary or file type;  0: binary 1: file
- * @param out the out handle
- * @return >=0 if successful  (if binary type, it should return the binary length it has read)
- */
-int TVM_RT_WASM_WebGPUModuleCreate(const char *resource, int resource_type, Module **out);
+int TVM_RT_WASM_SharedLibraryModuleCreate(const char *filename, Module **out);
 
 #ifdef __cplusplus
 } // extern "C"

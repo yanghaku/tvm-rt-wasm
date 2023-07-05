@@ -1,7 +1,6 @@
-/*!
+/**
  * @file graph/graph_executor.c
- * @brief the implement for graph_executor
- * @author YangBo MG21330067@smail.nju.edu.cn
+ * @brief The implementation for graph_executor API.
  */
 
 #include <device/cpu_memory.h>
@@ -23,10 +22,10 @@ TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json
                                                           const DLDevice *devices,
                                                           uint32_t num_dev) {
     // if module_handle is NULL, use the system library.
-    if (module_handle == NULL) {
+    Module *module = (Module *)module_handle;
+    if (module == NULL) {
         SET_TIME(t0)
-        int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, sizeof(MODULE_SYSTEM_LIB) - 1,
-                                               NULL, 0, (Module **)&module_handle);
+        int status = TVM_RT_WASM_SystemLibraryModuleCreate(&module);
         if (unlikely(status)) {
             return NULL;
         }
@@ -46,7 +45,7 @@ TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json
         TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_GraphExecutor_st));
     memset(graph, 0, sizeof(struct TVM_RT_WASM_GraphExecutor_st));
 
-    int status = TVM_RT_WASM_GraphExecutorLoad(graph_json, module_handle, devices, num_dev, graph);
+    int status = TVM_RT_WASM_GraphExecutorLoad(graph_json, module, devices, num_dev, graph);
     if (unlikely(status)) {
         TVM_RT_WASM_GraphExecutorFree(graph);
         return NULL;
@@ -221,7 +220,6 @@ int TVM_RT_WASM_GraphExecutorGetOutputByName(TVM_RT_WASM_GraphExecutor g, const 
 int TVM_RT_WASM_GraphExecutorLoadParams(TVM_RT_WASM_GraphExecutor graph, const char *param_blob,
                                         uint32_t param_size) {
     CHECK_GraphExecutor(graph);
-    CHECK_INPUT_POINTER(param_blob, -2, "Param blob");
     if (unlikely(param_size < sizeof(uint64_t) * 2)) {
         TVM_RT_SET_ERROR_RETURN(-1, "Param size is too short, at least %zu", sizeof(uint64_t) * 2);
     }

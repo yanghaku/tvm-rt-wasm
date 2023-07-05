@@ -1,8 +1,6 @@
-/*!
+/**
  * @file utils/stream_reader.c
- * @brief the utils function to read object from bytes/file.
- * @author YangBo MG21330067@smail.nju.edu.cn
- *
+ * @brief The utils functions to read object from bytes or file.
  */
 
 #include <stdio.h>
@@ -149,6 +147,7 @@ static const char *TVM_RT_WASM_BytesStreamReadToBuffer(struct StreamReader *r,
 
 int TVM_RT_WASM_BytesStreamReaderCreate(const char *bytes, size_t byte_len,
                                         StreamReader **reader_ptr) {
+    CHECK_INPUT_POINTER(bytes, -2, "Bytes");
     *reader_ptr = NULL;
 
     // check overflow

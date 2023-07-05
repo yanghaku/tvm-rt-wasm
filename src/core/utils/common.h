@@ -1,8 +1,6 @@
-/*!
- * \file utils/common.h
- * \brief some common auxiliary definitions and functions
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file utils/common.h
+ * @brief Some common auxiliary definitions and macros.
  */
 
 #ifndef TVM_RT_WASM_CORE_UTILS_COMMON_H_INCLUDE_
@@ -61,6 +59,7 @@ extern "C" {
 
 #endif // NDEBUG
 
+// Define likely and unlikely
 #if defined(__GNUC__) || defined(__clang__)
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
@@ -68,6 +67,19 @@ extern "C" {
 #define likely(x) (x)
 #define unlikely(x) (x)
 #endif
+
+// Define unreachable()
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#include <stddef.h>
+#else // not C23
+#if defined(__GNUC__) || defined(__clang__)
+#define unreachable() (__builtin_unreachable())
+#elif defined(_MSC_VER) // MSVC
+#define unreachable() (__assume(false))
+#else
+#define unreachable() (abort())
+#endif
+#endif // C23
 
 extern char global_buf[];
 

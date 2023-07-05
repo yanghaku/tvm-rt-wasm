@@ -1,7 +1,6 @@
-/*!
- * \file cuda/wasi_sdk/cuda_driver_stub.c
- * \brief cuda driver error functions for wasm32-wasi target
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file cuda/wasi_sdk/cuda_driver_stub.c
+ * @brief The cuda driver error functions for wasm32-wasi target.
  */
 
 #if defined(__wasm32__) && defined(__wasi__) && (__wasm32__ == 1) && (__wasi__ == 1)

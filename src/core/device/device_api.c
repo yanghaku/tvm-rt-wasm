@@ -1,7 +1,6 @@
-/*!
- * \file device/device_api.c
- * \brief implement for device api
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file device/device_api.c
+ * @brief Implementation for device api.
  */
 
 #include <device/device_api.h>
@@ -18,24 +17,18 @@
 DEVICE_API_CREATE_IF_NO_SUPPORT(CUDA)
 DEVICE_API_CREATE_IF_NO_SUPPORT(WebGPU)
 
-/*!
- * \brief the device api for every device type
+/**
+ * @brief The device api instance pointer for every device type.
  */
-#define DEVICE_TYPE_SIZE 16
+#define DEVICE_TYPE_SIZE 17
 static DeviceAPI *g_device_api_instance[DEVICE_TYPE_SIZE] = {NULL};
 
-/*!
- * \brief get the device api instance for the given device type
- * @param device_type device type
- * @param out_device_api the pointer to receive the point
- * @return 0 if successful
- */
 int TVM_RT_WASM_DeviceAPIGet(DLDeviceType device_type, DeviceAPI **out_device_api) {
     int status = 0;
     if (unlikely(g_device_api_instance[device_type] == NULL)) { // need create
         switch (device_type) {
         case kDLCPU:
-            TVM_RT_SET_ERROR_RETURN(-1, "CPU device is not used.");
+            unreachable();
         case kDLCUDA:
         case kDLCUDAHost:
             status = TVM_RT_WASM_CUDADeviceAPICreate(&g_device_api_instance[device_type]);
@@ -67,10 +60,6 @@ int TVM_RT_WASM_DeviceAPIGet(DLDeviceType device_type, DeviceAPI **out_device_ap
     return status;
 }
 
-/*!
- * \brief destroy all device api instance
- * @return 0 if successful
- */
 void TVM_RT_WASM_DeviceReleaseAll() {
     for (int i = DEVICE_TYPE_SIZE - 1; i >= 0; --i) {
         if (g_device_api_instance[i]) {

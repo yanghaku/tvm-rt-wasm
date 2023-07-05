@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_executable.c
- * @brief the implementation for relay executable functions.
- * @author YangBo MG21330067@smail.nju.edu.cn
+ * @brief The Implementation for relay executable functions.
  */
 
 #include <stdio.h>
@@ -14,7 +13,7 @@
 #include <utils/stream_reader.h>
 #include <utils/tensor_helper.h>
 
-/*! @brief Magic number for executable byte code */
+/** @brief Magic number for executable byte code */
 #define kTVMVMBytecodeMagic (0xD225DE2F4214151DUL)
 
 #define kImmediateConstTag (0)
@@ -130,7 +129,6 @@ static int TVM_RT_WASM_RelayExecutableLoadPrimitiveNamesSection(TVM_RT_WASM_Rela
     uint64_t num_primitive_names;
     RELAY_LOADER_CHECK_ERROR(reader->ReadBytes(reader, &num_primitive_names, sizeof(uint64_t)));
 
-    Module *module = (Module *)exe->module_handle;
     size_t num_packed_functions = (size_t)num_primitive_names;
     exe->num_packed_functions = num_packed_functions;
     exe->packed_functions =
@@ -158,8 +156,8 @@ static int TVM_RT_WASM_RelayExecutableLoadPrimitiveNamesSection(TVM_RT_WASM_Rela
             return status;
         }
         name[name_len] = 0;
-        if (unlikely(status =
-                         module->GetFunction(module, name, 1, exe->packed_functions + index))) {
+        if (unlikely(status = exe->module_handle->GetFunction(exe->module_handle, name, 1,
+                                                              exe->packed_functions + index))) {
             TVM_RT_WASM_WorkplaceMemoryFree(name);
             return status;
         }
@@ -219,10 +217,9 @@ int TVM_RT_WASM_RelayExecutableCreateFromReader(TVMModuleHandle module_handle, S
                                                 const DLDevice *devices, uint32_t num_dev,
                                                 TVM_RT_WASM_RelayExecutable *exe_ptr) {
     int status;
-    if (module_handle == NULL) {
-        RELAY_LOADER_CHECK_ERROR(
-            TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, sizeof(MODULE_SYSTEM_LIB) - 1, ((void *)0),
-                                      0, (Module **)&(module_handle)));
+    Module *module = (Module *)module_handle;
+    if (module == NULL) {
+        RELAY_LOADER_CHECK_ERROR(TVM_RT_WASM_SystemLibraryModuleCreate(&module));
     }
 
     uint64_t header_magic;
@@ -239,7 +236,7 @@ int TVM_RT_WASM_RelayExecutableCreateFromReader(TVMModuleHandle module_handle, S
     TVM_RT_WASM_RelayExecutable exe =
         TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_RelayExecutable_st));
     memset(exe, 0, sizeof(struct TVM_RT_WASM_RelayExecutable_st));
-    exe->module_handle = module_handle;
+    exe->module_handle = module;
 
 #define LOAD_SECTION_OR_FAIL(section_name)                                                         \
     do {                                                                                           \

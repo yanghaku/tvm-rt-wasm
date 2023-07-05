@@ -1,7 +1,6 @@
-/*!
- * \file webgpu/c_api/webgpu_js_impl.c
- * \brief implement for webgpu sync c api using inline js to run in nodejs or browser.
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file webgpu/c_api/webgpu_js_impl.c
+ * @brief Implementation for WebGPU sync c api using inline js to run in nodejs or browser.
  */
 
 #ifdef __EMSCRIPTEN__ // __EMSCRIPTEN__

@@ -1,34 +1,33 @@
-/*!
- * \file module/function_info.h
- * \brief macros for parsing the FunctionInfo in module metadata.
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file module/function_info.h
+ * @brief macros for parsing the FunctionInfo in module metadata.
  */
 
 #ifndef TVM_RT_WASM_CORE_MODULE_FUNCTION_INFO_H_INCLUDE_
 #define TVM_RT_WASM_CORE_MODULE_FUNCTION_INFO_H_INCLUDE_
 
 #define BASE_FUNCTION_INFO                                                                         \
-    /*! \brief the argument storage for function */                                                \
+    /** @brief the argument storage for function */                                                \
     void **kernel_arg_storages;                                                                    \
-    /*!                                                                                            \
-     * \brief the rest arguments map to thread params information                                  \
+    /**                                                                                            \
+     * @brief the rest arguments map to thread params information                                  \
      *                                                                                             \
      * -1: NULL; [0,3): grid_dim[] (blockIdx. ; [3,6): block_dim[] (ThreadIdx.                     \
      *                                                                                             \
      */                                                                                            \
     uint32_t *func_arg_index_map;                                                                  \
-    /*! \brief whether use dynamic shared memory */                                                \
+    /** @brief whether use dynamic shared memory */                                                \
     uint32_t use_dyn_mem;                                                                          \
-    /*! \brief the number of arguments of function kernel */                                       \
+    /** @brief the number of arguments of function kernel */                                       \
     uint32_t num_kernel_args;                                                                      \
-    /*!                                                                                            \
-     * \brief the number of the rest arguments map for every function                              \
+    /**                                                                                            \
+     * @brief the number of the rest arguments map for every function                              \
      *                                                                                             \
-     * \note for every wrapped function:                                                           \
+     * @note for every wrapped function:                                                           \
      *  num_func_args[func_id] + num_func_arg_map[func_id] + (use_dyn_mem==1) = num_args           \
      *                                                                                             \
-     *  \sa TVM_RT_WASM_CUDAWrappedFunction in cuda_module.c                                       \
-     *  \sa TVM_RT_WASM_WebGPUWrappedFunction in webgpu_module.c                                   \
+     *  @sa TVM_RT_WASM_CUDAWrappedFunction in cuda_module.c                                       \
+     *  @sa TVM_RT_WASM_WebGPUWrappedFunction in webgpu_module.c                                   \
      */                                                                                            \
     uint32_t num_func_arg_map;
 

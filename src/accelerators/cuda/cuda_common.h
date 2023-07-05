@@ -1,8 +1,6 @@
-/*!
- * \file cuda_common.h
- * \brief some common auxiliary definitions and functions for cuda
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file cuda_common.h
+ * @brief Some common auxiliary definitions and functions for cuda.
  */
 
 #ifndef TVM_RT_WASM_ACCELERATORS_CUDA_CUDA_COMMON_H_INCLUDE_

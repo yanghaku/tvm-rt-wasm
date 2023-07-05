@@ -1,7 +1,6 @@
-/*!
+/**
  * @file utils/stream_reader.h
- * @brief the utils function to read object from bytes/file.
- * @author YangBo MG21330067@smail.nju.edu.cn
+ * @brief The utils functions to read object from bytes or file.
  */
 
 #ifndef TVM_RT_WASM_CORE_UTILS_STREAM_READER_H_INCLUDE_

@@ -1,7 +1,6 @@
-/*!
- * \file cuda/graph/cuda_extension.c
- * \brief the implementation for graph_executor cuda extension
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file cuda/graph/cuda_extension.c
+ * @brief The implementation for graph_executor cuda extension.
  */
 
 #ifndef CUDA_10_ONLY
@@ -13,16 +12,16 @@
 #include <string.h>
 
 typedef struct CUDAGraphExecutorExtensionData {
-    /*! \brief The CUDA stream on which to capture a CUDA graph. */
+    /** @brief The CUDA stream on which to capture a CUDA graph. */
     CUstream cu_stream;
-    /*! \brief The captured CUDA graph will be instantiated to this. */
+    /** @brief The captured CUDA graph will be instantiated to this. */
     CUgraphExec cu_graph_exec;
 } CUDAGraphExecutorExtensionData;
 
-/*!
- * \brief Execute the graph.
- * \param g The instance of This.
- * \return 0 if successful
+/**
+ * @brief Execute the graph.
+ * @param g The instance of This.
+ * @return 0 if successful
  */
 static int TVM_RT_WASM_GraphExecutorCUDARun(TVM_RT_WASM_GraphExecutor graph) {
     CUDAGraphExecutorExtensionData *data = (CUDAGraphExecutorExtensionData *)graph->extension_data;
@@ -33,10 +32,10 @@ static int TVM_RT_WASM_GraphExecutorCUDARun(TVM_RT_WASM_GraphExecutor graph) {
     return 0;
 }
 
-/*!
- * \brief Release the CUDAGraphExecutorExtensionData.
- * \param d Pointer to CUDAGraphExecutorExtensionData.
- * \return 0 if successful
+/**
+ * @brief Release the CUDAGraphExecutorExtensionData.
+ * @param d Pointer to CUDAGraphExecutorExtensionData.
+ * @return 0 if successful
  */
 static int TVM_RT_WASM_GraphExecutorCUDAFree(void *d) {
     if (unlikely(d == NULL)) {
@@ -55,11 +54,11 @@ static int TVM_RT_WASM_GraphExecutorCUDAFree(void *d) {
     return 0;
 }
 
-/*!
- * \brief Clone the CUDAGraphExecutorExtensionData.
- * \param d Pointer to CUDAGraphExecutorExtensionData.
- * \param cloned Pointer which receive the new instance.
- * \return 0 if successful
+/**
+ * @brief Clone the CUDAGraphExecutorExtensionData.
+ * @param d Pointer to CUDAGraphExecutorExtensionData.
+ * @param cloned Pointer which receive the new instance.
+ * @return 0 if successful
  */
 static int TVM_RT_WASM_GraphExecutorCUDAClone(void *d, void **cloned) {
     (void)d;
@@ -71,11 +70,11 @@ static int TVM_RT_WASM_GraphExecutorCUDAClone(void *d, void **cloned) {
     return 0;
 }
 
-/*!
- * \brief Allocate and initialize CUDA extension data for TVM_RT_WASM_GraphExecutor.
+/**
+ * @brief Allocate and initialize CUDA extension data for TVM_RT_WASM_GraphExecutor.
  *
- * \param g The instance of TVM_RT_WASM_GraphExecutor.
- * \return 0 if successful.
+ * @param g The instance of TVM_RT_WASM_GraphExecutor.
+ * @return 0 if successful.
  */
 int TVM_RT_WASM_CUDAGraphExecutorExtensionDataCreate(TVM_RT_WASM_GraphExecutor g) {
     CUDAGraphExecutorExtensionData *d =

@@ -1,8 +1,6 @@
-/*!
- * \file device/cpu_memory.h
- * \brief the main memory manager for cpu
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file device/cpu_memory.h
+ * @brief CPU memory alloc/free interface.
  */
 
 #ifndef TVM_RT_WASM_CORE_DEVICE_CPU_MEMORY_H_INCLUDE_
@@ -39,9 +37,9 @@ extern size_t history_size;
 #define alignment_up(a, size) (((a) + (size)-1) & (~((size)-1)))
 #define ALIGNMENT_SIZE 16
 
-/*!
- * \brief malloc the heap memory
- * @param bytes the number of bytes to allocate
+/**
+ * @brief Allocate the heap memory.
+ * @param bytes The number of bytes to allocate.
  * @return the pointer
  */
 INLINE void *TVM_RT_WASM_HeapMemoryAlloc(size_t bytes) {
@@ -50,15 +48,15 @@ INLINE void *TVM_RT_WASM_HeapMemoryAlloc(size_t bytes) {
     return (void *)ans;
 }
 
-/*!
- * \brief free the heap memory
+/**
+ * @brief Free the heap memory.
  * @param ptr the pointer
  */
-INLINE void TVM_RT_WASM_HeapMemoryFree(void *ptr) {}
+INLINE void TVM_RT_WASM_HeapMemoryFree(void *ptr) { (void)ptr; }
 
-/*!
- * \brief malloc the temporal memory
- * @param bytes the number of bytes to allocate
+/**
+ * @brief Allocate the temporal memory.
+ * @param bytes The number of bytes to allocate.
  * @return the pointer
  */
 INLINE void *TVM_RT_WASM_WorkplaceMemoryAlloc(size_t bytes) {
@@ -68,11 +66,12 @@ INLINE void *TVM_RT_WASM_WorkplaceMemoryAlloc(size_t bytes) {
     return (void *)ans;
 }
 
-/*!
- * \brief free the temporal memory
- * @param ptr
+/**
+ * @brief Free the temporal memory.
+ * @param ptr the pointer
  */
 INLINE void TVM_RT_WASM_WorkplaceMemoryFree(void *ptr) {
+    (void)ptr;
     stack_now_ptr = stack_alloc_history[--history_size];
 }
 

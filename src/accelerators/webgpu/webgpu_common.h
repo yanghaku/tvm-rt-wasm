@@ -1,8 +1,6 @@
-/*!
- * \file webgpu/webgpu_common.h
- * \brief webgpu common defination
- * \author YangBo MG21330067@smail.nju.edu.cn
- *
+/**
+ * @file webgpu/webgpu_common.h
+ * @brief WebGPU common definition.
  */
 
 #ifndef TVM_RT_WASM_ACCELERATORS_WEBGPU_WEBGPU_COMMON_H_INCLUDE_

@@ -1,7 +1,6 @@
-/*!
- * \file webgpu/c_api/native_impl/webgpu_native_impl.c
- * \brief implement for webgpu sync c api using native library.
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file webgpu/c_api/native_impl/webgpu_native_impl.c
+ * @brief Implementation for WebGPU sync c api using native library.
  */
 
 #ifndef __EMSCRIPTEN__ // !__EMSCRIPTEN__

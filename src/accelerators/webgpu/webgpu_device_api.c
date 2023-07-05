@@ -1,7 +1,6 @@
-/*!
- * \file device/webgpu_device_api.c
- * \brief implement for webgpu device api
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file device/webgpu_device_api.c
+ * @brief implement for webgpu device api
  */
 
 #include <device/device_api.h>
@@ -9,7 +8,7 @@
 #include <utils/tensor_helper.h>
 #include <webgpu_common.h>
 
-/*! \brief WebGPUDeviceAPI implement the interface DeviceAPI */
+/** @brief WebGPUDeviceAPI implement the interface DeviceAPI */
 typedef struct WebGPUDeviceAPI {
     DEVICE_API_INTERFACE
 
@@ -17,7 +16,7 @@ typedef struct WebGPUDeviceAPI {
 
 } WebGPUDeviceAPI;
 
-/*! \brief the webgpu Device API will be a single static instance */
+/** @brief the webgpu Device API will be a single static instance */
 static WebGPUDeviceAPI webGPUDeviceAPI;
 
 static int TVM_RT_WASM_WebGPU_SetDevice(int dev_id) {
@@ -55,7 +54,8 @@ static int TVM_RT_WASM_WebGPU_FreeDataSpace(int dev_id, void *ptr) {
     return 0;
 }
 
-static int TVM_RT_WASM_WebGPU_CopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
+static int TVM_RT_WASM_WebGPU_CopyDataFromTo(const DLTensor *from, DLTensor *to,
+                                             TVMStreamHandle stream) {
     (void)stream;
     uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
     uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
@@ -180,9 +180,9 @@ static int TVM_RT_WASM_WebGPU_Release(DeviceAPI *d) {
     return 0;
 }
 
-/*!
- * \brief create a instance of webgpu device api
- * @param out the pointer to receive instance
+/**
+ * @brief Create a instance of WebGPU device api.
+ * @param out The pointer to save instance.
  * @return 0 if successful
  */
 int TVM_RT_WASM_WebGPUDeviceAPICreate(DeviceAPI **out) {

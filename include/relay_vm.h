@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm.h
  * @brief Interfaces for relay virtual machine.
- * @author YangBo MG21330067@smail.nju.edu.cn
  * @sa https://tvm.apache.org/docs/arch/virtual_machine.html
  */
 
@@ -18,7 +17,7 @@ extern "C" {
 
 typedef struct TVM_RT_WASM_RelayVirtualMachine_st *TVM_RT_WASM_RelayVirtualMachine;
 
-/*!
+/**
  * @brief Allocate a new TVM_RT_WASM_RelayVirtualMachine and initialize it.
  * @param module_handle TVM relay executable library module. If NULL, use the system library.
  * @param byte_code TVM relay executable bytecode byte array.
@@ -31,7 +30,7 @@ TVM_DLL TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreate(
     TVMModuleHandle module_handle, const char *byte_code, uint32_t byte_code_size,
     const DLDevice *devices, uint32_t num_dev);
 
-/*!
+/**
  * @brief Allocate a new TVM_RT_WASM_RelayVirtualMachine and initialize it.
  * @param module_handle TVM relay executable library module. If NULL, use the system library.
  * @param filename TVM relay executable bytecode file.
@@ -42,14 +41,14 @@ TVM_DLL TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreate(
 TVM_DLL TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreateFromFile(
     TVMModuleHandle module_handle, const char *filename, const DLDevice *devices, uint32_t num_dev);
 
-/*!
+/**
  * @brief Free the instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @return 0 if successful.
  */
 TVM_DLL int TVM_RT_WASM_RelayVirtualMachineFree(TVM_RT_WASM_RelayVirtualMachine vm);
 
-/*!
+/**
  * @brief Execute the VM function.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param func_name The function name. if func_name is NULL, use the default name "main".
@@ -58,7 +57,7 @@ TVM_DLL int TVM_RT_WASM_RelayVirtualMachineFree(TVM_RT_WASM_RelayVirtualMachine 
 TVM_DLL int TVM_RT_WASM_RelayVirtualMachineRun(TVM_RT_WASM_RelayVirtualMachine vm,
                                                const char *func_name);
 
-/*!
+/**
  * @brief Set input to the vm based on index.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param func_name The function name. if func_name is NULL, use the default name "main".
@@ -72,7 +71,7 @@ TVM_DLL int TVM_RT_WASM_RelayVirtualMachineSetInput(TVM_RT_WASM_RelayVirtualMach
                                                     const char *func_name, uint32_t index,
                                                     const DLTensor *data_in);
 
-/*!
+/**
  * @brief Set input to the vm based on name.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param func_name The function name. if func_name is NULL, use the default name "main".
@@ -86,7 +85,7 @@ TVM_DLL int TVM_RT_WASM_RelayVirtualMachineSetInputByName(TVM_RT_WASM_RelayVirtu
                                                           const char *func_name, const char *name,
                                                           const DLTensor *data_in);
 
-/*!
+/**
  * @brief Get output data for given output index.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param func_name The function name. if func_name is NULL, use the default name "main".
@@ -100,7 +99,7 @@ TVM_DLL int TVM_RT_WASM_RelayVirtualMachineGetOutput(TVM_RT_WASM_RelayVirtualMac
 
 /*-----------------Functions to get relay virtual machine information-----------------------------*/
 
-/*!
+/**
  * @brief Get the input index given the name of input.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param func_name The function name. if func_name is NULL, use the default name "main".
@@ -110,7 +109,7 @@ TVM_DLL int TVM_RT_WASM_RelayVirtualMachineGetOutput(TVM_RT_WASM_RelayVirtualMac
 TVM_DLL int TVM_RT_WASM_RelayVirtualMachineGetInputIndex(TVM_RT_WASM_RelayVirtualMachine vm,
                                                          const char *func_name, const char *name);
 
-/*!
+/**
  * @brief Get number of input tensors allocated.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @param func_name The function name. if func_name is NULL, use the default name "main".
@@ -119,7 +118,7 @@ TVM_DLL int TVM_RT_WASM_RelayVirtualMachineGetInputIndex(TVM_RT_WASM_RelayVirtua
 TVM_DLL int TVM_RT_WASM_RelayVirtualMachineGetNumInputs(TVM_RT_WASM_RelayVirtualMachine vm,
                                                         const char *func_name);
 
-/*!
+/**
  * @brief Get number of output of current relay VM.
  * @param vm The instance of TVM_RT_WASM_RelayVirtualMachine.
  * @return integer number of output tensors.

@@ -1,7 +1,6 @@
-/*!
- * \file aot/aot_executor.c
- * \brief the implementation for aot_executor public api.
- * \author YangBo MG21330067@smail.nju.edu.cn
+/**
+ * @file aot/aot_executor.c
+ * @brief The implementation for aot_executor public api.
  */
 
 #include <aot/aot_executor.h>
@@ -101,10 +100,10 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
 TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_handle,
                                                       const DLDevice *devices, uint32_t num_dev) {
     // if module_handle is NULL, use the system library.
-    if (module_handle == NULL) {
+    Module *mod = (Module *)module_handle;
+    if (mod == NULL) {
         SET_TIME(t0)
-        int status = TVM_RT_WASM_ModuleFactory(MODULE_SYSTEM_LIB, sizeof(MODULE_SYSTEM_LIB) - 1,
-                                               NULL, 0, (Module **)&module_handle);
+        int status = TVM_RT_WASM_SystemLibraryModuleCreate(&mod);
         if (unlikely(status)) {
             return NULL;
         }
@@ -117,7 +116,6 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
             NULL, "Invalid argument: the number of devices cannot be zero, at least 1.");
     }
 
-    Module *mod = (Module *)module_handle;
     TVMValue ret_value = {.v_handle = NULL};
     int ret_type_code = 0;
     // try to use system library
@@ -126,8 +124,7 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
 
         // try to get `get_metadata` function.
         PackedFunction *get_metadata_func;
-        status = mod->GetFunction(mod, TVM_GET_METADATA_FUNC_NAME, 1,
-                                  (TVMFunctionHandle *)&get_metadata_func);
+        status = mod->GetFunction(mod, TVM_GET_METADATA_FUNC_NAME, 1, &get_metadata_func);
         if (unlikely(status)) {
             TVM_RT_SET_ERROR_RETURN(NULL, "Cannot find function `%s`.", TVM_GET_METADATA_FUNC_NAME);
         }
@@ -148,7 +145,6 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
     TVM_RT_WASM_AotExecutor a =
         TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_AotExecutor_st));
     memset(a, 0, sizeof(struct TVM_RT_WASM_AotExecutor_st));
-    //    a->module_handle = module_handle;
     a->metadata = metadata;
 
     // find main function
@@ -156,7 +152,7 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
     char *main_func_name = TVM_RT_WASM_WorkplaceMemoryAlloc(main_func_name_len);
     strcpy(main_func_name, metadata->mod_name);
     strcat(main_func_name, "_" TVM_MODULE_MAIN);
-    status = mod->GetFunction(mod, main_func_name, 1, (TVMFunctionHandle *)&a->main_func);
+    status = mod->GetFunction(mod, main_func_name, 1, &a->main_func);
     if (unlikely(status)) {
         TVM_RT_SET_ERROR("Cannot find function `%s`.", main_func_name);
         TVM_RT_WASM_WorkplaceMemoryFree(main_func_name);

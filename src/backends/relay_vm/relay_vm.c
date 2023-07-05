@@ -1,7 +1,6 @@
-/*!
+/**
  * @file relay_vm/relay_vm.c
- * @brief the implementation for relay_vm public api.
- * @author YangBo MG21330067@smail.nju.edu.cn
+ * @brief The implementation for relay_vm public api.
  */
 
 #include <device/cpu_memory.h>
@@ -58,7 +57,6 @@ TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreate(TVMModuleH
                                                                       const DLDevice *devices,
                                                                       uint32_t num_dev) {
     CHECK_DeviceList(devices, num_dev);
-    CHECK_INPUT_POINTER(byte_code, NULL, "Relay executable bytecode byte array");
     TVM_RT_WASM_RelayExecutable exec = NULL;
     int status;
     StreamReader *reader;
