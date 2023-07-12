@@ -54,8 +54,8 @@ int WGPU_MemoryFree(WGPU_Memory memory);
  * @param nbytes the number of bytes to copy.
  * @return 0 if success.
  */
-int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset,
-                        size_t nbytes);
+int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, const void *src,
+                        size_t src_byte_offset, size_t nbytes);
 
 /**
  * @brief Copy memory from device to host.

@@ -156,14 +156,6 @@ INLINE int TVM_RT_WASM_TrieQueryWithLen(Trie *trie, const uint8_t *name, size_t 
 }
 
 /**
- * @brief Insert all data from src to dst
- * @param dst the instance of dst Trie
- * @param src the instance of src Trie
- * @return 0 if successful
- */
-int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src);
-
-/**
  * @brief Traversal the trie, and use visit function to visit every node's data.
  * @param trie the instance of Trie
  * @param visit the visit function

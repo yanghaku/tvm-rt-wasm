@@ -9,8 +9,8 @@
 #include <graph/tensor_loader.h>
 #include <module/module.h>
 
-static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor);
-static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor);
+static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor, Module *module);
+static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor, Module *module);
 static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *, TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *,
                                                                  TVM_RT_WASM_GraphExecutor);
@@ -84,7 +84,6 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, Module *module, const 
     graph->devices = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLDevice) * num_dev);
     memcpy(graph->devices, devices, sizeof(DLDevice) * num_dev);
     graph->num_device = num_dev;
-    graph->module = module;
 
     if (unlikely(graph->num_data_entry == 0)) {
         TVM_RT_SET_ERROR_RETURN(status, "The number of graph data_entry at least 1");
@@ -111,12 +110,12 @@ int TVM_RT_WASM_GraphExecutorLoad(const char *graph_json, Module *module, const 
     }
 
     // init storage
-    status = TVM_RT_WASM_GraphExecutor_SetupStorage(graph);
+    status = TVM_RT_WASM_GraphExecutor_SetupStorage(graph, module);
     if (unlikely(status)) {
         return status;
     }
     // init operators
-    return TVM_RT_WASM_GraphExecutor_SetupOpExecs(graph);
+    return TVM_RT_WASM_GraphExecutor_SetupOpExecs(graph, module);
 
 load_parse_json_fail:
     if (reader) {
@@ -130,7 +129,7 @@ load_parse_json_fail:
  * @param graph the instance of GraphExecutor
  * @return 0 if successful
  */
-static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor graph, Module *module) {
     DLDataType no_type = {0, 0, 0};
     size_t *storage_size = NULL;
     DLDevice *storage_device = NULL;
@@ -149,13 +148,9 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
     storage_size = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(size_t) * num_storage);
     memset(storage_size, 0, sizeof(size_t) * num_storage);
     for (uint32_t i = 0; i < graph->num_data_entry; ++i) {
-        size_t now_size = TVM_RT_WASM_DLTensor_GetDataSize(
-            graph->data_entry[i].dl_tensor.shape, (int)graph->data_entry[i].dl_tensor.ndim);
-        now_size = ((graph->data_entry[i].dl_tensor.dtype.bits *
-                         graph->data_entry[i].dl_tensor.dtype.lanes +
-                     7U) /
-                    8U) *
-                   now_size;
+        size_t now_size = TVM_RT_WASM_DLTensor_GetDataBytes(graph->data_entry[i].dl_tensor.shape,
+                                                            graph->data_entry[i].dl_tensor.ndim,
+                                                            graph->data_entry[i].dl_tensor.dtype);
         if (unlikely(now_size == 0)) {
             status = -1;
             TVM_RT_SET_ERROR_AND_GOTO(setup_storage_return, "Shape[%d] cannot contains 0", i);
@@ -199,7 +194,7 @@ static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor grap
     // find linked param
     static const char *lookup_linked_param_func_name = "_lookup_linked_param";
     PackedFunction *func;
-    status = graph->module->GetFunction(graph->module, lookup_linked_param_func_name, 1, &func);
+    status = module->GetFunction(module, lookup_linked_param_func_name, 1, &func);
     if (status == 0) {
         TVMValue arg_val, ret_val;
         int arg_type, ret_type;
@@ -245,9 +240,11 @@ setup_storage_return:
 /**
  * @brief setup operators for graph executor
  * @param graph the instance of GraphExecutor
+ * @param graph_lib_mod the module for graph.
  * @return 0 if successful
  */
-static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor graph) {
+static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor graph,
+                                                  Module *graph_lib_mod) {
     // init memory
     graph->nodeOps = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeOp) * graph->num_nodes);
     memset(graph->nodeOps, 0, sizeof(GraphExecutorNodeOp) * graph->num_nodes);
@@ -264,7 +261,6 @@ static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor grap
     TVMValue *alloc_value = graph->node_op_arg_value_storage;
     int *alloc_type = graph->node_op_arg_type_storage;
 
-    Module *graph_lib_mod = graph->module;
     for (uint32_t nid = 0; nid < graph->num_nodes; ++nid) {
         GraphExecutorNode *node = graph->nodes + nid;
         if (strcmp(node->op_type, "tvm_op") == 0) {

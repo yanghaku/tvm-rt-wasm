@@ -67,6 +67,10 @@ int main(int argc, char **argv) {
     TVM_RT_WASM_AotExecutor aot_executor = TVM_RT_WASM_AotExecutorCreate(module, &exec_device, 1);
     if (!aot_executor) {
         fprintf(stderr, "Create Aot Executor fail: %s\n", TVMGetLastError());
+#ifdef DSO_TEST
+        // if create fail, the module need to be freed.
+        TVMModFree(module);
+#endif // DSO_TEST
         return -1;
     }
     SET_TIME(create_end)
@@ -116,9 +120,5 @@ int main(int argc, char **argv) {
 
     SET_TIME(end_time)
     printf("\nTotal time: %lf ms\n", GET_DURING(end_time, start_time));
-
-#ifdef DSO_TEST
-    RUN(TVMModFree(module));
-#endif // DSO_TEST
     return 0;
 }

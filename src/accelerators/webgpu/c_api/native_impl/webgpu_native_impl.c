@@ -175,8 +175,8 @@ int WGPU_MemoryFree(WGPU_Memory memory) {
     return 0;
 }
 
-int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset,
-                        size_t nbytes) {
+int WGPU_MemoryCopyHtoD(WGPU_Memory dst, size_t dst_byte_offset, const void *src,
+                        size_t src_byte_offset, size_t nbytes) {
     WGPUQueue q = wgpuDeviceGetQueue((WGPUDevice)dst->device);
     wgpuQueueWriteBuffer(q, dst->buffer, dst_byte_offset, src + src_byte_offset, nbytes);
     return 0;

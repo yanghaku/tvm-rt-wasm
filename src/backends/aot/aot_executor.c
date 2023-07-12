@@ -5,6 +5,7 @@
 
 #include <aot/aot_executor.h>
 #include <device/cpu_memory.h>
+#include <device/device_api.h>
 #include <string.h>
 #include <utils/tensor_helper.h>
 
@@ -20,10 +21,31 @@ _Pragma(TOSTRING(weak TVM_GET_METADATA_FUNC)) int32_t
     return num_args - 1;
 }
 
+#define AllocDataSpaceForTensor(_device, _device_api, _tensor)                                     \
+    do {                                                                                           \
+        size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes((_tensor)->shape, (_tensor)->ndim,   \
+                                                              (_tensor)->dtype);                   \
+        if ((_device).device_type == kDLCPU) {                                                     \
+            (_tensor)->data = TVM_RT_WASM_HeapMemoryAlloc(data_bytes);                             \
+        } else {                                                                                   \
+            (_tensor)->data = device_api->AllocDataSpace(device.device_id, data_bytes);            \
+        }                                                                                          \
+        if (unlikely((_tensor)->data == NULL)) {                                                   \
+            return -1;                                                                             \
+        }                                                                                          \
+    } while (0)
+
 static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
     int status = 0;
     const struct TVMMetadata *metadata = a->metadata;
     const DLDevice device = a->devices[0];
+    DeviceAPI *device_api = NULL;
+    if (device.device_type != kDLCPU) {
+        status = TVM_RT_WASM_DeviceAPIGet(device.device_type, &device_api);
+        if (unlikely(status)) {
+            return status;
+        }
+    }
 
     // alloc tensors
     size_t args_size = (size_t)(metadata->num_inputs + metadata->num_outputs);
@@ -32,7 +54,7 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
     }
     size_t tensor_bytes_size = sizeof(DLTensor) * args_size;
     a->tensors = TVM_RT_WASM_HeapMemoryAlloc(tensor_bytes_size);
-    memset(a->tensors, 0, tensor_bytes_size);
+    memset(a->tensors, 0, tensor_bytes_size); // set bytes_offset, strides to 0.
     DLTensor *now_tensor = a->tensors;
     // input tensors
     for (int64_t i = 0; i < metadata->num_inputs; ++i) {
@@ -40,12 +62,7 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
         now_tensor->dtype = metadata->inputs[i].dtype;
         now_tensor->ndim = (int32_t)metadata->inputs[i].num_shape;
         now_tensor->device = device;
-        size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(now_tensor);
-        status =
-            TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
-        if (unlikely(status)) {
-            return -1;
-        }
+        AllocDataSpaceForTensor(device, device_api, now_tensor);
         ++now_tensor;
     }
     // output tensors
@@ -54,12 +71,7 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
         now_tensor->dtype = metadata->outputs[i].dtype;
         now_tensor->ndim = (int32_t)metadata->outputs[i].num_shape;
         now_tensor->device = device;
-        size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(now_tensor);
-        status =
-            TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype, &now_tensor->data);
-        if (unlikely(status)) {
-            return -1;
-        }
+        AllocDataSpaceForTensor(device, device_api, now_tensor);
         ++now_tensor;
     }
     if (metadata->num_workspace_pools > 0) {
@@ -75,12 +87,7 @@ static int TVM_RT_WASM_AotExecutorAllocStorage(TVM_RT_WASM_AotExecutor a) {
             now_tensor->dtype = metadata->workspace_pools[i].dtype;
             now_tensor->ndim = (int32_t)metadata->workspace_pools[i].num_shape;
             now_tensor->device = device;
-            size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(now_tensor);
-            status = TVMDeviceAllocDataSpace(device, data_bytes, 0, now_tensor->dtype,
-                                             &now_tensor->data);
-            if (unlikely(status)) {
-                return -1;
-            }
+            AllocDataSpaceForTensor(device, device_api, now_tensor);
             ++now_tensor;
         }
     }
@@ -173,6 +180,8 @@ TVM_RT_WASM_AotExecutor TVM_RT_WASM_AotExecutorCreate(TVMModuleHandle module_han
         TVM_RT_WASM_AotExecutorFree(a);
         return NULL;
     }
+
+    a->module = mod;
     return a;
 }
 
@@ -194,6 +203,9 @@ int TVM_RT_WASM_AotExecutorFree(TVM_RT_WASM_AotExecutor a) {
             }
         }
         TVM_RT_WASM_HeapMemoryFree(a->tensors);
+    }
+    if (a->module) {
+        a->module->Release(a->module);
     }
     TVM_RT_WASM_HeapMemoryFree(a);
     return 0;

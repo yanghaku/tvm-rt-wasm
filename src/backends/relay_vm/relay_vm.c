@@ -159,10 +159,12 @@ static int TVM_RT_WASM_RelayVMSetInputInner(TVM_RT_WASM_RelayVirtualMachine vm,
         input_reg->tp = Reg_BorrowedTensor;
         input_reg->tensor = *data_in;
     } else {
-        uint64_t need_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(data_in);
+        uint64_t need_bytes =
+            TVM_RT_WASM_DLTensor_GetDataBytes(data_in->shape, data_in->ndim, data_in->dtype);
         int should_alloc_data = 0;
         if (input_reg->tp == Reg_OwnedTensor) {
-            uint64_t current_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(&input_reg->tensor);
+            uint64_t current_bytes = TVM_RT_WASM_DLTensor_GetDataBytes(
+                input_reg->tensor.shape, input_reg->tensor.ndim, input_reg->tensor.dtype);
             if (unlikely(current_bytes != need_bytes)) {
                 TVM_RT_WASM_RelayVMRegisterFree(input_reg);
                 should_alloc_data = 1;
@@ -217,6 +219,7 @@ int TVM_RT_WASM_RelayVirtualMachineSetInputByName(TVM_RT_WASM_RelayVirtualMachin
                                                   const char *func_name, const char *name,
                                                   const DLTensor *data_in) {
     CHECK_RelayVirtualMachine(vm);
+    CHECK_INPUT_POINTER(name, -2, "Name");
     CHECK_INPUT_POINTER(data_in, -2, "DLTensor");
     TVM_RT_WASM_RelayVMGetAndCheckFunc(vm, func_name);
 

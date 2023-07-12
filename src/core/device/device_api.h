@@ -29,40 +29,61 @@ typedef struct DeviceAPI DeviceAPI;
      * @brief Allocate a data space on device.                                                     \
      * @param dev_id The device id to perform operation.                                           \
      * @param nbytes The number of bytes in memory.                                                \
-     * @param alignment The alignment of the memory.                                               \
-     * @param type_hint The type of elements.                                                      \
      * @return The allocated device pointer.  return NULL if fail.                                 \
      */                                                                                            \
-    void *(*AllocDataSpace)(int dev_id, size_t nbytes, size_t alignment, DLDataType type_hint);    \
-                                                                                                   \
-    /**                                                                                            \
-     * @brief Allocate a data space on device with memory scope support.                           \
-     * @param dev_id The device id to perform operation.                                           \
-     * @param ndim The number of dimension of allocated tensor.                                    \
-     * @param shape The shape of allocated tensor.                                                 \
-     * @param dtype The data type of elements.                                                     \
-     * @param mem_scope The memory scope of allocated tensor.                                      \
-     * @return The allocated device pointer.  return NULL if fail.                                 \
-     */                                                                                            \
-    void *(*AllocDataSpaceScope)(int dev_id, int ndim, const int64_t *shape, DLDataType dtype,     \
-                                 const char *mem_scope);                                           \
+    void *(*AllocDataSpace)(int dev_id, size_t nbytes);                                            \
                                                                                                    \
     /**                                                                                            \
      * @brief Free a data space on device.                                                         \
      * @param dev_id The device_id to perform operation.                                           \
-     * @param ptr The data space.                                                                  \
+     * @param ptr The data pointer.                                                                \
      * @return 0 if successful                                                                     \
      */                                                                                            \
     int (*FreeDataSpace)(int dev_id, void *ptr);                                                   \
                                                                                                    \
     /**                                                                                            \
-     * @brief Copy data from one DLTensor to DLTensor.                                             \
-     * @param from The source DLTensor.                                                            \
-     * @param to The target DLTensor.                                                              \
+     * @brief Copy data from this device to cpu.                                                   \
+     * @param from The source data handle.                                                         \
+     * @param to The target data handle.                                                           \
+     * @param nbytes The number of bytes to copy.                                                  \
+     * @param from_offset The offset for source data handle.                                       \
+     * @param to_offset The offset for target data handle.                                         \
      * @param stream Optional stream object.                                                       \
+     * @param from_dev_id The source data device id.                                               \
      * @return 0 if successful                                                                     \
      */                                                                                            \
-    int (*CopyDataFromTo)(const DLTensor *from, DLTensor *to, TVMStreamHandle stream);             \
+    int (*CopyDataFromDeviceToCPU)(const void *from, void *to, size_t nbytes, size_t from_offset,  \
+                                   size_t to_offset, TVMStreamHandle stream, int from_dev_id);     \
+                                                                                                   \
+    /**                                                                                            \
+     * @brief Copy data from cpu to this device.                                                   \
+     * @param from The source data handle.                                                         \
+     * @param to The target data handle.                                                           \
+     * @param nbytes The number of bytes to copy.                                                  \
+     * @param from_offset The offset for source data handle.                                       \
+     * @param to_offset The offset for target data handle.                                         \
+     * @param stream Optional stream object.                                                       \
+     * @param to_dev_id The target data device id.                                                 \
+     * @return 0 if successful                                                                     \
+     */                                                                                            \
+    int (*CopyDataFromCPUToDevice)(const void *from, void *to, size_t nbytes, size_t from_offset,  \
+                                   size_t to_offset, TVMStreamHandle stream, int to_dev_id);       \
+                                                                                                   \
+    /**                                                                                            \
+     * @brief Copy data from one device to device (must the same device).                          \
+     * @param from The source data handle.                                                         \
+     * @param to The target data handle.                                                           \
+     * @param nbytes The number of bytes to copy.                                                  \
+     * @param from_offset The offset for source data handle.                                       \
+     * @param to_offset The offset for target data handle.                                         \
+     * @param stream Optional stream object.                                                       \
+     * @param from_dev_id The source data device id.                                               \
+     * @param to_dev_id The target data device id.                                                 \
+     * @return 0 if successful                                                                     \
+     */                                                                                            \
+    int (*CopyDataFromDeviceToDevice)(const void *from, void *to, size_t nbytes,                   \
+                                      size_t from_offset, size_t to_offset,                        \
+                                      TVMStreamHandle stream, int from_dev_id, int to_dev_id);     \
                                                                                                    \
     /**                                                                                            \
      * @brief Create a new stream of execution.                                                    \
@@ -102,22 +123,12 @@ typedef struct DeviceAPI DeviceAPI;
     TVMStreamHandle (*GetStream)();                                                                \
                                                                                                    \
     /**                                                                                            \
-     * @brief Synchronize 2 streams of execution.                                                  \
-     * @param dev_id The device id to perform operation.                                           \
-     * @param event_src The source stream to synchronize.                                          \
-     * @param event_dst The destination stream to synchronize.                                     \
-     * @return 0 if successful                                                                     \
-     */                                                                                            \
-    int (*SyncStreamFromTo)(int dev_id, TVMStreamHandle event_src, TVMStreamHandle event_dst);     \
-                                                                                                   \
-    /**                                                                                            \
      * @brief Allocate temporal workspace for backend execution.                                   \
      * @param dev_id The device id to perform operation.                                           \
      * @param nbytes The size to be allocated.                                                     \
-     * @param type_hint The type of elements.                                                      \
      * @return allocated handle, NULL if fail                                                      \
      */                                                                                            \
-    void *(*AllocWorkspace)(int dev_id, size_t nbytes, DLDataType type_hint);                      \
+    void *(*AllocWorkspace)(int dev_id, size_t nbytes);                                            \
                                                                                                    \
     /**                                                                                            \
      * @brief Free temporal workspace in backend execution.                                        \

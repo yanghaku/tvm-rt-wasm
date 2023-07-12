@@ -24,23 +24,6 @@ const unsigned char char2index[] = {
 
 /*--------------------These functions are recursive and cannot be inlined.------------------------*/
 
-int TVM_RT_WASM_TrieInsertAll(Trie *dst, Trie *src) {
-    for (int i = 0; i < CHAR_SET_SIZE; ++i) {
-        if (src->son[i]) {
-            if (dst->son[i] == NULL) {
-                dst->son[i] = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Trie));
-                memset(dst->son[i], 0, sizeof(Trie));
-            }
-            TVM_RT_WASM_TrieInsertAll(dst->son[i], src->son[i]);
-        }
-    }
-    if (!dst->has_value) {
-        dst->data = src->data;
-        dst->has_value = true;
-    }
-    return 0;
-}
-
 void TVM_RT_WASM_TrieVisit(Trie *trie, void (*visit)(void **, void *), void *source_handle) {
     for (int i = 0; i < CHAR_SET_SIZE; ++i) {
         if (trie->son[i]) {

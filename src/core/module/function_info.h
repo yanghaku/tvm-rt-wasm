@@ -34,41 +34,41 @@
 #define PARSE_FUNC_INFO(_mod, _cur_ptr, fail_label)                                                \
     do {                                                                                           \
         /* key: name */                                                                            \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);                 \
         size_t name_size = (size_t) * (uint64_t *)_cur_ptr;                                        \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                  \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                        \
         TVM_RT_WASM_TrieInsertWithLen((_mod)->module_funcs_map, (const uint8_t *)_cur_ptr,         \
-                                      name_size, (_mod)->packed_functions + fid);                  \
+                                      name_size, (_mod)->functions + fid);                         \
                                                                                                    \
         /* value: FunctionInfo{name, arg_types, launch_params_tags} */                             \
                                                                                                    \
         /* FunctionInfo.name */                                                                    \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);                 \
         name_size = (size_t) * (uint64_t *)_cur_ptr;                                               \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                  \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                        \
                                                                                                    \
         /* num_func_args */                                                                        \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);                 \
         size_t num_kernel_arg = (size_t) * (uint64_t *)_cur_ptr;                                   \
         info->num_kernel_args = num_kernel_arg;                                                    \
         info->kernel_arg_storages =                                                                \
             TVM_RT_WASM_HeapMemoryAlloc(sizeof(void **) * (num_kernel_arg));                       \
                                                                                                    \
         /* arg types */                                                                            \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(                                                   \
-            _cur_ptr, info->num_kernel_args * sizeof(DLDataType), fail_label);                     \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, info->num_kernel_args * sizeof(DLDataType),    \
+                                          fail_label);                                             \
                                                                                                    \
         /* num_func_arg_map */                                                                     \
-        TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);           \
+        TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);                 \
         size_t mp_size = (size_t) * (uint64_t *)_cur_ptr;                                          \
         info->num_func_arg_map = mp_size;                                                          \
                                                                                                    \
         /* allocate memory for arg_index_map */                                                    \
         info->func_arg_index_map = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * mp_size);        \
         for (size_t i = 0; i < mp_size; ++i) {                                                     \
-            TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);       \
+            TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, sizeof(uint64_t), fail_label);             \
             name_size = (size_t) * (uint64_t *)_cur_ptr;                                           \
-            TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);              \
+            TVM_RT_WASM_BinaryCheckReadOrGoto(_cur_ptr, name_size, fail_label);                    \
                                                                                                    \
             if (name_size == 24 &&                                                                 \
                 memcmp(_cur_ptr, "tir.use_dyn_shared_memory", name_size) == 0) {                   \

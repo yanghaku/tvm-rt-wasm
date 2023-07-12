@@ -14,7 +14,7 @@
 #include <utils/tensor_helper.h>
 
 /** @brief Magic number for executable byte code */
-#define kTVMVMBytecodeMagic (0xD225DE2F4214151DUL)
+#define kTVMVMBytecodeMagic (UINT64_C(0xD225DE2F4214151D))
 
 #define kImmediateConstTag (0)
 #define kLateBoundConstTag (1)
@@ -61,8 +61,9 @@ static int TVM_RT_WASM_RelayExecutableLoadGlobalSection(TVM_RT_WASM_RelayExecuta
         if (unlikely(name == NULL)) {
             return -1;
         }
+        uintptr_t data = index;
         TVM_RT_WASM_TrieInsertWithLen(exe->global_map, (const uint8_t *)name, name_len,
-                                      (void *)index);
+                                      (void *)data);
     }
     return 0;
 }
@@ -83,7 +84,7 @@ static int TVM_RT_WASM_RelayExecutableLoadConstantSection(TVM_RT_WASM_RelayExecu
         if (tag == kImmediateConstTag) {
             // read DLTensor
             RELAY_LOADER_CHECK_ERROR(
-                TVM_RT_WASM_DLTensor_LoadFromReader(exe->constant_tensors + i, reader));
+                TVM_RT_WASM_DLTensor_LoadFromStream(exe->constant_tensors + i, reader));
         } else if (tag == kLateBoundConstTag) {
             if (!exe->late_bound_constant_names) {
                 exe->late_bound_constant_names = TVM_RT_WASM_HeapMemoryAlloc(sizeof(char *) * size);
@@ -123,7 +124,8 @@ static int TVM_RT_WASM_RelayExecutableLoadConstantSection(TVM_RT_WASM_RelayExecu
 }
 
 static int TVM_RT_WASM_RelayExecutableLoadPrimitiveNamesSection(TVM_RT_WASM_RelayExecutable exe,
-                                                                StreamReader *reader) {
+                                                                StreamReader *reader,
+                                                                Module *module) {
     int status;
     // read std::vector<std::string>
     uint64_t num_primitive_names;
@@ -156,8 +158,8 @@ static int TVM_RT_WASM_RelayExecutableLoadPrimitiveNamesSection(TVM_RT_WASM_Rela
             return status;
         }
         name[name_len] = 0;
-        if (unlikely(status = exe->module_handle->GetFunction(exe->module_handle, name, 1,
-                                                              exe->packed_functions + index))) {
+        if (unlikely(status =
+                         module->GetFunction(module, name, 1, exe->packed_functions + index))) {
             TVM_RT_WASM_WorkplaceMemoryFree(name);
             return status;
         }
@@ -236,22 +238,21 @@ int TVM_RT_WASM_RelayExecutableCreateFromReader(TVMModuleHandle module_handle, S
     TVM_RT_WASM_RelayExecutable exe =
         TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_RelayExecutable_st));
     memset(exe, 0, sizeof(struct TVM_RT_WASM_RelayExecutable_st));
-    exe->module_handle = module;
 
-#define LOAD_SECTION_OR_FAIL(section_name)                                                         \
+#define LOAD_SECTION_OR_FAIL(section_name, ...)                                                    \
     do {                                                                                           \
-        status = TVM_RT_WASM_RelayExecutableLoad##section_name##Section(exe, reader);              \
+        status = TVM_RT_WASM_RelayExecutableLoad##section_name##Section(__VA_ARGS__);              \
         if (unlikely(status)) {                                                                    \
             DBG("Reader " TOSTRING(section_name) "Section fail.");                                 \
             goto load_fail;                                                                        \
         }                                                                                          \
     } while (0)
 
-    LOAD_SECTION_OR_FAIL(VirtualDevice);
-    LOAD_SECTION_OR_FAIL(Global);
-    LOAD_SECTION_OR_FAIL(Constant);
-    LOAD_SECTION_OR_FAIL(PrimitiveNames);
-    LOAD_SECTION_OR_FAIL(Code);
+    LOAD_SECTION_OR_FAIL(VirtualDevice, exe, reader);
+    LOAD_SECTION_OR_FAIL(Global, exe, reader);
+    LOAD_SECTION_OR_FAIL(Constant, exe, reader);
+    LOAD_SECTION_OR_FAIL(PrimitiveNames, exe, reader, module);
+    LOAD_SECTION_OR_FAIL(Code, exe, reader);
 
     // setup devices;
     for (size_t i = 0; i < exe->num_devices; ++i) {
@@ -298,14 +299,15 @@ int TVM_RT_WASM_RelayExecutableCreateFromReader(TVMModuleHandle module_handle, S
             if (unlikely(status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &device_api))) {
                 goto load_fail;
             }
-            size_t nbytes = TVM_RT_WASM_DLTensor_GetDataBytes(t);
-            t->data = device_api->AllocDataSpace(dev.device_id, nbytes, 0, t->dtype);
+            size_t nbytes = TVM_RT_WASM_DLTensor_GetDataBytes(t->shape, t->ndim, t->dtype);
+            t->data = device_api->AllocDataSpace(dev.device_id, nbytes);
             if (unlikely(t->data == NULL)) {
                 status = -1;
                 TVM_RT_WASM_HeapMemoryFree(origin_tensor.data);
                 goto load_fail;
             }
-            if (unlikely(status = device_api->CopyDataFromTo(&origin_tensor, t, NULL))) {
+            if (unlikely(status = device_api->CopyDataFromCPUToDevice(
+                             origin_tensor.data, t->data, nbytes, 0, 0, NULL, dev.device_id))) {
                 TVM_RT_WASM_HeapMemoryFree(origin_tensor.data);
                 goto load_fail;
             }
@@ -314,6 +316,7 @@ int TVM_RT_WASM_RelayExecutableCreateFromReader(TVMModuleHandle module_handle, S
     }
 
     // success
+    exe->module_handle = module;
     *exe_ptr = exe;
     return 0;
 
@@ -364,6 +367,9 @@ int TVM_RT_WASM_RelayExecutableFree(TVM_RT_WASM_RelayExecutable exe) {
             }
         }
         TVM_RT_WASM_HeapMemoryFree(exe->functions);
+    }
+    if (exe->module_handle) {
+        exe->module_handle->Release(exe->module_handle);
     }
     TVM_RT_WASM_HeapMemoryFree(exe);
     return 0;

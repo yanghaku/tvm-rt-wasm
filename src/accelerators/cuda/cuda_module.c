@@ -8,8 +8,13 @@
 #include <device/device_api.h>
 #include <module/function_info.h>
 #include <module/module_impl.h>
+#include <utils/binary_reader.h>
 
+/** @brief CUDA function information, derive from PackedFunction. */
 typedef struct CUDAFunctionInfo {
+    /** @brief The function pointer to execute. */
+    TVMBackendPackedCFunc exec;
+
     /** @brief base information */
     BASE_FUNCTION_INFO
 
@@ -21,11 +26,13 @@ typedef struct CUDAFunctionInfo {
 typedef struct CUDAModule {
     MODULE_BASE_MEMBER
 
-    /** @brief the cuda module */
-    // todo: change it to support multi-GPU
-    CUmodule cu_module;
+    /** @brief PackedFunctions in this module, with its information. */
     CUDAFunctionInfo *functions;
     size_t num_functions;
+
+    // todo: change it to support multi-GPU
+    /** @brief the cuda module */
+    CUmodule cu_module;
 } CUDAModule;
 
 static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes, int num_args,
@@ -34,12 +41,10 @@ static int TVM_RT_WASM_CUDAWrappedFunction(TVMValue *args, const int *type_codes
     (void)ret_val;
     (void)ret_type_codes;
 
-    PackedFunction *pf = (PackedFunction *)resource_handle;
-    int func_id = (int)pf->reserved;
+    CUDAFunctionInfo *info = (CUDAFunctionInfo *)resource_handle;
     size_t block_dim[] = {1, 1, 1};
     size_t grid_dim[] = {1, 1, 1};
     size_t dyn_shared_mem_size = 0;
-    CUDAFunctionInfo *info = ((CUDAModule *)pf->module)->functions + func_id;
 
     uint32_t num_kernel_args = info->num_kernel_args;
     CHECK_DYN_MEM();
@@ -75,7 +80,6 @@ static int TVM_RT_WASM_CUDAModuleReleaseFunc(Module *self) {
         }
     }
     TVM_RT_WASM_HeapMemoryFree(c->functions);
-    TVM_RT_WASM_HeapMemoryFree(c->packed_functions);
 
     cuModuleUnload(c->cu_module);
     // free self
@@ -89,16 +93,11 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, size_t num_f
     (*cudaModule)->Release = TVM_RT_WASM_CUDAModuleReleaseFunc;
     (*cudaModule)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     TVM_RT_WASM_TrieCreate(&((*cudaModule)->module_funcs_map));
-    (*cudaModule)->packed_functions =
-        TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_func);
     (*cudaModule)->functions = TVM_RT_WASM_HeapMemoryAlloc(sizeof(CUDAFunctionInfo) * num_func);
     memset((*cudaModule)->functions, 0, sizeof(CUDAFunctionInfo) * num_func);
     (*cudaModule)->num_functions = num_func;
     for (size_t fid = 0; fid < num_func; ++fid) {
-        (*cudaModule)->packed_functions[fid].module = (Module *)(*cudaModule);
-        (*cudaModule)->packed_functions[fid].exec =
-            (TVMBackendPackedCFunc)TVM_RT_WASM_CUDAWrappedFunction;
-        (*cudaModule)->packed_functions[fid].reserved = fid;
+        (*cudaModule)->functions[fid].exec = (TVMBackendPackedCFunc)TVM_RT_WASM_CUDAWrappedFunction;
     }
 }
 
@@ -108,22 +107,22 @@ static void TVM_RT_WASM_CUDAModuleAllocate(CUDAModule **cudaModule, size_t num_f
  * @param out The pointer to save created module instance.
  * @return 0 if successful
  */
-int TVM_RT_WASM_CUDAModuleCreate(ModuleBinaryReader *reader, Module **out) {
+int TVM_RT_WASM_CUDAModuleCreate(BinaryReader *reader, Module **out) {
     *out = NULL;
     const char *cur_ptr;
     int status = -1;
 
     // parse format
-    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), fail_label);
+    TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), fail_label);
     size_t fmt_size = (size_t) * (uint64_t *)cur_ptr; // format string size
-    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(cur_ptr, fmt_size, fail_label);
+    TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, fmt_size, fail_label);
     if (!((fmt_size == 5 && memcmp(cur_ptr, "cubin", fmt_size) == 0) ||
           (fmt_size == 3 && memcmp(cur_ptr, "ptx", fmt_size) == 0))) {
         TVM_RT_SET_ERROR_RETURN(-1, "Unsupported binary format %s", cur_ptr);
     }
 
     // parse function map: <string, FunctionInfo{name, arg_types, launch_params_tags} >
-    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), fail_label);
+    TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), fail_label);
     size_t func_map_size = (size_t) * (uint64_t *)cur_ptr; // func_map_size
     // allocate memory for this
     TVM_RT_WASM_CUDAModuleAllocate((CUDAModule **)out, func_map_size);
@@ -137,9 +136,9 @@ int TVM_RT_WASM_CUDAModuleCreate(ModuleBinaryReader *reader, Module **out) {
     }
 
     // parse data
-    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), fail_label);
+    TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), fail_label);
     size_t source_len = (size_t) * (uint64_t *)cur_ptr;
-    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(cur_ptr, source_len, fail_label);
+    TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, source_len, fail_label);
 
     // init cu_module
     DeviceAPI *cuda_dev_api;

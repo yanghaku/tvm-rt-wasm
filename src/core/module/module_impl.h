@@ -44,29 +44,6 @@ int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int
  */
 int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_module);
 
-typedef struct ModuleBinaryReader {
-    const char *current_ptr;
-    const char *const end_ptr;
-} ModuleBinaryReader;
-
-/**
- * @brief Add read_size offset to current pointer and check.
- * If check fail, goto fail label.
- * Requirement variables:
- *  int status;
- *  ModuleBinaryReader *reader;
- */
-#define TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_ptr, _read_size, _fail_label)                     \
-    do {                                                                                           \
-        (_ptr) = reader->current_ptr;                                                              \
-        const char *_next = (_ptr) + (_read_size);                                                 \
-        if (unlikely(_next > reader->end_ptr)) {                                                   \
-            status = -1;                                                                           \
-            TVM_RT_SET_ERROR_AND_GOTO(_fail_label, "Module binary unexpected eof.");               \
-        }                                                                                          \
-        reader->current_ptr = _next;                                                               \
-    } while (0)
-
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -97,6 +97,7 @@ endfunction()
 add_backend_library(tvm-rt-backend-graph src/backends/graph)
 add_backend_library(tvm-rt-backend-aot src/backends/aot)
 add_backend_library(tvm-rt-backend-relay-vm src/backends/relay_vm)
+add_backend_library(tvm-rt-backend-relax-vm src/backends/relax_vm)
 
 ## CUDA library target.
 if (${_ENABLE_CUDA})
@@ -131,7 +132,9 @@ if (${_ENABLE_EMSDK})
             -sERROR_ON_UNDEFINED_SYMBOLS=1 -sMODULARIZE=1 -sSINGLE_FILE=1 -sEXPORT_NAME="tvm_rt_module_create"
             -sEXPORTED_RUNTIME_METHODS=["FS","stackAlloc","stackSave","stackRestore","stringToUTF8","UTF8ToString","stringToNewUTF8","stringToUTF8OnStack"])
 
-    set(_tvm_module_lib_deps tvm-rt-backend-graph tvm-rt-backend-aot tvm-rt-backend-relay-vm tvm-rt-core)
+    # need whole archive or set undefined symbol
+    set(_tvm_module_lib_deps -Wl,--undefined=TVM_RT_WASM_RelaxExecutableModuleCreate tvm-rt-backend-relax-vm)
+    list(APPEND _tvm_module_lib_deps tvm-rt-backend-graph tvm-rt-backend-aot tvm-rt-backend-relay-vm tvm-rt-core)
     if (${_ENABLE_WEBGPU})
         target_link_options(tvm-rt-module PRIVATE -sASYNCIFY)
         list(APPEND _tvm_module_lib_deps -Wl,--whole-archive tvm-rt-webgpu -Wl,--no-whole-archive)
@@ -149,6 +152,7 @@ install_library(tvm-rt-core)
 install_library(tvm-rt-backend-graph)
 install_library(tvm-rt-backend-aot)
 install_library(tvm-rt-backend-relay-vm)
+install_library(tvm-rt-backend-relax-vm)
 if (${_ENABLE_CUDA})
     install_library(tvm-rt-cuda)
 endif ()
@@ -179,6 +183,7 @@ install(FILES 3rdparty/dlpack/include/dlpack/dlpack.h DESTINATION include/dlpack
 install(FILES include/graph_executor.h
         include/aot_executor.h
         include/relay_vm.h
+        include/relax_vm.h
         DESTINATION include)
 
 # install LICENSE file

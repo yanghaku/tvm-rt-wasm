@@ -21,6 +21,8 @@ typedef struct TVM_RT_WASM_GraphExecutor_st *TVM_RT_WASM_GraphExecutor;
  * @param module_handle TVM graph executor library module. If NULL, use the system library.
  * @param devices runtime execution device.
  * @param num_dev the number of devices.
+ * @note The function will get ownership of this module_handle if create successfully.
+ *       **DO NOT** free this module_handle if create successfully!
  * @return Pointer of TVM_RT_WASM_GraphExecutor instance if successful, NULL if fail.
  */
 TVM_DLL TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json,

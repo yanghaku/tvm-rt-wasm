@@ -151,7 +151,9 @@ EM_JS(int, WGPU_MemoryFree, (WGPU_Memory mem_id), {
 });
 
 EM_JS(int, WGPU_MemoryCopyHtoD,
-      (WGPU_Memory dst, size_t dst_byte_offset, void *src, size_t src_byte_offset, size_t nbytes), {
+      (WGPU_Memory dst, size_t dst_byte_offset, const void *src, size_t src_byte_offset,
+       size_t nbytes),
+      {
           const ctx = globalThis.TVM_RT_WASM_WEBGPU_CTX;
           const dst_mem = ctx.mems.get(dst);
           dst_mem.dev.queue.writeBuffer(dst_mem.buffer, dst_byte_offset, HEAPU8,

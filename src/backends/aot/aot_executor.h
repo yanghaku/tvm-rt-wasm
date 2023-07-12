@@ -16,6 +16,7 @@ extern "C" {
 #include <utils/common.h>
 
 struct TVM_RT_WASM_AotExecutor_st {
+    Module *module;
     const struct TVMMetadata *metadata;
     DLDevice *devices;
     //    uint32_t num_devices;

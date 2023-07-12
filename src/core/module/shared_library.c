@@ -26,6 +26,13 @@ typedef void *SharedLibNativeHandle;
 #include <device/cpu_memory.h>
 #include <module/module_impl.h>
 
+/** @brief SharedLibraryModule, derive from Module. */
+typedef struct SharedLibraryModule {
+    MODULE_BASE_MEMBER
+
+    SharedLibNativeHandle lib_handle;
+} SharedLibraryModule;
+
 /** @brief Free all packed functions for shared library module. */
 static void TVM_RT_WASM_TrieVisit_SharedLibPackedFuncFree(void **data_ptr, void *_) {
     (void)_;
@@ -39,8 +46,7 @@ static void TVM_RT_WASM_TrieVisit_SharedLibPackedFuncFree(void **data_ptr, void 
 static int TVM_RT_WASM_DsoModuleReleaseFunc(Module *mod) {
     TVM_RT_WASM_TrieVisit(mod->module_funcs_map, TVM_RT_WASM_TrieVisit_SharedLibPackedFuncFree,
                           NULL);
-    SharedLibNativeHandle native_handle = (SharedLibNativeHandle)mod->packed_functions;
-    TVM_RT_WASM_CLOSE_LIB(native_handle);
+    TVM_RT_WASM_CLOSE_LIB(((SharedLibraryModule *)mod)->lib_handle);
     MODULE_BASE_MEMBER_FREE(mod);
 
     TVM_RT_WASM_HeapMemoryFree(mod);
@@ -57,18 +63,16 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
     }
 
     // create the packed function and insert to module_funcs_map
-    SharedLibNativeHandle native_handle = (SharedLibNativeHandle)mod->packed_functions;
+    SharedLibNativeHandle native_handle = ((SharedLibraryModule *)mod)->lib_handle;
     if (native_handle) {
         TVMBackendPackedCFunc symbol =
             (TVMBackendPackedCFunc)TVM_RT_WASM_FIND_LIB_SYMBOL(native_handle, func_name);
         if (symbol) {
             PackedFunction *pf =
                 (PackedFunction *)TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction));
-            pf->module = mod;
-            pf->reserved = 0;
             pf->exec = symbol;
             TVM_RT_WASM_TrieInsert(mod->module_funcs_map, (const uint8_t *)func_name, (void *)pf);
-            *out = (TVMFunctionHandle)pf;
+            *out = pf;
             return 0;
         }
     }
@@ -76,6 +80,17 @@ static int TVM_RT_WASM_DsoLibraryGetFunction(Module *mod, const char *func_name,
     if (query_imports) {
         status =
             TVM_RT_WASM_TrieQuery(mod->env_funcs_map, (const uint8_t *)func_name, (void **)out);
+        if (status && mod->imports) {
+            for (size_t i = 0; i < mod->num_imports; ++i) {
+                Module *m = mod->imports[i];
+                if (m) {
+                    status = m->GetFunction(m, func_name, query_imports, out);
+                    if (status == 0) {
+                        return status;
+                    }
+                }
+            }
+        }
     }
     return status;
 }
@@ -86,15 +101,15 @@ int TVM_RT_WASM_SharedLibraryModuleCreate(const char *filename, Module **out_mod
         TVM_RT_SET_ERROR_RETURN(-1, "Cannot load shared library %s", filename);
     }
 
-    *out_module = TVM_RT_WASM_HeapMemoryAlloc(sizeof(Module));
-    memset(*out_module, 0, sizeof(Module));
+    *out_module = TVM_RT_WASM_HeapMemoryAlloc(sizeof(SharedLibraryModule));
+    memset(*out_module, 0, sizeof(SharedLibraryModule));
 
-    (*out_module)->Release = TVM_RT_WASM_DsoModuleReleaseFunc;
-    (*out_module)->GetFunction = TVM_RT_WASM_DsoLibraryGetFunction;
-    // use packed_functions field to save native library handle.
-    (*out_module)->packed_functions = (PackedFunction *)native_handle;
-    TVM_RT_WASM_TrieCreate(&((*out_module)->module_funcs_map));
-    TVM_RT_WASM_TrieCreate(&((*out_module)->env_funcs_map));
+    SharedLibraryModule *mod = (SharedLibraryModule *)*out_module;
+    mod->Release = TVM_RT_WASM_DsoModuleReleaseFunc;
+    mod->GetFunction = TVM_RT_WASM_DsoLibraryGetFunction;
+    mod->lib_handle = native_handle;
+    TVM_RT_WASM_TrieCreate(&(mod->module_funcs_map));
+    TVM_RT_WASM_TrieCreate(&(mod->env_funcs_map));
 
     // dev_blob
     const char *blob =

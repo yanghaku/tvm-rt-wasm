@@ -140,13 +140,13 @@ int TVM_RT_WASM_GraphExecutorLoadParamsFromReader(TVM_RT_WASM_GraphExecutor grap
                 eid, graph->num_data_entry);
         }
 
-        status = TVM_RT_WASM_DLTensor_LoadFromReader(&graph->data_entry[eid].dl_tensor, reader);
+        status = TVM_RT_WASM_DLTensor_LoadFromStream(&graph->data_entry[eid].dl_tensor, reader);
         if (unlikely(status)) {
             goto load_param_fail;
         }
     }
 
-    return TVMSynchronize(graph->devices[0].device_type, graph->devices[0].device_id, NULL);
+    status = TVMSynchronize(graph->devices[0].device_type, graph->devices[0].device_id, NULL);
 
 load_param_fail:
     if (name_indexes) {

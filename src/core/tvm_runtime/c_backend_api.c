@@ -8,16 +8,27 @@
 #include <device/device_api.h>
 #include <module/module.h>
 
-int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionHandle *out) {
-    int status =
-        TVM_RT_WASM_TrieQuery(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name, out);
-    if (unlikely(status == TRIE_NOT_FOUND)) {
+int TVMBackendGetFuncFromEnv(void *module_handle, const char *func_name, TVMFunctionHandle *out) {
+    // The module->env_funcs_map will not be NULL because it will check before set to module ctx.
+    // see: module/module.c module/shared_library.c, module/system_library.c
+    Module *mod = (Module *)module_handle;
+    int status = TVM_RT_WASM_TrieQuery(mod->env_funcs_map, (const uint8_t *)func_name, out);
+    if (unlikely(status)) {
+        for (size_t i = 0; i < mod->num_imports; ++i) {
+            status =
+                mod->imports[i]->GetFunction(mod->imports[i], func_name, 1, (PackedFunction **)out);
+            if (status == 0) {
+                TVM_RT_WASM_TrieInsert(mod->env_funcs_map, (const uint8_t *)func_name, *out);
+                return status;
+            }
+        }
+    }
+    if (unlikely(status)) {
         status = TVMFuncGetGlobal(func_name, out);
         if (likely(status == TRIE_SUCCESS)) {
-            TVM_RT_WASM_TrieInsert(((Module *)mod_node)->env_funcs_map, (const uint8_t *)func_name,
-                                   *out);
+            TVM_RT_WASM_TrieInsert(mod->env_funcs_map, (const uint8_t *)func_name, *out);
         }
-        if (unlikely(status == TRIE_NOT_FOUND)) {
+        if (unlikely(status)) {
             TVM_RT_SET_ERROR_RETURN(status, "Cannot find function '%s' from env", func_name);
         }
     }
@@ -26,6 +37,8 @@ int TVMBackendGetFuncFromEnv(void *mod_node, const char *func_name, TVMFunctionH
 
 void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, int dtype_code_hint,
                                int dtype_bits_hint) {
+    (void)dtype_bits_hint;
+    (void)dtype_code_hint;
     if (device_type == kDLCPU || device_type == kDLCUDAHost) {
         return TVM_RT_WASM_WorkplaceMemoryAlloc(nbytes);
     }
@@ -34,8 +47,7 @@ void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, 
     if (unlikely(status)) {
         return NULL;
     }
-    DLDataType type = {dtype_code_hint, dtype_bits_hint, 1};
-    return deviceApi->AllocWorkspace(device_id, nbytes, type);
+    return deviceApi->AllocWorkspace(device_id, nbytes);
 }
 
 int TVMBackendFreeWorkspace(int device_type, int device_id, void *ptr) {

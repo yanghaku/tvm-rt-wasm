@@ -7,10 +7,11 @@
 
 #include <device/cpu_memory.h>
 #include <module/module_impl.h>
+#include <utils/binary_reader.h>
 
 #define MODULE_CREATE_IF_NO_SUPPORT(dev)                                                           \
     _Pragma(TOSTRING(weak TVM_RT_WASM_##dev##ModuleCreate));                                       \
-    int TVM_RT_WASM_##dev##ModuleCreate(ModuleBinaryReader *reader, Module **out) {                \
+    int TVM_RT_WASM_##dev##ModuleCreate(BinaryReader *reader, Module **out) {                      \
         (void)reader;                                                                              \
         *out = NULL;                                                                               \
         TVM_RT_##dev##_NOT_LINK();                                                                 \
@@ -20,19 +21,50 @@
 MODULE_CREATE_IF_NO_SUPPORT(CUDA)
 MODULE_CREATE_IF_NO_SUPPORT(WebGPU)
 
+#define TVM_RT_BACKEND_NOT_ON(_mod, _backend)                                                      \
+    do {                                                                                           \
+        fprintf(stderr,                                                                            \
+                "%s module is not supported! You can link with the backend library `%s`.\n",       \
+                TOSTRING(_mod), _backend);                                                         \
+        exit(-1);                                                                                  \
+    } while (0)
+
+#define TVM_RT_RelaxExecutable_NOT_LINK()                                                          \
+    TVM_RT_BACKEND_NOT_ON(RelaxExecutable, "tvm-rt-backend-relax-vm")
+
+MODULE_CREATE_IF_NO_SUPPORT(RelaxExecutable)
+
 /** @brief Default function for module get function. */
 int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int query_imports,
                                          PackedFunction **out) {
-    int status =
-        TVM_RT_WASM_TrieQuery(mod->module_funcs_map, (const uint8_t *)func_name, (void **)out);
-    if (likely(status != TRIE_NOT_FOUND)) {
-        return status;
+    int status = -1;
+    if (mod->module_funcs_map != NULL) {
+        status =
+            TVM_RT_WASM_TrieQuery(mod->module_funcs_map, (const uint8_t *)func_name, (void **)out);
+        if (likely(status != TRIE_NOT_FOUND)) {
+            return status;
+        }
     }
 
     if (query_imports) {
-        status =
-            TVM_RT_WASM_TrieQuery(mod->env_funcs_map, (const uint8_t *)func_name, (void **)out);
+        if (mod->env_funcs_map != NULL) {
+            status =
+                TVM_RT_WASM_TrieQuery(mod->env_funcs_map, (const uint8_t *)func_name, (void **)out);
+        }
+
+        if (status && mod->imports) {
+            for (size_t i = 0; i < mod->num_imports; ++i) {
+                Module *m = mod->imports[i];
+                if (m) {
+                    status = m->GetFunction(m, func_name, query_imports, out);
+                    if (status == 0) {
+                        return status;
+                    }
+                }
+            }
+        }
     }
+
     return status;
 }
 
@@ -46,7 +78,7 @@ int TVM_RT_WASM_DefaultModuleGetFunction(Module *mod, const char *func_name, int
  * @note This function cannot create Library module, such as system library and shared library.
  */
 static int TVM_RT_WASM_ModuleCreateFromReader(const char *type_key, size_t type_key_size,
-                                              ModuleBinaryReader *reader, Module **out) {
+                                              BinaryReader *reader, Module **out) {
     switch (type_key_size) {
     case 4:
         if (!memcmp(type_key, "cuda", 4)) {
@@ -65,6 +97,11 @@ static int TVM_RT_WASM_ModuleCreateFromReader(const char *type_key, size_t type_
             return 0;
         }
         break;
+    case 16:
+        if (!memcmp(type_key, "relax.Executable", 16)) {
+            return TVM_RT_WASM_RelaxExecutableModuleCreate(reader, out);
+        }
+        break;
     default:
         break;
     }
@@ -75,17 +112,11 @@ int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_modul
     size_t blob_size = (size_t) * (uint64_t *)blob;
     blob += sizeof(uint64_t);
 
-    // check overflow and create binary reader
-    uintptr_t b = (uintptr_t)blob;
-    if (UINTPTR_MAX - blob_size < b) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Bytes length overflow!");
+    BinaryReader reader_st = TVM_RT_WASM_BinaryReaderCreate(blob, blob_size);
+    if (unlikely(reader_st.current_ptr == NULL)) {
+        return -1;
     }
-    ModuleBinaryReader reader_st = {
-        .current_ptr = blob,
-        .end_ptr = blob + blob_size,
-    };
-
-    ModuleBinaryReader *reader = &reader_st;
+    BinaryReader *reader = &reader_st;
     const char *cur_ptr;
     Module **modules = NULL;
     uint64_t *import_tree_row_ptr = NULL;
@@ -96,7 +127,7 @@ int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_modul
     int status = 0;
 
 #define ModuleBinaryCheckReadOrGoto(_ptr, _read_size)                                              \
-    TVM_RT_WASM_ModuleBinaryCheckReadOrGoto(_ptr, _read_size, parse_binary_return)
+    TVM_RT_WASM_BinaryCheckReadOrGoto(_ptr, _read_size, parse_binary_return)
 
     ModuleBinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t));
     size_t key_num = (size_t) * (uint64_t *)cur_ptr;
@@ -141,12 +172,8 @@ int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_modul
         (*lib_module)->imports = modules;
         modules = NULL;
         (*lib_module)->num_imports = num_modules;
-        // cache all env function
-        for (size_t i = 0; i < num_modules; ++i) {
-            if (modules[i]->module_funcs_map) {
-                TVM_RT_WASM_TrieInsertAll((*lib_module)->env_funcs_map,
-                                          modules[i]->module_funcs_map);
-            }
+        if ((*lib_module)->env_funcs_map == NULL) {
+            TVM_RT_WASM_TrieCreate(&(*lib_module)->env_funcs_map);
         }
     } else {
         for (size_t i = 0; i < num_modules; ++i) {
@@ -182,11 +209,8 @@ int TVM_RT_WASM_LibraryModuleLoadBinaryBlob(const char *blob, Module **lib_modul
         }
         // lib_module will be the root in import tree
         *lib_module = modules[0];
-        for (uint32_t i = 1; i < num_modules; ++i) {
-            if (modules[i]->module_funcs_map) {
-                TVM_RT_WASM_TrieInsertAll((*lib_module)->env_funcs_map,
-                                          modules[i]->module_funcs_map);
-            }
+        if ((*lib_module)->env_funcs_map == NULL) {
+            TVM_RT_WASM_TrieCreate(&(*lib_module)->env_funcs_map);
         }
     }
 

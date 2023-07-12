@@ -125,7 +125,7 @@ int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_
     CHECK_INPUT_POINTER(shape, -2, "Shape");
     CHECK_INPUT_POINTER(out, -2, "TVMArrayHandle pointer");
 
-    DLDevice d = {
+    DLDevice dev = {
         .device_id = device_id,
         .device_type = device_type,
     };
@@ -134,27 +134,32 @@ int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_
         .bits = dtype_bits,
         .lanes = dtype_lanes,
     };
-    size_t bytes = 1;
-    for (int i = 0; i < ndim; ++i) {
-        bytes *= shape[i];
-    }
+    size_t nbytes = TVM_RT_WASM_DLTensor_GetDataBytes(shape, ndim, tp);
     void *data = NULL;
-    int status = TVMDeviceAllocDataSpace(d, bytes, 0, tp, &data);
-    if (unlikely(status)) {
-        return status;
+
+    if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
+        data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
+    } else {
+        DeviceAPI *deviceApi;
+        int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
+        if (unlikely(status)) {
+            return status;
+        }
+        data = deviceApi->AllocDataSpace(device_id, nbytes);
+        if (unlikely(data == NULL)) {
+            return -1;
+        }
     }
 
     DLTensor *t = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DLTensor));
-    t->device = d;
+    t->device = dev;
     t->dtype = tp;
     t->data = data;
     t->byte_offset = 0;
     t->strides = NULL;
     t->ndim = ndim;
     t->shape = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int64_t) * ndim);
-    for (int i = 0; i < ndim; ++i) {
-        t->shape[i] = shape[i];
-    }
+    memcpy(t->shape, shape, sizeof(int64_t) * ndim);
 
     *out = t;
     return 0;
@@ -173,8 +178,9 @@ int TVMArrayCopyFromBytes(TVMArrayHandle handle, void *data, size_t nbytes) {
     CHECK_INPUT_POINTER(data, -2, "CPU Data pointer");
 
     if (handle->device.device_type == kDLCPU) {
-        uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(handle);
-        memcpy(handle->data, data, MIN(bytes, nbytes));
+        size_t bytes =
+            TVM_RT_WASM_DLTensor_GetDataBytes(handle->shape, handle->ndim, handle->dtype);
+        memcpy(handle->data + handle->byte_offset, data, MIN(bytes, nbytes));
         return 0;
     } else {
         DeviceAPI *deviceApi;
@@ -182,14 +188,8 @@ int TVMArrayCopyFromBytes(TVMArrayHandle handle, void *data, size_t nbytes) {
         if (unlikely(status)) {
             return status;
         }
-        int64_t shape[] = {(int64_t)nbytes};
-        DLTensor from = {
-            .device = {.device_type = kDLCPU},
-            .dtype = handle->dtype,
-            .shape = shape,
-            .ndim = 1,
-        };
-        return deviceApi->CopyDataFromTo(&from, handle, NULL);
+        return deviceApi->CopyDataFromCPUToDevice(
+            data, handle->data, nbytes, 0, handle->byte_offset, NULL, handle->device.device_id);
     }
 }
 
@@ -198,8 +198,9 @@ int TVMArrayCopyToBytes(TVMArrayHandle handle, void *data, size_t nbytes) {
     CHECK_INPUT_POINTER(data, -2, "CPU Data pointer");
 
     if (handle->device.device_type == kDLCPU) {
-        uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(handle);
-        memcpy(data, handle->data, MIN(bytes, nbytes));
+        size_t bytes =
+            TVM_RT_WASM_DLTensor_GetDataBytes(handle->shape, handle->ndim, handle->dtype);
+        memcpy(data, handle->data + handle->byte_offset, MIN(bytes, nbytes));
         return 0;
     } else {
         DeviceAPI *deviceApi;
@@ -207,14 +208,8 @@ int TVMArrayCopyToBytes(TVMArrayHandle handle, void *data, size_t nbytes) {
         if (unlikely(status)) {
             return status;
         }
-        int64_t shape[] = {(int64_t)nbytes};
-        DLTensor to = {
-            .device = {.device_type = kDLCPU},
-            .dtype = handle->dtype,
-            .shape = shape,
-            .ndim = 1,
-        };
-        return deviceApi->CopyDataFromTo(handle, &to, NULL);
+        return deviceApi->CopyDataFromDeviceToCPU(handle->data, data, nbytes, handle->byte_offset,
+                                                  0, NULL, handle->device.device_id);
     }
 }
 
@@ -235,7 +230,7 @@ int TVMArrayToDLPack(TVMArrayHandle from, DLManagedTensor **out) {
 }
 
 void TVMDLManagedTensorCallDeleter(DLManagedTensor *dltensor) {
-    if (dltensor) {
+    if (dltensor && dltensor->deleter) {
         (*(dltensor->deleter))(dltensor);
     }
 }
@@ -293,19 +288,17 @@ int TVMSynchronize(int device_type, int device_id, TVMStreamHandle stream) {
 
 int TVMStreamStreamSynchronize(int device_type, int device_id, TVMStreamHandle src,
                                TVMStreamHandle dst) {
-    if (device_type == kDLCPU) {
-        return 0;
-    }
-    DeviceAPI *deviceApi;
-    int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
-    if (unlikely(status)) {
-        return status;
-    }
-    return deviceApi->SyncStreamFromTo(device_id, src, dst);
+    (void)device_type;
+    (void)device_id;
+    (void)src;
+    (void)dst;
+    TVM_RT_NOT_IMPLEMENT(-1);
 }
 
 int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDataType type_hint,
                             void **out_data) {
+    (void)alignment;
+    (void)type_hint;
     CHECK_INPUT_POINTER(out_data, -2, "Output data pointer");
     if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
         *out_data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
@@ -316,7 +309,7 @@ int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDat
     if (unlikely(status)) {
         return status;
     }
-    *out_data = deviceApi->AllocDataSpace(dev.device_id, nbytes, alignment, type_hint);
+    *out_data = deviceApi->AllocDataSpace(dev.device_id, nbytes);
     return *out_data == NULL;
 }
 
@@ -347,34 +340,50 @@ int TVMDeviceFreeDataSpace(DLDevice dev, void *ptr) {
 int TVMDeviceCopyDataFromTo(DLTensor *from, DLTensor *to, TVMStreamHandle stream) {
     CHECK_INPUT_POINTER(from, -2, "From DLTensor");
     CHECK_INPUT_POINTER(to, -2, "To DLTensor");
-    DLDeviceType type;
     DeviceAPI *deviceApi;
 
-    if (from->device.device_type == to->device.device_type || from->device.device_type == kDLCPU) {
-        // same device or from is cpu
-        type = to->device.device_type;
-    } else if (to->device.device_type == kDLCPU) { // to is cpu
-        type = from->device.device_type;
-    } else if ((from->device.device_type == kDLCUDA && to->device.device_type == kDLCUDAHost) ||
-               (from->device.device_type == kDLCUDAHost && to->device.device_type == kDLCUDA)) {
-        type = kDLCUDA;
-    } else {
-        TVM_RT_SET_ERROR_RETURN(-1,
-                                "Unsupported data copy: from device_type(%d) to device_type(%d)",
-                                from->device.device_type, to->device.device_type);
-    }
+    size_t bytes_from = TVM_RT_WASM_DLTensor_GetDataBytes(from->shape, from->ndim, from->dtype);
+    size_t bytes_to = TVM_RT_WASM_DLTensor_GetDataBytes(to->shape, to->ndim, to->dtype);
 
-    if (type == kDLCPU) {
-        uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
-        memcpy(to->data, from->data, bytes);
-        return 0;
+    if (unlikely(bytes_from != bytes_to)) {
+        TVM_RT_SET_ERROR_RETURN(-1, "DLTensor bytes are not same: %zu != %zu.", bytes_from,
+                                bytes_to);
     }
-
-    int status = TVM_RT_WASM_DeviceAPIGet(type, &deviceApi);
-    if (unlikely(status)) {
-        return status;
+    if (from->device.device_type == kDLCPU) {   // from cpu to ?
+        if (to->device.device_type == kDLCPU) { // cpu to cpu
+            memcpy(to->data + to->byte_offset, from->data + from->byte_offset, bytes_from);
+            return 0;
+        } else { // cpu to device
+            int status = TVM_RT_WASM_DeviceAPIGet(to->device.device_type, &deviceApi);
+            if (unlikely(status)) {
+                return status;
+            }
+            return deviceApi->CopyDataFromCPUToDevice(from->data, to->data, bytes_from,
+                                                      from->byte_offset, to->byte_offset, stream,
+                                                      to->device.device_id);
+        }
+    } else if (to->device.device_type == kDLCPU) { // from device to cpu
+        int status = TVM_RT_WASM_DeviceAPIGet(from->device.device_type, &deviceApi);
+        if (unlikely(status)) {
+            return status;
+        }
+        return deviceApi->CopyDataFromDeviceToCPU(from->data, to->data, bytes_from,
+                                                  from->byte_offset, to->byte_offset, stream,
+                                                  from->device.device_id);
+    } else { // device to device
+        if (from->device.device_type != to->device.device_type) {
+            TVM_RT_SET_ERROR_RETURN(
+                -1, "Unsupported data copy: from device_type(%d) to device_type(%d)",
+                from->device.device_type, to->device.device_type);
+        }
+        int status = TVM_RT_WASM_DeviceAPIGet(to->device.device_type, &deviceApi);
+        if (unlikely(status)) {
+            return status;
+        }
+        return deviceApi->CopyDataFromDeviceToDevice(from->data, to->data, bytes_from,
+                                                     from->byte_offset, to->byte_offset, stream,
+                                                     from->device.device_id, to->device.device_id);
     }
-    return deviceApi->CopyDataFromTo(from, to, stream);
 }
 
 int TVM_RT_WASM_SetDevice(TVMValue *args, const int *_tc, int _n, TVMValue *_rv, const int *_rt,
@@ -399,13 +408,13 @@ int TVM_RT_WASM_SetDevice(TVMValue *args, const int *_tc, int _n, TVMValue *_rv,
     return api->SetDevice(args->v_device.device_id);
 }
 
-static TVM_ATTRIBUTE_UNUSED __attribute__((constructor)) void TVM_RT_WASM_Constructor() {
-    static PackedFunction pf[] = {
-        {.exec = (TVMBackendPackedCFunc)TVM_RT_WASM_SetDevice, .module = NULL, .reserved = 0}};
+// This constructor must have the highest priority.
+static TVM_ATTRIBUTE_UNUSED __attribute__((constructor(101))) void TVM_RT_WASM_Constructor() {
+    static PackedFunction pf = {(TVMBackendPackedCFunc)TVM_RT_WASM_SetDevice};
 
     TVM_RT_WASM_TrieCreate(&global_functions);
     if (unlikely(TVM_RT_WASM_TrieInsert(global_functions, (const uint8_t *)TVM_SET_DEVICE_FUNCTION,
-                                        pf)) != 0) {
+                                        &pf)) != 0) {
         fprintf(stderr, "Register global function fail!\n");
         exit(-1);
     }

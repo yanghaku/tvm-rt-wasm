@@ -1,30 +1,27 @@
 #include "dlpack/dlpack.h"
 #include "during.h"
-#include "relay_vm.h"
+#include "relax_vm.h"
 #include "tvm_error_process.h"
 #include <float.h>
 
 #define OUTPUT_LEN 1000
 #define INPUT_SHAPE (1 * 3 * 224 * 224)
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-#define INPUT_ERR_MSG "Unexpected EOF, input should be shape with " TOSTRING(INPUT_SHAPE) "\n"
+#define INPUT_ERR_MSG "Unexpected EOF, input should be shape with (1, 3, 224, 224) \n"
 
 int main(int argc, char **argv) {
     SET_TIME(start_time)
 
     int status;
 #ifdef DSO_TEST
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <relay executable bytecode> <relay executable library>\n",
-                argv[0]);
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <relax executable library>\n", argv[0]);
         return -1;
     }
     TVMModuleHandle module = NULL;
-    RUN(TVMModLoadFromFile(argv[2], "so", &module));
+    RUN(TVMModLoadFromFile(argv[1], "so", &module));
 #else
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <relay executable bytecode>\n", argv[0]);
+    if (argc != 1) {
+        fprintf(stderr, "Usage: %s\n", argv[0]);
         return -1;
     }
     TVMModuleHandle module = NULL;
@@ -67,10 +64,10 @@ int main(int argc, char **argv) {
 #endif
 
     SET_TIME(create_start)
-    TVM_RT_WASM_RelayVirtualMachine vm =
-        TVM_RT_WASM_RelayVirtualMachineCreateFromFile(module, argv[1], &exec_device, 1);
+    TVM_RT_WASM_RelaxVirtualMachine vm =
+        TVM_RT_WASM_RelaxVirtualMachineCreate(module, &exec_device, 1);
     if (!vm) {
-        fprintf(stderr, "Create relay vm fail: %s\n", TVMGetLastError());
+        fprintf(stderr, "Create relax vm fail: %s\n", TVMGetLastError());
 #ifdef DSO_TEST
         // if create fail, the module need to be freed.
         TVMModFree(module);
@@ -78,7 +75,7 @@ int main(int argc, char **argv) {
         return -1;
     }
     SET_TIME(create_end)
-    printf("Create relay vm time: %lf ms\n", GET_DURING(create_end, create_start));
+    printf("Create relax vm time: %lf ms\n", GET_DURING(create_end, create_start));
 
     while (1) {
         // load input from file
@@ -93,15 +90,15 @@ int main(int argc, char **argv) {
 
         SET_TIME(t0) // set input start
 
-        RUN(TVM_RT_WASM_RelayVirtualMachineSetInput(vm, NULL, 0, &input));
+        RUN(TVM_RT_WASM_RelaxVirtualMachineSetInput(vm, NULL, 0, &input));
 
         SET_TIME(t1) // set input end, run start
 
-        RUN(TVM_RT_WASM_RelayVirtualMachineRun(vm, NULL));
+        RUN(TVM_RT_WASM_RelaxVirtualMachineRun(vm, NULL));
 
         SET_TIME(t2) // run end, get output start
 
-        RUN(TVM_RT_WASM_RelayVirtualMachineGetOutput(vm, NULL, 0, &output));
+        RUN(TVM_RT_WASM_RelaxVirtualMachineGetOutput(vm, NULL, 0, &output));
 
         SET_TIME(t3) // get output end
         printf("Set input time: %lf ms\nRun time: %lf ms\nGet output time: %lf ms\n",
@@ -120,7 +117,7 @@ int main(int argc, char **argv) {
         fflush(stdout);
     }
 
-    RUN(TVM_RT_WASM_RelayVirtualMachineFree(vm));
+    RUN(TVM_RT_WASM_RelaxVirtualMachineFree(vm));
 
     SET_TIME(end_time)
     printf("\nTotal time: %lf ms\n", GET_DURING(end_time, start_time));

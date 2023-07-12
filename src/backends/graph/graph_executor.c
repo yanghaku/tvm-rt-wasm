@@ -64,6 +64,7 @@ TVM_RT_WASM_GraphExecutor TVM_RT_WASM_GraphExecutorCreate(const char *graph_json
     // end create graph executor
     SET_TIME(t3)
     DURING_PRINT(t3, t2, "graph build time");
+    graph->module = module;
     return graph;
 }
 
@@ -150,6 +151,9 @@ int TVM_RT_WASM_GraphExecutorFree(TVM_RT_WASM_GraphExecutor graph) {
         graph->Free(graph->extension_data);
     }
 
+    if (graph->module) {
+        graph->module->Release(graph->module);
+    }
     // free itself
     TVM_RT_WASM_HeapMemoryFree(graph);
     return 0;
@@ -248,140 +252,6 @@ int TVM_RT_WASM_GraphExecutorLoadParamsFromFile(TVM_RT_WASM_GraphExecutor graph,
     status = TVM_RT_WASM_GraphExecutorLoadParamsFromReader(graph, reader);
     reader->Free(reader);
     return status;
-}
-
-int TVM_RT_WASM_GraphExecutorClone(TVM_RT_WASM_GraphExecutor g, TVM_RT_WASM_GraphExecutor *cloned) {
-    CHECK_GraphExecutor(g);
-    CHECK_INPUT_POINTER(cloned, -2, "Cloned GraphExecutor pointer");
-
-    *cloned = TVM_RT_WASM_HeapMemoryAlloc(sizeof(struct TVM_RT_WASM_GraphExecutor_st));
-    memcpy(*cloned, g, sizeof(struct TVM_RT_WASM_GraphExecutor_st));
-
-    TVM_RT_WASM_GraphExecutor new_g = *cloned;
-    TVM_RT_WASM_GraphExecutor old_g = g;
-
-    // deep copy
-
-    // nodes
-    new_g->nodes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNode) * new_g->num_nodes);
-    for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
-        new_g->nodes[nid].flatten_data = old_g->nodes[nid].flatten_data;
-        new_g->nodes[nid].num_inputs = old_g->nodes[nid].num_inputs;
-        new_g->nodes[nid].num_outputs = old_g->nodes[nid].num_outputs;
-        // op type
-        new_g->nodes[nid].op_type =
-            TVM_RT_WASM_HeapMemoryAlloc(sizeof(char) * strlen(old_g->nodes[nid].op_type) + 1);
-        strcpy((char *)new_g->nodes[nid].op_type, old_g->nodes[nid].op_type);
-        // name
-        new_g->nodes[nid].name =
-            TVM_RT_WASM_HeapMemoryAlloc(sizeof(char) * strlen(old_g->nodes[nid].name) + 1);
-        strcpy((char *)new_g->nodes[nid].name, old_g->nodes[nid].name);
-        // func_name
-        new_g->nodes[nid].func_name =
-            TVM_RT_WASM_HeapMemoryAlloc(sizeof(char) * strlen(old_g->nodes[nid].func_name) + 1);
-        strcpy((char *)new_g->nodes[nid].func_name, old_g->nodes[nid].func_name);
-        // inputs
-        new_g->nodes[nid].inputs = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeEntry) *
-                                                               new_g->nodes[nid].num_inputs);
-        memcpy(new_g->nodes[nid].inputs, old_g->nodes[nid].inputs,
-               sizeof(GraphExecutorNodeEntry) * new_g->nodes[nid].num_inputs);
-    }
-
-    // input nodes
-    new_g->inputs_nodes = TVM_RT_WASM_HeapMemoryAlloc(sizeof(uint32_t) * new_g->num_inputs_nodes);
-    memcpy(new_g->inputs_nodes, old_g->inputs_nodes, sizeof(uint32_t) * new_g->num_inputs_nodes);
-
-    // out nodes entry
-    new_g->outputs_nodes =
-        TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeEntry) * new_g->num_outputs);
-    memcpy(new_g->outputs_nodes, old_g->outputs_nodes, sizeof(uint32_t) * new_g->num_outputs);
-
-    // input and output map
-    TVM_RT_WASM_TrieClone(old_g->inputs_map, &new_g->inputs_map);
-    TVM_RT_WASM_TrieClone(old_g->outputs_map, &new_g->outputs_map);
-
-    // data entry and is linked param
-    new_g->data_entry = TVM_RT_WASM_HeapMemoryAlloc(sizeof(DataEntry) * new_g->num_data_entry);
-    memcpy(new_g->data_entry, old_g->data_entry, sizeof(DataEntry) * new_g->num_data_entry);
-    uint32_t num_storage = 0;
-    for (uint32_t i = 0; i < new_g->num_data_entry; ++i) {
-        num_storage = MAX(new_g->data_entry[i].storage_id, num_storage);
-    }
-    ++num_storage;
-    new_g->storages = TVM_RT_WASM_HeapMemoryAlloc(sizeof(StorageEntry) * num_storage);
-    memset(new_g->storages, 0, sizeof(StorageEntry) * num_storage);
-
-    // setup storage !!!
-    uint32_t *tmp_storage_size;
-    tmp_storage_size = TVM_RT_WASM_WorkplaceMemoryAlloc(sizeof(uint32_t) * num_storage);
-    memset(tmp_storage_size, 0, sizeof(uint32_t) * num_storage);
-    for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
-        uint32_t sid = new_g->data_entry[eid].storage_id;
-        if (new_g->storages[sid].is_linked_param) {
-            new_g->storages[sid] = old_g->storages[sid];
-            continue;
-        }
-        uint32_t size =
-            (uint32_t)TVM_RT_WASM_DLTensor_GetDataBytes(&new_g->data_entry[eid].dl_tensor);
-        tmp_storage_size[sid] = MAX(tmp_storage_size[sid], size);
-    }
-    DLDataType no_type = {0, 0, 0};
-    for (uint32_t eid = 0; eid < new_g->num_data_entry; ++eid) {
-        uint32_t sid = new_g->data_entry[eid].storage_id;
-        if (new_g->storages == NULL) {
-            if (unlikely(TVMDeviceAllocDataSpace(new_g->data_entry[eid].dl_tensor.device,
-                                                 tmp_storage_size[sid], 0, no_type,
-                                                 (void **)(new_g->storages + sid)))) {
-                TVM_RT_WASM_WorkplaceMemoryFree(tmp_storage_size);
-                // todo: free the cloned graph
-                return -1;
-            }
-            TVMDeviceCopyDataFromTo(&old_g->data_entry[eid].dl_tensor,
-                                    &new_g->data_entry[eid].dl_tensor, NULL);
-        } else {
-            new_g->data_entry[eid].dl_tensor.data = new_g->storages[sid].storage;
-        }
-    }
-    TVM_RT_WASM_WorkplaceMemoryFree(tmp_storage_size);
-
-    // node ops
-    new_g->nodeOps = TVM_RT_WASM_HeapMemoryAlloc(sizeof(GraphExecutorNodeOp) * new_g->num_nodes);
-    memcpy(new_g->nodeOps, old_g->nodeOps, sizeof(GraphExecutorNodeOp) * new_g->num_nodes);
-    uint32_t num_op = 0;
-    for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
-        num_op += new_g->nodeOps->num_args;
-    }
-    new_g->node_op_arg_value_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(TVMValue) * num_op);
-    new_g->node_op_arg_type_storage = TVM_RT_WASM_HeapMemoryAlloc(sizeof(int) * num_op);
-    // setup operators !!!
-    TVMValue *alloc_value = new_g->node_op_arg_value_storage;
-    int *alloc_type = new_g->node_op_arg_type_storage;
-    for (uint32_t nid = 0; nid < new_g->num_nodes; ++nid) {
-        GraphExecutorNode *node = new_g->nodes + nid;
-        GraphExecutorNodeOp *nodeOp = new_g->nodeOps + nid;
-        nodeOp->arg_values = alloc_value;
-        nodeOp->arg_type_codes = alloc_type;
-        alloc_type += nodeOp->num_args;
-        alloc_value += nodeOp->num_args;
-        for (uint32_t i = 0; i < node->num_inputs; ++i) {
-            int eid = DATA_ENTRY_ID(new_g, node->inputs[i].node_id, node->inputs[i].index);
-            nodeOp->arg_values[i].v_handle = &new_g->data_entry[eid];
-            nodeOp->arg_type_codes[i] = kTVMDLTensorHandle;
-        }
-        for (uint32_t i = 0; i < node->num_outputs; ++i) {
-            int eid = DATA_ENTRY_ID(new_g, nid, i);
-            nodeOp->arg_values[node->num_inputs + i].v_handle = &new_g->data_entry[eid];
-            nodeOp->arg_type_codes[node->num_inputs + i] = kTVMDLTensorHandle;
-        }
-    }
-
-    // clone extension data
-    if (old_g->Clone) {
-        new_g->extension_data = NULL;
-        old_g->Clone(old_g->extension_data, &new_g->extension_data);
-    }
-
-    return 0;
 }
 
 int TVM_RT_WASM_GraphExecutorGetNumOfNodes(TVM_RT_WASM_GraphExecutor g) {

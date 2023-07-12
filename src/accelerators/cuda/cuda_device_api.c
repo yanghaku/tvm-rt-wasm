@@ -7,7 +7,6 @@
 #include <device/cpu_memory.h>
 #include <device/device_api.h>
 #include <string.h>
-#include <utils/tensor_helper.h>
 
 /** @brief CUDADeviceAPI implement the interface DeviceAPI */
 typedef struct CUDADeviceAPI {
@@ -40,11 +39,8 @@ static int TVM_RT_WASM_CUDA_SetDevice(int dev_id) {
     return 0;
 }
 
-static void *TVM_RT_WASM_CUDA_AllocDataSpace(int dev_id, size_t nbytes, size_t alignment,
-                                             DLDataType type_hint) {
+static void *TVM_RT_WASM_CUDA_AllocDataSpace(int dev_id, size_t nbytes) {
     (void)dev_id;
-    (void)alignment;
-    (void)type_hint;
 
     void *res = NULL;
     CUDA_DRIVER_CALL_OR_GOTO(cuMemAlloc((CUdeviceptr *)&res, nbytes), fail);
@@ -54,49 +50,39 @@ fail:
     return NULL;
 }
 
-static void *TVM_RT_WASM_CUDA_AllocDataSpaceScope(int dev_id, int ndim, const int64_t *shape,
-                                                  DLDataType dtype, const char *mem_scope) {
-    (void)dev_id;
-    (void)ndim;
-    (void)shape;
-    (void)dtype;
-    (void)mem_scope;
-    TVM_RT_NOT_IMPLEMENT(NULL);
-}
-
 static int TVM_RT_WASM_CUDA_FreeDataSpace(int dev_id, void *ptr) {
     (void)dev_id;
     CUDA_DRIVER_CALL(cuMemFree((CUdeviceptr)ptr));
     return 0;
 }
 
-static int TVM_RT_WASM_CUDA_CopyDataFromTo(const DLTensor *from, DLTensor *to,
-                                           TVMStreamHandle stream) {
+static int TVM_RT_WASM_CUDA_CopyDataFromDeviceToCPU(const void *from, void *to, size_t nbytes,
+                                                    size_t from_offset, size_t to_offset,
+                                                    TVMStreamHandle stream, int from_dev_id) {
     (void)stream;
+    (void)from_dev_id;
+    CUDA_DRIVER_CALL(cuMemcpyDtoH(to + to_offset, (CUdeviceptr)(from + from_offset), nbytes));
+    return 0;
+}
 
-    uint64_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(from);
-    uint64_t byte_check = TVM_RT_WASM_DLTensor_GetDataBytes(to);
-    if (unlikely(bytes != byte_check)) {
-        TVM_RT_SET_ERROR_RETURN(-1, "Data copy size is diff, from=%" PRIu64 " and to=%" PRIu64,
-                                bytes, byte_check);
-    }
-    if (from->device.device_type == kDLCPU || from->device.device_type == kDLCUDAHost) {
-        if (to->device.device_type == kDLCUDAHost || to->device.device_type == kDLCPU) {
-            memcpy(to->data, from->data, bytes);
-        } else if (to->device.device_type == kDLCUDA) {
-            CUDA_DRIVER_CALL(cuMemcpyHtoD((CUdeviceptr)to->data, from->data, bytes));
-        } else {
-            TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy!");
-        }
-    } else if (from->device.device_type == kDLCUDA) {
-        if (to->device.device_type == kDLCPU || to->device.device_type == kDLCUDAHost) {
-            CUDA_DRIVER_CALL(cuMemcpyDtoH(to->data, (CUdeviceptr)from->data, bytes));
-        } else if (to->device.device_type == kDLCUDA) {
-            CUDA_DRIVER_CALL(cuMemcpyDtoD((CUdeviceptr)to->data, (CUdeviceptr)from->data, bytes));
-        } else {
-            TVM_RT_SET_ERROR_RETURN(-1, "Unsupported data copy!");
-        }
-    }
+static int TVM_RT_WASM_CUDA_CopyDataFromCPUToDevice(const void *from, void *to, size_t nbytes,
+                                                    size_t from_offset, size_t to_offset,
+                                                    TVMStreamHandle stream, int to_dev_id) {
+    (void)stream;
+    (void)to_dev_id;
+    CUDA_DRIVER_CALL(cuMemcpyHtoD((CUdeviceptr)(to + to_offset), from + from_offset, nbytes));
+    return 0;
+}
+
+static int TVM_RT_WASM_CUDA_CopyDataFromDeviceToDevice(const void *from, void *to, size_t nbytes,
+                                                       size_t from_offset, size_t to_offset,
+                                                       TVMStreamHandle stream, int from_dev_id,
+                                                       int to_dev_id) {
+    (void)stream;
+    (void)from_dev_id;
+    (void)to_dev_id;
+    CUDA_DRIVER_CALL(
+        cuMemcpyDtoD((CUdeviceptr)(to + to_offset), (CUdeviceptr)(from + from_offset), nbytes));
     return 0;
 }
 
@@ -130,14 +116,6 @@ static int TVM_RT_WASM_CUDA_SetStream(int dev_id, TVMStreamHandle stream) {
 
 static TVMStreamHandle TVM_RT_WASM_CUDA_GetStream() { return cudaDeviceApi.stream; }
 
-static int TVM_RT_WASM_CUDA_SyncStreamFromTo(int dev_id, TVMStreamHandle event_src,
-                                             TVMStreamHandle event_dst) {
-    (void)dev_id;
-    (void)event_src;
-    (void)event_dst;
-    return 0;
-}
-
 #ifdef CUDA_10_ONLY
 #define MAX_CACHED_WORKSPACE_MEMORY_ELEMENT_SIZE 100
 typedef struct {
@@ -149,9 +127,8 @@ static CachedWorkspaceMemory cachedWorkspaceMemory[MAX_CACHED_WORKSPACE_MEMORY_E
 static uint32_t cachedWorkspaceMemorySize = 0;
 #endif // CUDA_10_ONLY
 
-static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes, DLDataType type_hint) {
+static void *TVM_RT_WASM_CUDA_AllocWorkspace(int dev_id, size_t nbytes) {
     (void)dev_id;
-    (void)type_hint;
     void *res = NULL;
 
 #ifdef CUDA_10_ONLY
@@ -227,19 +204,24 @@ static int TVM_RT_WASM_CUDA_Release(DeviceAPI *d) {
  * @return 0 if successful
  */
 int TVM_RT_WASM_CUDADeviceAPICreate(DeviceAPI **out) {
-    *out = (DeviceAPI *)&cudaDeviceApi;
+    static int cuda_device_api_created = 0;
+
+    if (cuda_device_api_created) {
+        *out = (DeviceAPI *)&cudaDeviceApi;
+        return 0;
+    }
 
     cudaDeviceApi.SetDevice = TVM_RT_WASM_CUDA_SetDevice;
     cudaDeviceApi.AllocDataSpace = TVM_RT_WASM_CUDA_AllocDataSpace;
-    cudaDeviceApi.AllocDataSpaceScope = TVM_RT_WASM_CUDA_AllocDataSpaceScope;
     cudaDeviceApi.FreeDataSpace = TVM_RT_WASM_CUDA_FreeDataSpace;
-    cudaDeviceApi.CopyDataFromTo = TVM_RT_WASM_CUDA_CopyDataFromTo;
+    cudaDeviceApi.CopyDataFromCPUToDevice = TVM_RT_WASM_CUDA_CopyDataFromCPUToDevice;
+    cudaDeviceApi.CopyDataFromDeviceToCPU = TVM_RT_WASM_CUDA_CopyDataFromDeviceToCPU;
+    cudaDeviceApi.CopyDataFromDeviceToDevice = TVM_RT_WASM_CUDA_CopyDataFromDeviceToDevice;
     cudaDeviceApi.CreateStream = TVM_RT_WASM_CUDA_CreateStream;
     cudaDeviceApi.FreeStream = TVM_RT_WASM_CUDA_FreeStream;
     cudaDeviceApi.StreamSync = TVM_RT_WASM_CUDA_StreamSync;
     cudaDeviceApi.SetStream = TVM_RT_WASM_CUDA_SetStream;
     cudaDeviceApi.GetStream = TVM_RT_WASM_CUDA_GetStream;
-    cudaDeviceApi.SyncStreamFromTo = TVM_RT_WASM_CUDA_SyncStreamFromTo;
     cudaDeviceApi.AllocWorkspace = TVM_RT_WASM_CUDA_AllocWorkspace;
     cudaDeviceApi.FreeWorkspace = TVM_RT_WASM_CUDA_FreeWorkspace;
     cudaDeviceApi.Release = TVM_RT_WASM_CUDA_Release;
@@ -272,5 +254,8 @@ int TVM_RT_WASM_CUDADeviceAPICreate(DeviceAPI **out) {
 
     DURING_PRINT(t1, t0, "cuInit time");
     DURING_PRINT(t3, t2, "CUcontext create time");
+
+    cuda_device_api_created = 1;
+    *out = (DeviceAPI *)&cudaDeviceApi;
     return 0;
 }

@@ -44,7 +44,12 @@ int init_graph_with_dso_lib(const char *module_filename, const char *graph_param
     if (status) {
         return status;
     }
-    return init_graph(module, graph_param_path, graph_json, graph_handle_ptr);
+    status = init_graph(module, graph_param_path, graph_json, graph_handle_ptr);
+    if (status) {
+        // if create fail, the module need to be freed.
+        TVMModFree(module);
+    }
+    return status;
 }
 
 int init_graph_with_syslib(const char *graph_param_path, const char *graph_json,

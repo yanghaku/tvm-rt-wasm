@@ -16,13 +16,9 @@ extern "C" {
 
 typedef struct Module Module;
 
-typedef struct PackedFunction {
-    /** @brief This function in which module. */
-    Module *module;
+typedef struct {
     /** @brief The function pointer to execute. */
     TVMBackendPackedCFunc exec;
-    /** @brief Other information, such as function index in module. */
-    uint64_t reserved;
 } PackedFunction;
 
 /** @brief the base interface in module */
@@ -55,10 +51,8 @@ typedef struct PackedFunction {
     Trie *env_funcs_map;                                                                           \
     /** @brief the module functions, map <string, PackedFunction*>. */                             \
     Trie *module_funcs_map;                                                                        \
-    /** @brief the packed function storage. */                                                     \
-    PackedFunction *packed_functions;                                                              \
     /** @brief the number of imports. */                                                           \
-    uint32_t num_imports;
+    size_t num_imports;
 
 /** @brief The base Module. */
 struct Module {

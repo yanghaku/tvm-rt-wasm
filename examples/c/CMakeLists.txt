@@ -83,6 +83,7 @@ else () # This CmakeLists.txt is built as a subdirectory in tvm-rt-wasm project,
     _add_imported_library(tvm-rt-backend-graph)
     _add_imported_library(tvm-rt-backend-aot)
     _add_imported_library(tvm-rt-backend-relay-vm)
+    _add_imported_library(tvm-rt-backend-relax-vm)
     _add_imported_library(tvm-rt-core)
 endif ()
 
@@ -184,8 +185,14 @@ function(add_tvm_bundle_executable target_name source_files model out_lib_dir ex
     add_custom_target("${target_name}_tvm_gen_lib" SOURCES ${TVM_GEN_LIB})
     add_dependencies(${target_name} "${target_name}_tvm_gen_lib")
 
-    string(REPLACE "_" "-" backend_name ${executor})    # '_' replace to '-'
-    target_link_libraries(${target_name} PRIVATE tvm-rt-wasm::tvm-rt-backend-${backend_name} tvm-rt-wasm::tvm-rt-core)
+    if (${executor} STREQUAL "relax_vm")
+        # need whole archive or set undefined symbol
+        target_link_libraries(${target_name} PRIVATE -Wl,--undefined=TVM_RT_WASM_RelaxExecutableModuleCreate
+                tvm-rt-wasm::tvm-rt-backend-relax-vm tvm-rt-wasm::tvm-rt-core)
+    else ()
+        string(REPLACE "_" "-" backend_name ${executor})    # '_' replace to '-'
+        target_link_libraries(${target_name} PRIVATE tvm-rt-wasm::tvm-rt-backend-${backend_name} tvm-rt-wasm::tvm-rt-core)
+    endif ()
 
     string(REPLACE "-" "_" target_define ${target_name})    # '-' replace to '_'
     target_compile_definitions(${target_name} PUBLIC -D${target_define})
@@ -266,6 +273,10 @@ set(mobilenet-relay-vm_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet-relay-v
 set(mobilenet-relay-vm_sources mobilenet-relay-vm/mobilenet-relay-vm.c)
 add_tvm_bundle_executable(mobilenet-relay-vm ${mobilenet-relay-vm_sources} "mobilenet" ${mobilenet-relay-vm_lib_dir} "relay_vm")
 
+## add mobilenet relax vm target
+set(mobilenet-relax-vm_lib_dir ${CMAKE_CURRENT_BINARY_DIR}/lib/mobilenet-relax-vm)
+set(mobilenet-relax-vm_sources mobilenet-relax-vm/mobilenet-relax-vm.c)
+add_tvm_bundle_executable(mobilenet-relax-vm ${mobilenet-relax-vm_sources} "mobilenet" ${mobilenet-relax-vm_lib_dir} "relax_vm")
 
 ## dso library test
 if (NOT ${_ENABLE_WASI_SDK})
@@ -276,6 +287,7 @@ if (NOT ${_ENABLE_WASI_SDK})
                 tvm-rt-wasm::tvm-rt-backend-aot
                 tvm-rt-wasm::tvm-rt-backend-graph
                 tvm-rt-wasm::tvm-rt-backend-relay-vm
+                -Wl,--whole-archive tvm-rt-wasm::tvm-rt-backend-relax-vm -Wl,--no-whole-archive
                 tvm-rt-wasm::tvm-rt-core)
         target_compile_definitions(${target_name} PRIVATE -DDSO_TEST)
         if (${_ENABLE_EMSDK})
@@ -290,4 +302,6 @@ if (NOT ${_ENABLE_WASI_SDK})
     add_dso_executable(mobilenet-aot-dso mobilenet-aot/mobilenet-aot.c)
     # for relay vm
     add_dso_executable(mobilenet-relay-vm-dso mobilenet-relay-vm/mobilenet-relay-vm.c)
+    # for relax vm
+    add_dso_executable(mobilenet-relax-vm-dso mobilenet-relax-vm/mobilenet-relax-vm.c)
 endif ()

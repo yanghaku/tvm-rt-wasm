@@ -24,6 +24,8 @@ typedef struct TVM_RT_WASM_RelayVirtualMachine_st *TVM_RT_WASM_RelayVirtualMachi
  * @param byte_code_size TVM relay executable bytecode byte array length.
  * @param devices runtime execution device.
  * @param num_dev the number of devices.
+ * @note The function will get ownership of this module_handle if create successfully.
+ *       **DO NOT** free this module_handle if create successfully!
  * @return Pointer of TVM_RT_WASM_RelayVirtualMachine instance if successful, NULL if fail.
  */
 TVM_DLL TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreate(
@@ -36,6 +38,8 @@ TVM_DLL TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreate(
  * @param filename TVM relay executable bytecode file.
  * @param devices runtime execution device.
  * @param num_dev the number of devices.
+ * @note The function will get ownership of this module_handle if create successfully.
+ *       **DO NOT** free this module_handle if create successfully!
  * @return Pointer of TVM_RT_WASM_RelayVirtualMachine instance if successful, NULL if fail.
  */
 TVM_DLL TVM_RT_WASM_RelayVirtualMachine TVM_RT_WASM_RelayVirtualMachineCreateFromFile(
