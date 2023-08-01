@@ -14,16 +14,6 @@ extern "C" {
 #include <relax_vm/relax_executable.h>
 #include <utils/trie.h>
 
-/** @brief The relax VM Register to save values.
- * The struct RelaxVMRegisterData contains a atomic integer to save reference.
- * RelaxVMRegister is a pointer to point to struct RelaxVMRegisterData.
- */
-typedef struct RelaxVMRegisterData {
-    int ref_num;
-    TVMArgTypeCode typecode;
-    TVMValue value;
-} *RelaxVMRegister;
-
 /** @brief The Relax Virtual Machine function frame */
 typedef struct RelaxVMFrame {
     /** @brief The program counter to set after return. */
@@ -49,7 +39,7 @@ struct TVM_RT_WASM_RelaxVirtualMachine_st {
     /** @brief The TVM relax executable */
     RelaxExecutableModule *exec_module;
     /** @brief The constant values in device to run. */
-    RelaxVMRegister constants;
+    RelaxVMRegister *constants;
     /** @brief The buffer to save arguments to call packed functions. */
     TVMValue *call_packed_args_value;
     int *call_packed_args_typecode;
@@ -65,9 +55,6 @@ struct TVM_RT_WASM_RelaxVirtualMachine_st {
     RelaxVMFrame *frames;
     size_t frame_size;
     size_t frame_capacity;
-
-    /** @brief The special register to pointer this relax VM. */
-    struct RelaxVMRegisterData vm_register;
 };
 
 /** @brief Register the vm.builtin.* functions
@@ -85,19 +72,6 @@ int TVM_RT_WASM_RelaxVMRegisterBuiltinGlobalFunctions();
  */
 int TVM_RT_WASM_RelaxVMRunFunction(TVM_RT_WASM_RelaxVirtualMachine vm, RelaxFunctionInfo *func,
                                    RelaxVMFunctionInputsOutput *inputs_output);
-
-/** @brief Free the register value. */
-#define TVM_RT_WASM_RelaxVMRegisterFree(_reg)                                                      \
-    do {                                                                                           \
-        if ((_reg) != NULL && (--(_reg)->ref_num) <= 0) {                                          \
-            switch ((_reg)->typecode) {                                                            \
-            case kTVMDLTensorHandle:                                                               \
-            default:                                                                               \
-                break;                                                                             \
-            }                                                                                      \
-            TVM_RT_WASM_HeapMemoryFree(_reg);                                                      \
-        }                                                                                          \
-    } while (0)
 
 #ifdef __cplusplus
 } // extern "C"

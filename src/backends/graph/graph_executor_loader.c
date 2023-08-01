@@ -9,8 +9,8 @@
 #include <graph/tensor_loader.h>
 #include <module/module.h>
 
-static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor, Module *module);
-static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor, Module *module);
+static int TVM_RT_WASM_GraphExecutor_SetupStorage(TVM_RT_WASM_GraphExecutor, Module *);
+static int TVM_RT_WASM_GraphExecutor_SetupOpExecs(TVM_RT_WASM_GraphExecutor, Module *);
 static int TVM_RT_WASM_JsonReader_ReadGraphNodesArray(JsonReader *, TVM_RT_WASM_GraphExecutor);
 static int TVM_RT_WASM_JsonReader_ReadGraphInputNodeIndicesArray(JsonReader *,
                                                                  TVM_RT_WASM_GraphExecutor);
@@ -664,8 +664,8 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader,
                 }
             }
 
-            ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character");   // ']'
-            ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character");   // ']'
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character"); // ']'
+            ARRAY_CHECK_NEXT_NON_EXISTS(reader, "invalid array end character"); // ']'
         } else if (!strcmp(key, "device_index")) {
             ARRAY_CHECK_NEXT_EXISTS(reader, "Parse graphAttr device_index fail"); // '['
 
@@ -707,7 +707,7 @@ static int TVM_RT_WASM_JsonReader_ReadGraphAttrObject(JsonReader *reader,
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, "Invalid array end character"); // ']'
             ARRAY_CHECK_NEXT_NON_EXISTS(reader, "Invalid array end character"); // ']'
         } else if (!strcmp(key, "shape")) {
-            ARRAY_CHECK_NEXT_EXISTS(reader, "Parse graphAttr shape fail");      // '['
+            ARRAY_CHECK_NEXT_EXISTS(reader, "Parse graphAttr shape fail"); // '['
 
             int str_len = TVM_RT_WASM_JsonReader_ReadString(reader, global_buf, GLOBAL_BUF_SIZE);
             if (unlikely(str_len <= 0)) {

@@ -70,11 +70,11 @@ static int TVM_RT_WASM_RelaxExecutableLoadGlobalSection(RelaxExecutable *exec,
         }                                                                                          \
     } while (0)
 
-            READ_AND_CHECK_EQ("start_instr", 0L);
-            READ_AND_CHECK_EQ("end_instr", 0L);
-            READ_AND_CHECK_EQ("num_args", -2L);
-            READ_AND_CHECK_EQ("register_file_size", 0L);
-            READ_AND_CHECK_EQ("num_params", 0L);
+            READ_AND_CHECK_EQ("start_instr", INT64_C(0));
+            READ_AND_CHECK_EQ("end_instr", INT64_C(0));
+            READ_AND_CHECK_EQ("num_args", INT64_C(-2));
+            READ_AND_CHECK_EQ("register_file_size", INT64_C(0));
+            READ_AND_CHECK_EQ("num_params", INT64_C(0));
             info->packed_func.name_ptr = name;
             info->packed_func.name_size = name_size;
             break;
@@ -94,10 +94,10 @@ static int TVM_RT_WASM_RelaxExecutableLoadGlobalSection(RelaxExecutable *exec,
             // register file size
             TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(uint64_t), load_global_fail);
             uint64_t register_size = *(uint64_t *)cur_ptr;
-            if (unlikely(register_size >= (uint64_t)RelaxVM_Reg_Special)) {
+            if (unlikely(register_size >= (uint64_t)RelaxVM_RegName_Special)) {
                 TVM_RT_SET_ERROR_AND_GOTO(load_global_fail,
                                           "Relax VM Register Name is too big: %" PRIu64 " >= %zu",
-                                          register_size, RelaxVM_Reg_Special);
+                                          register_size, RelaxVM_RegName_Special);
             }
             info->vm_func.register_file_size = (size_t)register_size;
             // param names
@@ -153,16 +153,20 @@ static int TVM_RT_WASM_RelaxExecutableLoadConstantSection(RelaxExecutable *exec,
             break;
         case RelaxConstantType_ShapeTuple:
             TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(int64_t), load_constant_fail);
-            constant->shape_tuple.ndim = (size_t) * (int64_t *)cur_ptr;
+            constant->register_obj.shape_tuple.ndim = (int)*(int64_t *)cur_ptr;
             TVM_RT_WASM_BinaryCheckReadOrGoto(
-                cur_ptr, constant->shape_tuple.ndim * sizeof(uint64_t), load_constant_fail);
-            constant->shape_tuple.shape = (const int64_t *)cur_ptr;
+                cur_ptr, constant->register_obj.shape_tuple.ndim * sizeof(uint64_t),
+                load_constant_fail);
+            constant->register_obj.shape_tuple.shape = (int64_t *)cur_ptr;
+            constant->register_obj.ref_num = 1;
             break;
         case RelaxConstantType_String:
             TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(int64_t), load_constant_fail);
-            constant->string.size = (size_t) * (int64_t *)cur_ptr;
-            TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, constant->string.size, load_constant_fail);
-            constant->string.ptr = cur_ptr;
+            constant->register_obj.string.size = (size_t) * (int64_t *)cur_ptr;
+            TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, constant->register_obj.string.size,
+                                              load_constant_fail);
+            constant->register_obj.string.ptr = (char *)cur_ptr;
+            constant->register_obj.ref_num = 1;
             break;
         case RelaxConstantType_Int:
             TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(int64_t), load_constant_fail);
@@ -204,15 +208,16 @@ static int TVM_RT_WASM_RelaxExecutableLoadCodeSection(RelaxExecutable *exec, Bin
     do {                                                                                           \
         int64_t _tmp = (_val);                                                                     \
         if (_tmp < kTVM_kBeginSpecialReg) {                                                        \
-            if (unlikely(_tmp >= (int64_t)RelaxVM_Reg_Special)) { /* overflow */                   \
+            if (unlikely(_tmp >= (int64_t)RelaxVM_RegName_Special)) { /* overflow */               \
                 TVM_RT_SET_ERROR_RETURN(-1,                                                        \
                                         "Relax VM Register Name is too big: %" PRIi64 " >= %zu",   \
-                                        _tmp, RelaxVM_Reg_Special);                                \
+                                        _tmp, RelaxVM_RegName_Special);                            \
             }                                                                                      \
+            (_dst) = (RelaxVMRegisterName)_tmp;                                                    \
         } else if (_tmp == kTVM_kVoidRegister) {                                                   \
-            _dst = RelaxVM_Reg_Void;                                                               \
+            (_dst) = RelaxVM_RegName_Void;                                                         \
         } else if (_tmp == kTVM_kVMRegister) {                                                     \
-            _dst = RelaxVM_Reg_VM;                                                                 \
+            (_dst) = RelaxVM_RegName_VM;                                                           \
         } else {                                                                                   \
             TVM_RT_SET_ERROR_RETURN(-1, "Unsupported special relax VM register %" PRIi64, _tmp);   \
         }                                                                                          \

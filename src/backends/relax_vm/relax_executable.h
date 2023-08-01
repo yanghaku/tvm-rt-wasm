@@ -13,19 +13,14 @@ extern "C" {
 
 #include <dlpack/dlpack.h>
 #include <module/module.h>
+#include <relax_vm/relax_vm_register.h>
 
 /**
- * In the Relax VM, offset and register name are all size_t.
- * size_t may be 32bit or 64bit.
- *
+ * In the Relax VM, offset and register name are size_t/ssize_t.
+ * size_t/ssize_t may be 32bit or 64bit.
  */
 typedef size_t RelaxVMRegisterName;
 typedef ssize_t RelaxVMIndex;
-
-// Special register names
-#define RelaxVM_Reg_Special ((RelaxVMRegisterName)(UINT32_C(1) << 31))
-#define RelaxVM_Reg_Void ((RelaxVMRegisterName)(RelaxVM_Reg_Special + 0))
-#define RelaxVM_Reg_VM ((RelaxVMRegisterName)(RelaxVM_Reg_Special + 1))
 
 /** @brief Relax Executable Instruction data. */
 typedef struct RelaxInstruction {
@@ -82,19 +77,14 @@ typedef struct RelaxInstruction {
 
 /** @brief Relax Executable Constant data. */
 typedef struct RelaxConstant {
+    /** @brief The constant value */
     union {
         DLTensor dl_tensor;
+        RelaxVMRegisterObject register_obj;
         DLDataType dl_datatype;
-        struct {
-            const int64_t *shape;
-            size_t ndim;
-        } shape_tuple;
-        struct {
-            const char *ptr;
-            size_t size;
-        } string;
         int64_t int_value;
     };
+
     /** @brief The type of Constant. */
     enum RelaxConstantType {
         RelaxConstantType_DLTensor = 0U,

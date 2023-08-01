@@ -188,7 +188,9 @@ function(add_tvm_bundle_executable target_name source_files model out_lib_dir ex
     if (${executor} STREQUAL "relax_vm")
         # need whole archive or set undefined symbol
         target_link_libraries(${target_name} PRIVATE -Wl,--undefined=TVM_RT_WASM_RelaxExecutableModuleCreate
-                tvm-rt-wasm::tvm-rt-backend-relax-vm tvm-rt-wasm::tvm-rt-core)
+                # now use the whole archive
+                -Wl,--whole-archive tvm-rt-wasm::tvm-rt-backend-relax-vm -Wl,--no-whole-archive
+                tvm-rt-wasm::tvm-rt-core)
     else ()
         string(REPLACE "_" "-" backend_name ${executor})    # '_' replace to '-'
         target_link_libraries(${target_name} PRIVATE tvm-rt-wasm::tvm-rt-backend-${backend_name} tvm-rt-wasm::tvm-rt-core)
