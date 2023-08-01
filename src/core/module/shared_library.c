@@ -5,7 +5,7 @@
 
 #if USE_WASI_SDK // WASI_SDK no dlopen
 #define TVM_RT_HAS_SHARED_LIB 0
-#else            // NO WASI_SDK
+#else // NO WASI_SDK
 #ifdef _MSC_VER
 // todo: open shared library in windows
 #elif __has_include(<dlfcn.h>)

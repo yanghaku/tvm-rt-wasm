@@ -15,27 +15,30 @@ typedef struct SystemLibraryModule {
 
 /**
  * @brief The symbols for system library.
- * @note The sys_lib_module instance will manage this trie after the init.
+ * @note The system library module instance will manage this trie after created.
  */
-static Trie *system_lib_symbol = NULL;
-static size_t num_sys_lib_symbol = 0;
+static Trie *sys_lib_symbols = NULL;
 
-/** @brief The system library module is a single instance */
-static SystemLibraryModule *sys_lib_module = NULL;
+/** @brief The system library root module handle. (single instance). */
+static Module *sys_lib_root_mod_handle = NULL;
+
+/**
+ * if sys_lib_symbols is not NULL, the num_sys_lib_symbol is valid.
+ * if sys_lib_root_mod_handle is not NULL, the sys_lib_root_mod_release_func is valid.
+ */
+static union {
+    /** @brief The number of system library symbols. */
+    size_t num_sys_lib_symbol;
+    /** @brief The system library root module release function. */
+    int (*sys_lib_root_mod_release_func)(Module *self);
+} sys_lib_status = {.num_sys_lib_symbol = 0};
 
 /** @brief Destroy the single instance when exit. */
 static TVM_ATTRIBUTE_UNUSED __attribute__((destructor)) void TVM_RT_WASM_Destructor_SysLib() {
-    if (sys_lib_module) {
-        MODULE_BASE_MEMBER_FREE(sys_lib_module);
-        if (sys_lib_module->packed_functions) {
-            TVM_RT_WASM_HeapMemoryFree(sys_lib_module->packed_functions);
-        }
-        TVM_RT_WASM_HeapMemoryFree(sys_lib_module);
-        sys_lib_module = NULL;
-    }
-
-    if (system_lib_symbol) {
-        TVM_RT_WASM_TrieRelease(system_lib_symbol);
+    if (sys_lib_root_mod_handle) {
+        sys_lib_status.sys_lib_root_mod_release_func(sys_lib_root_mod_handle);
+    } else if (sys_lib_symbols) {
+        TVM_RT_WASM_TrieRelease(sys_lib_symbols);
     }
 }
 
@@ -44,16 +47,32 @@ static TVM_ATTRIBUTE_UNUSED __attribute__((destructor)) void TVM_RT_WASM_Destruc
  * @sa tvm/runtime/c_backend_api.h
  */
 TVM_DLL TVM_ATTRIBUTE_UNUSED int TVMBackendRegisterSystemLibSymbol(const char *name, void *ptr) {
-    if (unlikely(system_lib_symbol == NULL)) {
-        TVM_RT_WASM_TrieCreate(&system_lib_symbol);
+    if (unlikely(sys_lib_symbols == NULL)) {
+        if (unlikely(sys_lib_root_mod_handle != NULL)) {
+            TVM_RT_SET_ERROR_RETURN(
+                -1, "Cannot register symbol! The system library module has been created!");
+        }
+        TVM_RT_WASM_TrieCreate(&sys_lib_symbols);
     }
-    ++num_sys_lib_symbol;
-    return TVM_RT_WASM_TrieInsert(system_lib_symbol, (const uint8_t *)name, ptr);
+    ++sys_lib_status.num_sys_lib_symbol;
+    return TVM_RT_WASM_TrieInsert(sys_lib_symbols, (const uint8_t *)name, ptr);
 }
 
 /** @brief The release function for system library module. */
 static int TVM_RT_WASM_SysLibModuleReleaseFunc(Module *mod) {
-    // do nothing
+    SystemLibraryModule *sys_lib_module = (SystemLibraryModule *)mod;
+    MODULE_BASE_MEMBER_FREE(sys_lib_module);
+    if (sys_lib_module->packed_functions) {
+        TVM_RT_WASM_HeapMemoryFree(sys_lib_module->packed_functions);
+    }
+    TVM_RT_WASM_HeapMemoryFree(sys_lib_module);
+    return 0;
+}
+
+/** @brief Do nothing function, replace the system library root module release function.
+ * The system library root module can only be released when exit.
+ */
+static int TVM_RT_WASM_ReleaseDoNothing(Module *mod) {
     (void)mod;
     return 0;
 }
@@ -71,11 +90,11 @@ static void TVM_RT_WASM_TrieVisit_ChangeSymbolToPackedFunc(void **data_ptr, void
 }
 
 int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out_module) {
-    if (likely(sys_lib_module != NULL)) { // if the instance exists, return
-        *out_module = (Module *)sys_lib_module;
+    if (likely(sys_lib_root_mod_handle != NULL)) { // if the instance exists, return
+        *out_module = sys_lib_root_mod_handle;
         return 0;
     }
-    if (unlikely(system_lib_symbol == NULL)) {
+    if (unlikely(sys_lib_symbols == NULL)) {
         TVM_RT_SET_ERROR_RETURN(-1, "No symbol in system library!");
     }
 
@@ -87,10 +106,12 @@ int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out_module) {
     (*out_module)->GetFunction = TVM_RT_WASM_DefaultModuleGetFunction;
     TVM_RT_WASM_TrieCreate(&((*out_module)->env_funcs_map));
 
+    // save this system library module handle before load dev_blob.
+    SystemLibraryModule *sys_lib_module = (SystemLibraryModule *)(*out_module);
+
     // dev_blob
     const char *blob = NULL;
-    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery(system_lib_symbol,
-                                              (const uint8_t *)TVM_DEV_MODULE_BLOB,
+    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery(sys_lib_symbols, (const uint8_t *)TVM_DEV_MODULE_BLOB,
                                               (void **)&blob)) {
         status = TVM_RT_WASM_LibraryModuleLoadBinaryBlob(blob, out_module);
         if (unlikely(status)) {
@@ -100,7 +121,7 @@ int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out_module) {
 
     // module context
     void **module_context = NULL;
-    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery(system_lib_symbol, (const uint8_t *)TVM_MODULE_CTX,
+    if (TRIE_SUCCESS == TVM_RT_WASM_TrieQuery(sys_lib_symbols, (const uint8_t *)TVM_MODULE_CTX,
                                               (void **)&module_context)) {
         *module_context = *out_module;
     } else {
@@ -110,21 +131,22 @@ int TVM_RT_WASM_SystemLibraryModuleCreate(Module **out_module) {
                                   TVM_MODULE_CTX);
     }
 
-    /** init packed function */
-    SystemLibraryModule *mod = (SystemLibraryModule *)(*out_module);
-
-    mod->packed_functions =
-        TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * num_sys_lib_symbol);
-    memset(mod->packed_functions, 0, sizeof(PackedFunction) * num_sys_lib_symbol);
-    TVM_RT_WASM_TrieVisit(system_lib_symbol, TVM_RT_WASM_TrieVisit_ChangeSymbolToPackedFunc,
-                          mod->packed_functions);
+    // init packed functions
+    sys_lib_module->packed_functions =
+        TVM_RT_WASM_HeapMemoryAlloc(sizeof(PackedFunction) * sys_lib_status.num_sys_lib_symbol);
+    memset(sys_lib_module->packed_functions, 0,
+           sizeof(PackedFunction) * sys_lib_status.num_sys_lib_symbol);
+    TVM_RT_WASM_TrieVisit(sys_lib_symbols, TVM_RT_WASM_TrieVisit_ChangeSymbolToPackedFunc,
+                          sys_lib_module->packed_functions);
 
     // manage this Trie*
-    mod->module_funcs_map = system_lib_symbol;
-    system_lib_symbol = NULL;
-    num_sys_lib_symbol = 0;
+    sys_lib_module->module_funcs_map = sys_lib_symbols;
+    sys_lib_symbols = NULL;
 
-    sys_lib_module = mod;
+    sys_lib_root_mod_handle = *out_module;
+    // save the release function.
+    sys_lib_status.sys_lib_root_mod_release_func = sys_lib_root_mod_handle->Release;
+    sys_lib_root_mod_handle->Release = TVM_RT_WASM_ReleaseDoNothing;
     return 0;
 
 sys_lib_fail:
