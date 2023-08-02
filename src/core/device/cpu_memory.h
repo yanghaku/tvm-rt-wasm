@@ -25,7 +25,8 @@ extern "C" {
 #define TVM_RT_WASM_HeapMemoryAlloc malloc
 #define TVM_RT_WASM_HeapMemoryFree free
 
-#define TVM_RT_WASM_WorkplaceMemoryAlloc TVM_RT_WASM_HeapMemoryAlignedAlloc
+#define TVM_RT_WASM_WorkplaceMemoryAlignedAlloc TVM_RT_WASM_HeapMemoryAlignedAlloc
+#define TVM_RT_WASM_WorkplaceMemoryAlloc malloc
 #define TVM_RT_WASM_WorkplaceMemoryFree free
 
 #ifdef __cplusplus

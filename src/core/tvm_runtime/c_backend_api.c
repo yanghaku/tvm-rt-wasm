@@ -40,7 +40,7 @@ void *TVMBackendAllocWorkspace(int device_type, int device_id, uint64_t nbytes, 
     (void)dtype_bits_hint;
     (void)dtype_code_hint;
     if (device_type == kDLCPU || device_type == kDLCUDAHost) {
-        return TVM_RT_WASM_WorkplaceMemoryAlloc(nbytes);
+        return TVM_RT_WASM_WorkplaceMemoryAlignedAlloc(nbytes);
     }
     DeviceAPI *deviceApi;
     int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
