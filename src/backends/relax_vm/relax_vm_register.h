@@ -91,7 +91,9 @@ typedef struct RelaxVMRegister {
 #define TVM_RT_WASM_RelaxVMRegisterCopy(_dst, _src)                                                \
     do {                                                                                           \
         (_dst) = (_src);                                                                           \
-        if ((_dst).typecode & RelaxVMRegType_VMObjectMask) {                                       \
+        if ((_dst).typecode == RelaxVMRegType_ManagedDLTensor) {                                   \
+            ++(((RelaxVMRegisterManagedDLTensor *)((_dst).value.v_handle))->ref_num);              \
+        } else if ((_dst).typecode & RelaxVMRegType_VMObjectMask) {                                \
             ++(((RelaxVMRegisterObject *)((_dst).value.v_handle))->ref_num);                       \
         }                                                                                          \
     } while (0)

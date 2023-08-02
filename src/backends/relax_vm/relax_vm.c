@@ -131,12 +131,10 @@ TVM_RT_WASM_RelaxVirtualMachine TVM_RT_WASM_RelaxVirtualMachineCreate(TVMModuleH
         case RelaxConstantType_ShapeTuple:
             constants[i].typecode = RelaxVMRegType_VMObjectShapeTuple;
             constants[i].value.v_handle = &relax_constants[i].register_obj;
-            ++relax_constants->register_obj.ref_num;
             break;
         case RelaxConstantType_String:
             constants[i].typecode = RelaxVMRegType_VMObjectString;
             constants[i].value.v_handle = &relax_constants[i].register_obj.ref_num;
-            ++relax_constants->register_obj.ref_num;
             break;
         case RelaxConstantType_Int:
             constants[i].typecode = RelaxVMRegType_Int;
@@ -184,12 +182,13 @@ int TVM_RT_WASM_RelaxVirtualMachineFree(TVM_RT_WASM_RelaxVirtualMachine vm) {
     }
     if (vm->constants) {
         for (size_t i = 0; i < vm->exec_module->exec.num_constants; ++i) {
-            TVM_RT_WASM_RelaxVMRegisterFreeValue(vm->constants[i]);
+            // only free the managed tensor.
+            if (vm->constants[i].typecode == RelaxVMRegType_ManagedDLTensor) {
+                RelaxVMRegisterManagedDLTensor *t = vm->constants[i].value.v_handle;
+                TVM_RT_WASM_RelaxVMRegisterFreeManagedDLTensor(t);
+            }
         }
         TVM_RT_WASM_HeapMemoryFree(vm->constants);
-    }
-    if (vm->exec_module) {
-        vm->exec_module->Release((Module *)vm->exec_module);
     }
     if (vm->frames) {
         for (size_t i = 0; i < vm->frame_capacity; ++i) {
@@ -207,6 +206,9 @@ int TVM_RT_WASM_RelaxVirtualMachineFree(TVM_RT_WASM_RelaxVirtualMachine vm) {
         TVM_RT_WASM_TrieVisit(vm->func_inputs_output_map, TVM_RT_WASM_TrieVisit_FreeInputsOutput,
                               NULL);
         TVM_RT_WASM_TrieRelease(vm->func_inputs_output_map);
+    }
+    if (vm->exec_module) {
+        vm->exec_module->Release((Module *)vm->exec_module);
     }
     if (vm->devices) {
         TVM_RT_WASM_HeapMemoryFree(vm->devices);
