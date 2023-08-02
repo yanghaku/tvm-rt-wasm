@@ -111,8 +111,7 @@ RELAX_VM_FUNC(AllocStorage) {
     size_t nbytes = TVM_RT_WASM_DLTensor_GetDataBytes(shape_tuple->shape_tuple.shape,
                                                       shape_tuple->shape_tuple.ndim, dtype);
     if (dev.device_type == kDLCPU) {
-        // todo: data alignment.
-        data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
+        data = TVM_RT_WASM_HeapMemoryAlignedAlloc(nbytes);
     } else {
         DeviceAPI *device_api;
         int status = TVM_RT_WASM_DeviceAPIGet(dev.device_type, &device_api);

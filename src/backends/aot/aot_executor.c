@@ -26,7 +26,7 @@ _Pragma(TOSTRING(weak TVM_GET_METADATA_FUNC)) int32_t
         size_t data_bytes = TVM_RT_WASM_DLTensor_GetDataBytes((_tensor)->shape, (_tensor)->ndim,   \
                                                               (_tensor)->dtype);                   \
         if ((_device).device_type == kDLCPU) {                                                     \
-            (_tensor)->data = TVM_RT_WASM_HeapMemoryAlloc(data_bytes);                             \
+            (_tensor)->data = TVM_RT_WASM_HeapMemoryAlignedAlloc(data_bytes);                      \
         } else {                                                                                   \
             (_tensor)->data = device_api->AllocDataSpace(device.device_id, data_bytes);            \
         }                                                                                          \

@@ -82,7 +82,7 @@ int TVM_RT_WASM_DLTensor_LoadFromStream(DLTensor *tensor, StreamReader *reader) 
     }
 
     if (tensor->data == NULL) {
-        tensor->data = TVM_RT_WASM_HeapMemoryAlloc(tensor_byte_size);
+        tensor->data = TVM_RT_WASM_HeapMemoryAlignedAlloc(tensor_byte_size);
     }
 
     if (tensor->device.device_type == kDLCPU || tensor->device.device_type == kDLCUDAHost) {

@@ -10,81 +10,23 @@
 extern "C" {
 #endif
 
-#ifdef CPU_STATIC_MEMORY
+/** @brief Up to the multiple of (1<<_bits) */
+#define ALIGN_UP(_a, _bits) (((_a) + (1 << (_bits)) - 1) & (~((1 << (_bits)) - 1)))
 
-#include <utils/common.h>
-
-#ifndef HEAP_MEMORY_STATIC_SIZE
-#define HEAP_MEMORY_STATIC_SIZE 602000000
-#endif // HEAP_MEMORY_STATIC_SIZE
-
-#ifndef STACK_MEMORY_STATIC_SIZE
-#define STACK_MEMORY_STATIC_SIZE 420000000
-#endif // STACK_MEMORY_STATIC_SIZE
-
-#ifndef STACK_ALLOC_HISTORY_MAX_SIZE
-#define STACK_ALLOC_HISTORY_MAX_SIZE 1000
-#endif // STACK_ALLOC_HISTORY_MAX_SIZE
-
-extern char heap_memory[];
-extern uintptr_t heap_now_ptr;
-
-extern char stack_memory[];
-extern uintptr_t stack_now_ptr;
-extern uintptr_t stack_alloc_history[];
-extern size_t history_size;
-
-#define alignment_up(a, size) (((a) + (size)-1) & (~((size)-1)))
-#define ALIGNMENT_SIZE 16
-
-/**
- * @brief Allocate the heap memory.
- * @param bytes The number of bytes to allocate.
- * @return the pointer
- */
-INLINE void *TVM_RT_WASM_HeapMemoryAlloc(size_t bytes) {
-    uintptr_t ans = alignment_up(heap_now_ptr, ALIGNMENT_SIZE);
-    heap_now_ptr = ans + bytes;
-    return (void *)ans;
-}
-
-/**
- * @brief Free the heap memory.
- * @param ptr the pointer
- */
-INLINE void TVM_RT_WASM_HeapMemoryFree(void *ptr) { (void)ptr; }
-
-/**
- * @brief Allocate the temporal memory.
- * @param bytes The number of bytes to allocate.
- * @return the pointer
- */
-INLINE void *TVM_RT_WASM_WorkplaceMemoryAlloc(size_t bytes) {
-    stack_alloc_history[history_size++] = stack_now_ptr;
-    uintptr_t ans = alignment_up(stack_now_ptr, ALIGNMENT_SIZE);
-    stack_now_ptr = ans + bytes;
-    return (void *)ans;
-}
-
-/**
- * @brief Free the temporal memory.
- * @param ptr the pointer
- */
-INLINE void TVM_RT_WASM_WorkplaceMemoryFree(void *ptr) {
-    (void)ptr;
-    stack_now_ptr = stack_alloc_history[--history_size];
-}
-
-#else // not defined CPU_STATIC_MEMORY
+/** @brief Default data alignment is 64 (1<<6) */
+#ifndef DATA_ALIGNMENT_BITS
+#define DATA_ALIGNMENT_BITS 6
+#endif // DATA_ALIGNMENT_BITS
 
 #include <stdlib.h>
 
+#define TVM_RT_WASM_HeapMemoryAlignedAlloc(bytes)                                                  \
+    aligned_alloc((1 << DATA_ALIGNMENT_BITS), ALIGN_UP(bytes, DATA_ALIGNMENT_BITS))
 #define TVM_RT_WASM_HeapMemoryAlloc malloc
 #define TVM_RT_WASM_HeapMemoryFree free
-#define TVM_RT_WASM_WorkplaceMemoryAlloc malloc
-#define TVM_RT_WASM_WorkplaceMemoryFree free
 
-#endif // CPU_STATIC_MEMORY
+#define TVM_RT_WASM_WorkplaceMemoryAlloc TVM_RT_WASM_HeapMemoryAlignedAlloc
+#define TVM_RT_WASM_WorkplaceMemoryFree free
 
 #ifdef __cplusplus
 } // extern "C"

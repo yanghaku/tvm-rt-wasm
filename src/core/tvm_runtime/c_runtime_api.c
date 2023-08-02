@@ -138,7 +138,7 @@ int TVMArrayAlloc(const tvm_index_t *shape, int ndim, int dtype_code, int dtype_
     void *data = NULL;
 
     if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
-        data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
+        data = TVM_RT_WASM_HeapMemoryAlignedAlloc(nbytes);
     } else {
         DeviceAPI *deviceApi;
         int status = TVM_RT_WASM_DeviceAPIGet(device_type, &deviceApi);
@@ -301,7 +301,7 @@ int TVMDeviceAllocDataSpace(DLDevice dev, size_t nbytes, size_t alignment, DLDat
     (void)type_hint;
     CHECK_INPUT_POINTER(out_data, -2, "Output data pointer");
     if (dev.device_type == kDLCPU || dev.device_type == kDLCUDAHost) {
-        *out_data = TVM_RT_WASM_HeapMemoryAlloc(nbytes);
+        *out_data = TVM_RT_WASM_HeapMemoryAlignedAlloc(nbytes);
         return 0;
     }
     DeviceAPI *deviceApi;
