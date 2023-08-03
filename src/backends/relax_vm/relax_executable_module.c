@@ -141,12 +141,23 @@ static int TVM_RT_WASM_RelaxExecutableLoadConstantSection(RelaxExecutable *exec,
         TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(uint32_t), load_constant_fail);
         constant->type = (enum RelaxConstantType) * (uint32_t *)cur_ptr;
         switch (constant->type) {
-        case RelaxConstantType_DLTensor:
+        case RelaxConstantType_DLTensor: {
             status = TVM_RT_WASM_DLTensor_LoadFromBinary(&constant->dl_tensor, reader);
             if (unlikely(status)) {
                 goto load_constant_fail;
             }
+#if TENSOR_DATA_MUST_ALIGN
+            void *data = constant->dl_tensor.data;
+            if (((uintptr_t)data) & ((1 << DATA_ALIGNMENT_BITS) - 1)) { // not aligned
+                constant->type = RelaxConstantType_DLTensorShouldFree;
+                size_t bytes = TVM_RT_WASM_DLTensor_GetDataBytes(
+                    constant->dl_tensor.shape, constant->dl_tensor.ndim, constant->dl_tensor.dtype);
+                constant->dl_tensor.data = TVM_RT_WASM_HeapMemoryAlignedAlloc(bytes);
+                memcpy(constant->dl_tensor.data, data, bytes);
+            }
+#endif // TENSOR_DATA_MUST_ALIGN
             break;
+        }
         case RelaxConstantType_DLDataType:
             TVM_RT_WASM_BinaryCheckReadOrGoto(cur_ptr, sizeof(DLDataType), load_constant_fail);
             constant->dl_datatype = *(DLDataType *)cur_ptr;
@@ -303,6 +314,14 @@ static int TVM_RT_WASM_RelaxExecutableModuleReleaseFunc(Module *self) {
     MODULE_BASE_MEMBER_FREE(mod);
 
     if (mod->exec.constants) {
+#if TENSOR_DATA_MUST_ALIGN
+        for (size_t i = 0; i < mod->exec.num_constants; ++i) {
+            RelaxConstant *constant = mod->exec.constants + i;
+            if (constant->type == RelaxConstantType_DLTensorShouldFree) {
+                TVM_RT_WASM_HeapMemoryFree(constant->dl_tensor.data);
+            }
+        }
+#endif // TENSOR_DATA_MUST_ALIGN
         TVM_RT_WASM_HeapMemoryFree(mod->exec.constants);
     }
     if (mod->exec.relax_vm_functions_map) {

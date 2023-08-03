@@ -15,6 +15,13 @@ extern "C" {
 #include <module/module.h>
 #include <relax_vm/relax_vm_register.h>
 
+#if defined(__wasm32__) || defined(__wasi__) || defined(__EMSCRIPTEN__)
+#define TENSOR_DATA_MUST_ALIGN 0
+#else
+// DLTensor data must be aligned because some optimization such as avx instr.
+#define TENSOR_DATA_MUST_ALIGN 1
+#endif
+
 /**
  * In the Relax VM, offset and register name are size_t/ssize_t.
  * size_t/ssize_t may be 32bit or 64bit.
@@ -92,6 +99,9 @@ typedef struct RelaxConstant {
         RelaxConstantType_ShapeTuple = 2U,
         RelaxConstantType_String = 3U,
         RelaxConstantType_Int = 4U,
+#if TENSOR_DATA_MUST_ALIGN
+        RelaxConstantType_DLTensorShouldFree = 255U,
+#endif // TENSOR_DATA_MUST_ALIGN
     } type;
 } RelaxConstant;
 

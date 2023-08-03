@@ -109,6 +109,9 @@ TVM_RT_WASM_RelaxVirtualMachine TVM_RT_WASM_RelaxVirtualMachineCreate(TVMModuleH
     RelaxConstant *relax_constants = exec_module->exec.constants;
     for (size_t i = 0; i < exec_module->exec.num_constants; ++i) {
         switch (relax_constants[i].type) {
+#if TENSOR_DATA_MUST_ALIGN
+        case RelaxConstantType_DLTensorShouldFree:
+#endif // TENSOR_DATA_MUST_ALIGN
         case RelaxConstantType_DLTensor: {
             const DLTensor *src_tensor = &relax_constants[i].dl_tensor;
             constants[i].typecode = RelaxVMRegType_Nullptr;
