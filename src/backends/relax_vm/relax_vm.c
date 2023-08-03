@@ -301,9 +301,25 @@ int TVM_RT_WASM_RelaxVirtualMachineGetOutput(TVM_RT_WASM_RelaxVirtualMachine vm,
     CHECK_INPUT_POINTER(data_out, -2, "DLTensor");
     TVM_RT_WASM_RelaxVMGetAndCheckFunc(vm, func_name);
     TVM_RT_WASM_RelaxVMFuncInputsOutputGetOrCreate(vm, func, func_name);
-    (void)index;
-    // todo
-    return 0;
+    const RelaxVMRegister *output_reg = inputs_output->inputs_output + inputs_output->num_inputs;
+    DLTensor *src_tensor;
+    if (output_reg->typecode == RelaxVMRegType_ManagedDLTensor ||
+        output_reg->typecode == RelaxVMRegType_DLTensorHandle) {
+        CHECK_INDEX_RANGE(1, index);
+        src_tensor = output_reg->value.v_handle;
+    } else if (output_reg->typecode == RelaxVMRegType_VMObjectTuple) {
+        RelaxVMRegisterObject *tuple = output_reg->value.v_handle;
+        CHECK_INDEX_RANGE((uint32_t)tuple->tuple.size, index);
+        RelaxVMRegisterTypeCode typecode = tuple->tuple.ptr[index].typecode;
+        if (typecode != RelaxVMRegType_ManagedDLTensor &&
+            typecode != RelaxVMRegType_DLTensorHandle) {
+            TVM_RT_SET_ERROR_RETURN(-1, "Relax VM output %u is not tensor.", index);
+        }
+        src_tensor = tuple->tuple.ptr[index].value.v_handle;
+    } else {
+        TVM_RT_SET_ERROR_RETURN(-1, "Relax VM has no outputs now.");
+    }
+    return TVMDeviceCopyDataFromTo(src_tensor, data_out, NULL);
 }
 
 /*-----------------Functions to get relax virtual machine information-----------------------------*/
@@ -334,6 +350,12 @@ int TVM_RT_WASM_RelaxVirtualMachineGetNumOutputs(TVM_RT_WASM_RelaxVirtualMachine
     CHECK_RelaxVirtualMachine(vm);
     TVM_RT_WASM_RelaxVMGetAndCheckFunc(vm, func_name);
     TVM_RT_WASM_RelaxVMFuncInputsOutputGetOrCreate(vm, func, func_name);
-    // todo
+    const RelaxVMRegister *output_reg = inputs_output->inputs_output + inputs_output->num_inputs;
+    if (output_reg->typecode == RelaxVMRegType_ManagedDLTensor ||
+        output_reg->typecode == RelaxVMRegType_DLTensorHandle) {
+        return 1;
+    } else if (output_reg->typecode == RelaxVMRegType_VMObjectTuple) {
+        return ((RelaxVMRegisterObject *)(output_reg->value.v_handle))->tuple.size;
+    }
     return 0;
 }

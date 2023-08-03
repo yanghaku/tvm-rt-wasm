@@ -260,3 +260,30 @@ int TVM_RT_WASM_RelaxVMRunFunction(TVM_RT_WASM_RelaxVirtualMachine vm, RelaxFunc
     return TVM_RT_WASM_RelaxVMInterpretInstructions(
         vm, &inputs_output->inputs_output[inputs_output->num_inputs]);
 }
+
+/*---------------------Functions for Relax VM register -------------------------------------------*/
+
+void TVM_RT_WASM_RelaxVMRegisterFreeObject(RelaxVMRegisterObject *obj, int typecode) {
+    if ((--obj->ref_num) == 0) {
+        switch (typecode) {
+        case RelaxVMRegType_VMObjectStorage: /* free the Storage */
+            TVMDeviceFreeDataSpace(obj->storage.device, obj->storage.data);
+            break;
+        case RelaxVMRegType_VMObjectShapeTuple: /* free the Shape Tuple */
+            TVM_RT_WASM_HeapMemoryFree(obj->shape_tuple.shape);
+            break;
+        case RelaxVMRegType_VMObjectString: /* free the String */
+            TVM_RT_WASM_HeapMemoryFree(obj->string.ptr);
+            break;
+        case RelaxVMRegType_VMObjectTuple: /* free the Tuple Object. */
+            for (int i = 0; i < obj->tuple.size; ++i) {
+                RelaxVMRegister reg = obj->tuple.ptr[i];
+                TVM_RT_WASM_RelaxVMRegisterFreeValue(reg);
+            }
+            break;
+        default:
+            break;
+        }
+        TVM_RT_WASM_HeapMemoryFree(obj);
+    }
+}

@@ -30,6 +30,10 @@ typedef struct RelaxVMRegisterObject {
             char *ptr;
             size_t size;
         } string;
+        struct {
+            struct RelaxVMRegister *ptr;
+            int size;
+        } tuple;
     };
 
     /** @brief The reference number. */
@@ -76,6 +80,7 @@ typedef enum RelaxVMRegisterTypeCode {
     RelaxVMRegType_VMObjectStorage = 1 | RelaxVMRegType_VMObjectMask,
     RelaxVMRegType_VMObjectShapeTuple = 2 | RelaxVMRegType_VMObjectMask,
     RelaxVMRegType_VMObjectString = 3 | RelaxVMRegType_VMObjectMask,
+    RelaxVMRegType_VMObjectTuple = 4 | RelaxVMRegType_VMObjectMask,
 } RelaxVMRegisterTypeCode;
 
 /** @brief The relax VM Register to save values. */
@@ -119,28 +124,7 @@ typedef struct RelaxVMRegister {
 /**
  * @brief Free the Relax VM Object instance.
  */
-#define TVM_RT_WASM_RelaxVMRegisterFreeObject(_obj, _typecode)                                     \
-    do {                                                                                           \
-        if ((--(_obj)->ref_num) == 0) {                                                            \
-            switch (_typecode) {                                                                   \
-            case RelaxVMRegType_VMObjectStorage:                                                   \
-                /* free the Storage */                                                             \
-                TVMDeviceFreeDataSpace((_obj)->storage.device, (_obj)->storage.data);              \
-                break;                                                                             \
-            case RelaxVMRegType_VMObjectShapeTuple:                                                \
-                /* free the Shape Tuple */                                                         \
-                TVM_RT_WASM_HeapMemoryFree((_obj)->shape_tuple.shape);                             \
-                break;                                                                             \
-            case RelaxVMRegType_VMObjectString:                                                    \
-                /* free the String */                                                              \
-                TVM_RT_WASM_HeapMemoryFree((_obj)->string.ptr);                                    \
-                break;                                                                             \
-            default:                                                                               \
-                break;                                                                             \
-            }                                                                                      \
-            TVM_RT_WASM_HeapMemoryFree((_obj));                                                    \
-        }                                                                                          \
-    } while (0)
+void TVM_RT_WASM_RelaxVMRegisterFreeObject(RelaxVMRegisterObject *obj, int typecode);
 
 /**
  * @brief Free the Relax VM Register Managed DLTensor.
